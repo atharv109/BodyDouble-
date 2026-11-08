@@ -114,18 +114,32 @@ add_file() {
     { printf '%s\n' "$sum"; json_quote "$path"; printf '\n'; } > "$snap/f-$key"
 }
 
+add_tree() {
+    snap=$1 dir=$2
+    [ -d "$dir" ] || return 0
+    for path in "$dir"/* "$dir"/.[!.]* "$dir"/..?*; do
+        [ -e "$path" ] || continue
+        if [ -d "$path" ]; then
+            add_tree "$snap" "$path"
+        else
+            add_file "$snap" "$path"
+        fi
+    done
+}
+
 take_snapshot() {
     snap=$1
     rm -rf "$snap"
     mkdir -p "$snap"
     add_file "$snap" "$ROOT/etc/crontab"
-    for path in "$ROOT"/etc/cron.d/* "$ROOT"/var/spool/cron/* "$ROOT"/var/spool/cron/*/* \
+    for path in "$ROOT"/etc/cron.d/* \
         "$ROOT"/root/.ssh/authorized_keys "$ROOT"/home/*/.ssh/authorized_keys \
         "$ROOT"/usr/bin/top "$ROOT"/usr/bin/ps "$ROOT"/usr/bin/ls "$ROOT"/usr/bin/ss \
         "$ROOT"/usr/bin/netstat "$ROOT"/usr/local/bin/*; do
         [ -e "$path" ] || continue
         add_file "$snap" "$path"
     done
+    add_tree "$snap" "$ROOT/var/spool/cron"
     if command -v ss >/dev/null 2>&1; then
         ss -Htn 2>/dev/null | awk '$1 == "ESTAB" { print $5 }' | while IFS= read -r dest; do
             [ -n "$dest" ] || continue

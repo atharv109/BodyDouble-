@@ -21,7 +21,7 @@ def test_sensor_is_posix_push_only_and_covers_required_paths() -> None:
     for path in (
         "/etc/crontab",
         "/etc/cron.d/*",
-        "/var/spool/cron/*",
+        "/var/spool/cron",
         "/root/.ssh/authorized_keys",
         "/home/*/.ssh/authorized_keys",
         "/usr/bin/top",
@@ -32,6 +32,7 @@ def test_sensor_is_posix_push_only_and_covers_required_paths() -> None:
         "/usr/local/bin/*",
     ):
         assert path in text
+    assert 'add_tree "$snap" "$ROOT/var/spool/cron"' in text
 
 
 def test_json_byte_escaping_handles_hostile_file_names() -> None:
