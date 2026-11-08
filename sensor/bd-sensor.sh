@@ -7,6 +7,7 @@ ROOT=${BD_SENSOR_ROOT:-}
 STATE=${BD_SENSOR_STATE:-/var/lib/body-double/sensor}
 INTERVAL=${BD_SENSOR_INTERVAL:-30}
 HEARTBEAT_EVERY_S=${BD_SENSOR_HEARTBEAT_EVERY_S:-60}
+umask 077
 
 die() { echo "bd-sensor: $*" >&2; exit 1; }
 
@@ -92,9 +93,44 @@ take_snapshot() {
 nonce() { openssl rand -hex 16; }
 sent_at() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
+# Build the HMAC pads without ever expanding the token into an external
+# process argument. BD_TOKEN reaches awk over stdin only. The pads are
+# secret-equivalent files and inherit this script's 0600 umask.
+prepare_hmac() {
+    for spec in "ipad 54" "opad 92"; do
+        name=${spec% *}; mask=${spec#* }
+        printf '%s\n' "$BD_TOKEN" | awk -v mask="$mask" '
+          function asc(c, p) {
+            p = index("0123456789", c); if (p) return 47 + p
+            p = index("abcdef", c); if (p) return 96 + p
+            return 64 + index("ABCDEF", c)
+          }
+          function bxor(a, b, r, bit) {
+            r = 0; bit = 1
+            while (a || b) {
+              if ((a % 2) != (b % 2)) r += bit
+              a = int(a / 2); b = int(b / 2); bit *= 2
+            }
+            return r
+          }
+          { for (i = 1; i <= length($0); i++) printf "%c", bxor(asc(substr($0, i, 1)), mask) }
+        ' > "$STATE/.$name"
+    done
+}
+
+hmac_sha256() {
+    body=$1
+    message="$STATE/.message.$$" inner="$STATE/.inner.$$"
+    printf '%s' "$body" > "$message"
+    { cat "$STATE/.ipad"; cat "$message"; } | openssl dgst -sha256 -binary > "$inner"
+    signature=$({ cat "$STATE/.opad"; cat "$inner"; } | openssl dgst -sha256 -r | awk '{print $1}')
+    rm -f "$message" "$inner"
+    printf '%s' "$signature"
+}
+
 post_json() {
     endpoint=$1 body=$2
-    signature=$(printf '%s' "$body" | openssl dgst -sha256 -hmac "$BD_TOKEN" -r | awk '{print $1}')
+    signature=$(hmac_sha256 "$body")
     # The response body and headers are discarded and never interpreted.
     curl -sS -o /dev/null --max-time 15 -X POST \
         -H 'Content-Type: application/json' -H "X-BD-Signature: $signature" \
@@ -150,6 +186,7 @@ cycle() {
 check_conf
 read_conf
 mkdir -p "$STATE"
+prepare_hmac
 
 if [ "${1:-}" = --once ]; then
     cycle

@@ -15,7 +15,9 @@ def test_sensor_is_posix_push_only_and_covers_required_paths() -> None:
     assert text.startswith("#!/bin/sh\n")
     assert "#!/bin/bash" not in text
     assert "curl" in text and "-o /dev/null" in text
-    assert "openssl dgst -sha256 -hmac" in text
+    assert "openssl dgst -sha256 -hmac" not in text
+    assert 'printf \'%s\\n\' "$BD_TOKEN" | awk' in text
+    assert "hmac_sha256" in text
     assert "eval " not in text
     assert "nc " not in text and "socat" not in text
     for path in (

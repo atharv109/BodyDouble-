@@ -109,11 +109,29 @@ def test_sensor_end_to_end_in_debian_12() -> None:
         with Receiver.lock:
             Receiver.messages.clear()
 
+        # Interpose a wrapper that inspects every process command line while
+        # each OpenSSL operation is live. The token pattern comes from a file,
+        # so the inspection command itself does not put the token in argv.
+        argv_probe = docker(
+            "exec",
+            name,
+            "sh",
+            "-c",
+            "mkdir -p /testbin; "
+            "sed -n 's/^BD_TOKEN=//p' /etc/body-double/sensor.conf >/tmp/token-pattern; "
+            "printf '%s\\n' '#!/bin/sh' "
+            "'ps -eo args | grep -F -f /tmp/token-pattern | grep -v grep >/tmp/token-leaked || :' "
+            "'sleep 0.05' 'exec /usr/bin/openssl \"$@\"' >/testbin/openssl; "
+            "chmod 755 /testbin/openssl",
+        )
+        assert argv_probe.returncode == 0, argv_probe.stderr
+
         running = docker(
             "exec",
             "-d",
             name,
             "env",
+            "PATH=/testbin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
             "BD_SENSOR_INTERVAL=2",
             "BD_SENSOR_HEARTBEAT_EVERY_S=2",
             "/usr/local/sbin/bd-sensor.sh",
@@ -165,6 +183,9 @@ def test_sensor_end_to_end_in_debian_12() -> None:
 
         pwned = docker("exec", name, "test", "!", "-e", "/tmp/pwned")
         assert pwned.returncode == 0, "sensor executed or followed the hostile response"
+
+        leaked = docker("exec", name, "test", "!", "-s", "/tmp/token-leaked")
+        assert leaked.returncode == 0, "sensor token appeared in a process argv during send"
     finally:
         docker("rm", "-f", name, timeout=60)
         server.shutdown()
