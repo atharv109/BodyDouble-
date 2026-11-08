@@ -7,13 +7,17 @@ F4 register/seal, then investigate -> report -> approve -> teardown).
 """
 from __future__ import annotations
 
-from sqlalchemy import select
+import asyncio
+import hashlib
+from datetime import timedelta
+
+from sqlalchemy import func, select
 
 from contracts.events import StateChanged
-from contracts.models import Actor, Case, CaseState, can_transition
+from contracts.models import Actor, Case, CaseState, Evidence, can_transition
 from contracts.vultr import VultrNotFound
 
-from .db import CaseRow, utcnow
+from .db import CaseRow, EvidenceRow, utcnow
 
 
 class CaseNotFound(LookupError):
@@ -105,11 +109,50 @@ class CaseService:
         """Walk the case as far as the phases implemented so far allow."""
         row = self.row(case_id)
         try:
-            # phases are added here as the checklist grows (F2, F3, F4, ...)
-            pass
+            await self._snapshot_phase(row)
         except CaseFailure as e:
             await self.fail_case(case_id, str(e))
         return self.model(case_id)
+
+    # ------------------------------------------------------------- F2: snapshot
+    async def _snapshot_phase(self, row: CaseRow) -> None:
+        self._move(row, CaseState.snapshotting, "snapshot requested")
+        snap = await self.vultr.create_snapshot(
+            row.instance_id, f"body-double case {row.id}")
+        row.snapshot_id = snap.id
+        self._touch(row)
+        self.log.append(row.id, "snapshot_created",
+                        {"snapshot_id": snap.id, "instance_id": row.instance_id})
+        deadline = utcnow() + timedelta(seconds=self.settings.snapshot_timeout_s)
+        while True:
+            snap = await self.vultr.get_snapshot(snap.id)
+            if snap.status == "complete":
+                break
+            if utcnow() > deadline:
+                raise CaseFailure(f"snapshot {snap.id} did not complete in time")
+            await asyncio.sleep(self.settings.poll_interval_s)
+        # evidence item #1: the snapshot itself (PRD "Preserve")
+        self._add_evidence(Evidence(
+            id=self._next_evidence_id(row.id), case_id=row.id, step_id=None,
+            path=f"snapshot:{snap.id}", sha256=hashlib.sha256(snap.id.encode()).hexdigest(),
+            excerpt=f"Vultr snapshot {snap.id} of {row.instance_id} at "
+                    f"{utcnow().isoformat()}Z",
+        ))
+
+    def _next_evidence_id(self, case_id: str) -> str:
+        with self.state.sf() as s:
+            n = s.scalar(select(func.count()).where(EvidenceRow.case_id == case_id)) or 0
+        return f"{case_id}-ev-{n + 1:03d}"
+
+    def _add_evidence(self, evidence: Evidence) -> Evidence:
+        with self.state.sf() as s:
+            s.add(EvidenceRow(
+                id=evidence.id, case_id=evidence.case_id, step_id=evidence.step_id,
+                path=evidence.path, sha256=evidence.sha256, excerpt=evidence.excerpt,
+                injection_flag=evidence.injection_flag))
+            s.commit()
+        self.log.append(evidence.case_id, "evidence_added", evidence.model_dump(mode="json"))
+        return evidence
 
     async def fail_case(self, case_id: str, reason: str) -> None:
         row = self.row(case_id)
