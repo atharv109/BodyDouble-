@@ -127,6 +127,8 @@ class TwinChannel:
             raise TwinChannelError(401, "twin session expired")
         if not in_subnet(client_ip, case_row.vpc_subnet, case_row.vpc_mask):
             raise TwinChannelError(403, f"call not from the case VPC (source {client_ip})")
+        if client_ip != sess.vpc_ip:
+            raise TwinChannelError(403, "twin session is bound to a different VPC IP")
         return sess
 
     def resolve_session(self, session_key: str | None, client_ip: str) -> tuple[TwinSession, CaseRow]:
