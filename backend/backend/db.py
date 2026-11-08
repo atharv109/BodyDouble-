@@ -29,6 +29,8 @@ from contracts.models import (
     StepKind,
     ToolName,
     ToolResult,
+    Alert,
+    SensorSignal,
 )
 
 
@@ -51,6 +53,7 @@ class CaseRow(Base):
     twin_instance_id: Mapped[str | None] = mapped_column(String(64))
     vpc_id: Mapped[str | None] = mapped_column(String(64))
     firewall_group_id: Mapped[str | None] = mapped_column(String(64))
+    alert_id: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime)
     closed_at: Mapped[datetime | None] = mapped_column(DateTime)
     # control-plane-only columns (never on the wire)
@@ -69,6 +72,7 @@ class CaseRow(Base):
             reason=self.reason, state=CaseState(self.state), snapshot_id=self.snapshot_id,
             twin_instance_id=self.twin_instance_id, vpc_id=self.vpc_id,
             firewall_group_id=self.firewall_group_id, created_at=self.created_at,
+            alert_id=self.alert_id,
             closed_at=self.closed_at,
         )
 
@@ -240,6 +244,31 @@ class SensorRow(Base):
     token_sha256: Mapped[str] = mapped_column(String(64))
     enrolled_at: Mapped[datetime] = mapped_column(DateTime)
     last_seen: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class AlertRow(Base):
+    __tablename__ = "alerts"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    instance_id: Mapped[str] = mapped_column(String(64), index=True)
+    signal: Mapped[str] = mapped_column(String(32))
+    source: Mapped[str] = mapped_column(String(32))
+    summary: Mapped[str] = mapped_column(String(500))
+    detail: Mapped[dict[str, str]] = mapped_column(JSON, default=dict)
+    received_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    case_id: Mapped[str | None] = mapped_column(String(32))
+
+    def to_model(self) -> Alert:
+        return Alert(id=self.id, instance_id=self.instance_id,
+                     signal=SensorSignal(self.signal), source=self.source,
+                     summary=self.summary, detail=self.detail or {},
+                     received_at=self.received_at, case_id=self.case_id)
+
+
+class SensorNonceRow(Base):
+    __tablename__ = "sensor_nonces"
+    instance_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    nonce: Mapped[str] = mapped_column(String(64), primary_key=True)
+    received_at: Mapped[datetime] = mapped_column(DateTime)
 
 
 def make_engine(database_url: str):

@@ -167,7 +167,8 @@ class CaseService:
         return row.to_model()
 
     async def run_case(self, case_id: str, *, force_full: bool = False,
-                       auto_apply: bool = False, auto_close: bool = True) -> Case:
+                       auto_apply: bool = False, auto_close: bool = True,
+                       propose_actions: bool = True) -> Case:
         """Walk the case as far as the phases implemented so far allow."""
         row = self.row(case_id)
         try:
@@ -175,7 +176,7 @@ class CaseService:
                 await self._snapshot_phase(row)
                 await self._twin_phase(row)
             if self.settings.full_pipeline or force_full:
-                await self._investigation_phase(self.row(case_id))
+                await self._investigation_phase(self.row(case_id), propose_actions)
                 if auto_apply:
                     actions = await self.build_action_menu(case_id)
                     for action in actions:
@@ -353,7 +354,8 @@ class CaseService:
         self.log.append(evidence.case_id, "evidence_added", evidence.model_dump(mode="json"))
         return evidence
 
-    async def _investigation_phase(self, row: CaseRow) -> None:
+    async def _investigation_phase(self, row: CaseRow,
+                                   propose_actions: bool = True) -> None:
         self._move(row, CaseState.investigating, "sealed investigation started")
         report = await ScriptedInvestigator(
             fixture_ids=row.operator == "dev-demo"
@@ -373,7 +375,8 @@ class CaseService:
             s.commit()
         row = self.row(row.id)
         self._move(row, CaseState.reported, report.summary, actor=Actor.agent)
-        await self.build_action_menu(row.id)
+        if propose_actions:
+            await self.build_action_menu(row.id)
 
     # ------------------------------------------------------------- F3: twin
     async def _twin_phase(self, row: CaseRow) -> None:

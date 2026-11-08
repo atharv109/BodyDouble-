@@ -14,13 +14,15 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import hmac
 import secrets
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
-from sqlalchemy import select
+from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from contracts.models import (
     Action,
@@ -31,15 +33,22 @@ from contracts.models import (
     SensorEnrollRequest,
     SensorEnrollResponse,
     SensorStatus,
+    SensorReport,
+    SensorHeartbeat,
+    Alert,
+    CaseState,
+    ALERTS_PER_INSTANCE_PER_MIN,
+    SENSOR_CLOCK_SKEW_S,
     ToolCall,
     ToolResult,
     TwinRegisterRequest,
     TwinRegisterResponse,
 )
-from contracts.vultr import FakeVultr, VultrError
+from contracts.vultr import FakeVultr, VultrError, VultrNotFound
+from contracts.hashing import sensor_signature
 
 from .sessions import mint, verify
-from .db import CaseRow, SensorRow, utcnow
+from .db import AlertRow, CaseRow, SensorNonceRow, SensorRow, utcnow
 from .state import AppState, build_state
 from .service import ActionConflict, TransitionError
 from .twin import TwinChannelError, in_subnet
@@ -134,11 +143,8 @@ def create_app(state: AppState | None = None) -> FastAPI:
                             _: str = Depends(require_human)):
         try:
             await state.vultr.get_instance(body.instance_id)
-        except Exception as e:
-            from contracts.vultr import VultrNotFound
-            if isinstance(e, VultrNotFound):
-                raise HTTPException(404, f"unknown instance {body.instance_id}")
-            raise
+        except VultrNotFound:
+            raise HTTPException(404, f"unknown instance {body.instance_id}")
         token = secrets.token_hex(32)
         now = utcnow()
         with state.sf() as session:
@@ -151,6 +157,7 @@ def create_app(state: AppState | None = None) -> FastAPI:
             row.enrolled_at = now
             row.last_seen = None
             session.commit()
+        state.sensor_tokens[body.instance_id] = token
         url = state.settings.public_url
         command = (f"curl -fsSL {url}/api/sensors/install.sh | sudo sh -s -- "
                    f"{url} {body.instance_id} {token}")
@@ -178,6 +185,95 @@ def create_app(state: AppState | None = None) -> FastAPI:
         if not path.is_file():
             raise HTTPException(404, "sensor installer is not available")
         return FileResponse(path, media_type="text/x-shellscript")
+
+    def _now() -> datetime:
+        value = state.clock()
+        if value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value
+
+    async def _authenticated_sensor(request: Request, model_type):
+        raw = await request.body()
+        try:
+            body = model_type.model_validate_json(raw)
+        except Exception as e:
+            raise HTTPException(422, "invalid sensor payload") from e
+        token = state.sensor_tokens.get(body.instance_id)
+        signature = request.headers.get("X-BD-Signature")
+        if token is None or signature is None or not hmac.compare_digest(
+                signature, sensor_signature(token, raw)):
+            raise HTTPException(401, "invalid sensor signature")
+        sent_at = body.sent_at
+        if sent_at.tzinfo is not None:
+            sent_at = sent_at.astimezone(timezone.utc).replace(tzinfo=None)
+        now = _now()
+        if abs((now - sent_at).total_seconds()) > SENSOR_CLOCK_SKEW_S:
+            raise HTTPException(401, "sensor timestamp outside allowed skew")
+        with state.sf() as session:
+            session.add(SensorNonceRow(instance_id=body.instance_id,
+                                       nonce=body.nonce, received_at=now))
+            try:
+                session.commit()
+            except IntegrityError:
+                session.rollback()
+                raise HTTPException(409, "sensor nonce already used")
+        return body, now
+
+    def _check_alert_rate(instance_id: str, now: datetime) -> None:
+        with state.sf() as session:
+            count = session.scalar(select(func.count()).select_from(AlertRow).where(
+                AlertRow.instance_id == instance_id,
+                AlertRow.received_at > now - timedelta(minutes=1),
+            )) or 0
+        if count >= ALERTS_PER_INSTANCE_PER_MIN:
+            raise HTTPException(429, "alert rate limit exceeded")
+
+    async def _store_alert(instance_id: str, signal, source: str,
+                           summary: str, detail: dict[str, str], now: datetime) -> Alert:
+        _check_alert_rate(instance_id, now)
+        with state.sf() as session:
+            live = session.execute(select(CaseRow).where(
+                CaseRow.instance_id == instance_id,
+                CaseRow.state.not_in([CaseState.closed.value, CaseState.failed.value]),
+            ).order_by(CaseRow.created_at.desc())).scalars().first()
+            number = (session.scalar(select(func.count()).select_from(AlertRow)) or 0) + 1
+            alert = AlertRow(id=f"alert-{number:04d}", instance_id=instance_id,
+                             signal=signal.value, source=source, summary=summary,
+                             detail=detail, received_at=now,
+                             case_id=live.id if live else None)
+            session.add(alert)
+            session.commit()
+            result = alert.to_model()
+        if live is None:
+            case = await state.service.open_case(instance_id, f"Sensor: {summary}",
+                                                 operator="sensor")
+            with state.sf() as session:
+                case_row = session.get(CaseRow, case.id)
+                case_row.alert_id = result.id
+                alert_row = session.get(AlertRow, result.id)
+                alert_row.case_id = case.id
+                session.commit()
+                result = alert_row.to_model()
+            await state.service.run_case(case.id, force_full=True, auto_close=False,
+                                         propose_actions=False)
+        return result
+
+    @app.post("/sensors/report", response_model=Alert)
+    async def sensor_report(request: Request):
+        body, now = await _authenticated_sensor(request, SensorReport)
+        return await _store_alert(body.instance_id, body.signal, "sensor",
+                                  body.summary, body.detail, now)
+
+    @app.post("/sensors/heartbeat", status_code=204)
+    async def sensor_heartbeat(request: Request):
+        body, now = await _authenticated_sensor(request, SensorHeartbeat)
+        with state.sf() as session:
+            row = session.get(SensorRow, body.instance_id)
+            if row is None:
+                raise HTTPException(401, "invalid sensor signature")
+            row.last_seen = now
+            session.commit()
+        return Response(status_code=204)
 
     @app.post("/cases", response_model=Case, status_code=201,
               dependencies=[Depends(require_human)])
