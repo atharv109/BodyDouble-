@@ -53,6 +53,7 @@ class Settings:
 
     t1_fallback: bool = False  # create twin from snapshot then attach ISO (no combined call)
     spawn_fake_twin: bool = True  # FakeVultr runs an in-process forensics ISO stand-in
+    full_pipeline: bool = True  # POST /cases continues past sealing through report/close
 
     app_secret: str = "body-double-dev-secret"  # HMAC key for human sessions (prod: env)
     session_ttl_s: int = 86400
@@ -90,4 +91,5 @@ def test_settings(database_url: str) -> Settings:
         job_timeout_s=2.0,
         twin_job_poll_s=0.05,
         heartbeat_ttl_s=30.0,
+        full_pipeline=False,
     )

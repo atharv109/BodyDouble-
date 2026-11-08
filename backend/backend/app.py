@@ -12,12 +12,16 @@ Endpoint shapes are owned here (TASK.md); every change is logged to
 """
 from __future__ import annotations
 
+import asyncio
+
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
+from fastapi.responses import StreamingResponse
 
 from contracts.models import (
     Action,
     ApproveRequest,
     Case,
+    CaseDetail,
     OpenCaseRequest,
     ToolCall,
     ToolResult,
@@ -100,6 +104,56 @@ def create_app(state: AppState | None = None) -> FastAPI:
         except VultrError:
             raise HTTPException(502, "Vultr API error while opening the case")
         return await state.service.run_case(case.id)
+
+    @app.get("/cases/{case_id}", response_model=CaseDetail,
+             dependencies=[Depends(require_human)])
+    async def get_case(case_id: str):
+        try:
+            return state.service.detail(case_id)
+        except LookupError as e:
+            raise HTTPException(404, str(e))
+
+    @app.get("/cases/{case_id}/stream", dependencies=[Depends(require_human)])
+    async def stream_case(case_id: str, request: Request,
+                          last_event_id: str | None = Header(default=None)):
+        try:
+            state.service.row(case_id)
+        except LookupError as e:
+            raise HTTPException(404, str(e))
+        try:
+            resume_after = int(last_event_id) if last_event_id is not None else -1
+        except ValueError:
+            raise HTTPException(400, "Last-Event-ID must be an integer")
+
+        async def frames():
+            queue = state.bus.subscribe(case_id)
+            try:
+                replay, replay_last = state.log.sse_replay(case_id)
+                if resume_after < 0:
+                    if replay:
+                        yield replay
+                else:
+                    for entry in state.log.entries(case_id):
+                        if entry.seq > resume_after and entry.event in state.log_event_names:
+                            yield state.log.format_entry(entry)
+                    replay_last = max(replay_last, resume_after)
+                if state.service.model(case_id).state.value in ("closed", "failed"):
+                    return
+                while not await request.is_disconnected():
+                    try:
+                        seq, frame = await asyncio.wait_for(queue.get(), 15)
+                    except asyncio.TimeoutError:
+                        yield ": keepalive\n\n"
+                        continue
+                    if seq > replay_last and seq > resume_after:
+                        yield frame
+                    if state.service.model(case_id).state.value in ("closed", "failed"):
+                        return
+            finally:
+                state.bus.unsubscribe(case_id, queue)
+
+        return StreamingResponse(frames(), media_type="text/event-stream",
+                                 headers={"Cache-Control": "no-cache"})
 
     # ---------------------------------------------------------------- F4: twin channel
     @app.post("/twin/register", response_model=TwinRegisterResponse)

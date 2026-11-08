@@ -30,6 +30,7 @@ from contracts.models import (
     ActionStatus,
     Actor,
     Case,
+    CaseDetail,
     CaseState,
     CreateTwinRequest,
     Evidence,
@@ -40,8 +41,19 @@ from contracts.models import (
 )
 from contracts.vultr import VultrError, VultrNotFound
 
-from .db import ActionRow, CaseRow, EvidenceRow, FindingRow, ReportRow, utcnow
+from .db import (
+    ActionRow,
+    CaseRow,
+    EvidenceRow,
+    FindingRow,
+    ReportRow,
+    StepRow,
+    utcnow,
+)
 from .fake_twin import fake_twin_loop
+from .investigator import ScriptedInvestigator
+from .recorder import DbCaseRecorder
+from .runner import TwinStepRunner
 
 log = logging.getLogger("backend")
 
@@ -154,6 +166,10 @@ class CaseService:
         try:
             await self._snapshot_phase(row)
             await self._twin_phase(row)
+            if self.settings.full_pipeline:
+                await self._investigation_phase(self.row(case_id))
+                if self.state.is_fake:
+                    await self.close_case(case_id)
         except CaseFailure as e:
             await self.fail_case(case_id, str(e))
         except VultrError as e:
@@ -165,6 +181,27 @@ class CaseService:
             log.exception("unexpected error in case %s", case_id)
             await self.fail_case(case_id, f"unexpected {type(e).__name__}: {e}")
         return self.model(case_id)
+
+    def detail(self, case_id: str) -> CaseDetail:
+        row = self.row(case_id)
+        with self.state.sf() as s:
+            steps = s.execute(select(StepRow).where(StepRow.case_id == case_id)
+                              .order_by(StepRow.seq)).scalars().all()
+            evidence = s.execute(select(EvidenceRow).where(EvidenceRow.case_id == case_id)
+                                 .order_by(EvidenceRow.id)).scalars().all()
+            findings = s.execute(select(FindingRow).where(FindingRow.case_id == case_id)
+                                 .order_by(FindingRow.id)).scalars().all()
+            actions = s.execute(select(ActionRow).where(ActionRow.case_id == case_id)
+                                .order_by(ActionRow.id)).scalars().all()
+        return CaseDetail(
+            case=row.to_model(), steps=[x.to_model() for x in steps],
+            evidence=[x.to_model() for x in evidence],
+            findings=[x.to_model() for x in findings],
+            actions=[x.to_model() for x in actions],
+            seal=SealStatus.model_validate(row.seal) if row.seal else None,
+            blast_radius=BlastRadius.model_validate(row.blast_radius)
+            if row.blast_radius else None,
+        )
 
     # ------------------------------------------------------------- F2: snapshot
     async def _snapshot_phase(self, row: CaseRow) -> None:
@@ -200,6 +237,26 @@ class CaseService:
             s.commit()
         self.log.append(evidence.case_id, "evidence_added", evidence.model_dump(mode="json"))
         return evidence
+
+    async def _investigation_phase(self, row: CaseRow) -> None:
+        self._move(row, CaseState.investigating, "sealed investigation started")
+        report = await ScriptedInvestigator().investigate(
+            row.to_model(),
+            TwinStepRunner(self.channel, self.settings),
+            DbCaseRecorder(self.state.sf, self.log),
+        )
+        with self.state.sf() as s:
+            s.add(ReportRow(
+                case_id=row.id, summary=report.summary,
+                timeline=[x.model_dump(mode="json") for x in report.timeline],
+                ranked_actions=[x.value for x in report.ranked_actions],
+                rogue_ssh_keys=report.rogue_ssh_keys,
+                secrets_found=report.secrets_found,
+            ))
+            s.commit()
+        row = self.row(row.id)
+        self._move(row, CaseState.reported, report.summary, actor=Actor.agent)
+        await self.build_action_menu(row.id)
 
     # ------------------------------------------------------------- F3: twin
     async def _twin_phase(self, row: CaseRow) -> None:

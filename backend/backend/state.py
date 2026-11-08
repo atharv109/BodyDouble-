@@ -70,6 +70,7 @@ def build_state(settings: Settings | None = None, vultr: VultrClient | None = No
 
     state.bus = CaseBus()
     state.log = CaseLog(state.sf, state.bus)
+    state.log_event_names = state.log.event_names
     state.channel = TwinChannel(state.sf, settings)
     state.service = CaseService(state)
     state.app = create_app(state)

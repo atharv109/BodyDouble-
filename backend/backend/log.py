@@ -68,3 +68,11 @@ class CaseLog:
                 frames.append(format_sse(name, e.seq, PAYLOADS[name].model_validate(e.payload)))
                 last = e.seq
         return "".join(frames), last
+
+    @property
+    def event_names(self) -> set[str]:
+        return set(EventName._value2member_map_)
+
+    def format_entry(self, entry: LogEntry) -> str:
+        name = EventName(entry.event)
+        return format_sse(name, entry.seq, PAYLOADS[name].model_validate(entry.payload))
