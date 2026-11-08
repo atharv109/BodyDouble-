@@ -5,6 +5,7 @@ import { CloseScreen } from './routes/Close'
 import { NotFound } from './routes/NotFound'
 import { OperatorGate } from './ui/OperatorGate'
 import { Story } from './story/Story'
+import { Emblem } from './ui/Emblem'
 
 function Shell() {
   const inCase = useMatch('/cases/:id/*')
@@ -15,10 +16,7 @@ function Shell() {
       <header className="border-b border-line">
         <div className="mx-auto max-w-[1600px] px-4 md:px-6 h-14 flex items-center gap-3 sm:gap-6">
           <Link to="/" className="brand min-h-11 flex items-center gap-2.5 whitespace-nowrap shrink-0 font-semibold tracking-[-0.01em]" aria-label="Body Double, home">
-            <svg width="25" height="16" viewBox="0 0 25 16" aria-hidden="true" overflow="visible">
-              <rect x="1" y="1" width="9" height="14" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" />
-              <rect className="twin-pane" x="12" y="1" width="9" height="14" rx="1" fill="none" stroke="var(--color-agent)" strokeWidth="1.5" />
-            </svg>
+            <Emblem className="size-7" />
             <span>Body Double</span>
           </Link>
           {/* phone + case open: the wordmark stays; the breadcrumb scrolls sideways if it runs out of room */}

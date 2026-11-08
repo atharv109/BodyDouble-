@@ -6,12 +6,12 @@
 @import "@fontsource/ibm-plex-mono/500.css";
 
 @theme {
-  --color-ground: #0d0e10;
-  --color-panel: #141619;
+  --color-ground: #0b0d0f;
+  --color-panel: #13161a;
   --color-raise: #1a1d21;
   --color-line: #262a30;
   --color-ink: #e7e5df;
-  --color-muted: #8b9099;
+  --color-muted: #8f949c;
   --color-agent: #d6b25e;
   --color-finding: #ef5a52;
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
