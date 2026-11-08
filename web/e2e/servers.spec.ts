@@ -1,12 +1,10 @@
 import { expect, test } from '@playwright/test'
 
 test('servers: list, investigate modal, POST /cases, land on case screen', async ({ page }) => {
-  // No operator yet: the gate asks, then POST /auth/session unlocks the API.
+  // Public fake mode creates the fixed demo judge session and opens the console directly.
   await page.goto('/console')
-  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Who is operating?')
-  await page.getByLabel('Operator name').fill('e2e-operator')
-  await page.getByRole('button', { name: 'Start session' }).click()
   await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Pick the server/)
+  await expect(page.getByLabel('Operator name')).toHaveCount(0)
 
   const row = page.getByTestId('server-inst-shop-prod')
   await expect(row).toContainText('shop-prod')

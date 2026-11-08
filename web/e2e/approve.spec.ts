@@ -46,7 +46,7 @@ test('approve: one POST per checked action, only after the click, each response 
     `/cases/${id}/actions/act-1/approve`,
     `/cases/${id}/actions/act-2/approve`,
   ])
-  for (const a of approvals) expect(a.body).toEqual({ approved_by: 'e2e-operator' })
+  for (const a of approvals) expect(a.body).toEqual({ approved_by: 'demo-judge' })
 
   // Unticked actions were left alone.
   await expect(drawer.getByTestId('action-act-3')).toHaveAttribute('data-status', 'proposed')

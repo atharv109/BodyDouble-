@@ -1,30 +1,40 @@
-import { useEffect, useId, useState, type ReactNode } from 'react'
+import { useEffect, useId, useRef, useState, type ReactNode } from 'react'
 import { api, ApiError, AUTH_REQUIRED, getOperator } from '../api/client'
 import { Lifecycle } from '../routes/Servers'
 import { useTitle } from './useTitle'
 
 /**
- * Every human endpoint needs an operator session (POST /auth/session). On load we re-mint it from the
- * stored name; with no name, or after a 401 we can't recover from, we ask who is operating.
+ * Every human endpoint needs an operator session (POST /auth/session). Public fake mode enters as the
+ * fixed demo judge; password-protected real mode preserves the explicit human sign-in gate.
  */
 export function OperatorGate({ children }: { children: ReactNode }) {
   const [phase, setPhase] = useState<'checking' | 'ask' | 'ready'>('checking')
   const [error, setError] = useState<string | null>(null)
   const [needsPassword, setNeedsPassword] = useState(false)
+  const entering = useRef<Promise<void> | null>(null)
 
   useEffect(() => {
-    const onAuth = () => { api.signOut(); setPhase('ask') }
-    window.addEventListener(AUTH_REQUIRED, onAuth)
     const fail = (e: Error) => { setError(String(e.message ?? e)); setPhase('ask') }
-    api.authConfig().then(({ password_required }) => {
+    const start = async () => {
+      const { password_required } = await api.authConfig()
       setNeedsPassword(password_required)
-      const op = getOperator()
-      if (!op) return setPhase('ask')
-      // Fake mode: re-mint from the stored name. Password mode: the password isn't stored, so only an
-      // existing cookie session lets us in; a 401 here sends the operator to the gate.
-      if (!password_required) api.session(op).then(() => setPhase('ready')).catch(fail)
-      else api.instances().then(() => setPhase('ready')).catch(() => setPhase('ask'))
-    })
+      if (!password_required) {
+        await api.session('demo-judge')
+        return setPhase('ready')
+      }
+      // Passwords are never stored. An existing cookie may still be valid; otherwise show the real-mode gate.
+      if (!getOperator()) return setPhase('ask')
+      await api.instances().then(() => setPhase('ready')).catch(() => setPhase('ask'))
+    }
+    const enter = () => entering.current ??= start().finally(() => { entering.current = null })
+    const onAuth = () => {
+      api.signOut()
+      entering.current = null
+      setPhase('checking')
+      enter().catch(fail)
+    }
+    window.addEventListener(AUTH_REQUIRED, onAuth)
+    enter().catch(fail)
     return () => window.removeEventListener(AUTH_REQUIRED, onAuth)
   }, [])
 
