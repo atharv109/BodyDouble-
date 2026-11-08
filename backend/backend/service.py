@@ -17,7 +17,7 @@ from datetime import timedelta
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from contracts.events import ActionProposed, SealCheck, StateChanged
+from contracts.events import ActionApplied, ActionProposed, SealCheck, StateChanged
 from contracts.models import (
     Action,
     ActionKind,
@@ -362,6 +362,30 @@ class CaseService:
         self.log.append(case_id, "action_approved",
                         {"action_id": action_id, "approved_by": operator},
                         actor=Actor.human)
+        return model
+
+    async def apply_action(self, case_id: str, action_id: str) -> Action:
+        """F10: execute an approved action against production and log the exact
+        API response. No-API kinds (human-run) are marked applied outright."""
+        with self.state.sf() as s:
+            row = s.get(ActionRow, action_id)
+            if row is None or row.case_id != case_id:
+                raise LookupError(f"unknown action {action_id}")
+            if row.status != ActionStatus.approved.value:
+                raise ActionConflict(f"action is {row.status}, not approved")
+        if row.api_method:
+            api = await self.vultr.request(row.api_method, row.api_path, row.api_body)
+            status = (ActionStatus.applied if 200 <= api.status_code < 300
+                      else ActionStatus.rejected)
+        else:
+            api, status = None, ActionStatus.applied
+        with self.state.sf() as s:
+            row = s.get(ActionRow, action_id)
+            row.status = status.value
+            row.response = api.model_dump(mode="json") if api else None
+            s.commit()
+            model = row.to_model()
+        self.log.append(case_id, "action_applied", ActionApplied(action=model, api=api))
         return model
 
     async def fail_case(self, case_id: str, reason: str) -> None:

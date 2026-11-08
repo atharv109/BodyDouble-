@@ -109,7 +109,8 @@ async def test_approve_marks_action_approved_by_the_session_operator(client, sta
                           headers=human, json={"approved_by": "operator"})
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["status"] == ActionStatus.approved.value
+    # F10: approving applies the action immediately (endpoint contract)
+    assert body["status"] in (ActionStatus.applied.value, ActionStatus.rejected.value)
     assert body["approved_by"] == "operator"
     # the approval is in the hash-chained log, by a human
     entries = [e for e in state.log.entries(cid) if e.event == "action_approved"]

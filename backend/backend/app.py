@@ -148,9 +148,10 @@ def create_app(state: AppState | None = None) -> FastAPI:
         if body.approved_by != operator:
             raise HTTPException(422, "approved_by must match your session operator")
         try:
-            # F10 turns approval into the actual apply; for now it only
-            # marks the action approved — nothing touches production.
-            return await state.service.approve_action(case_id, action_id, operator)
+            # approval applies the action immediately (endpoint contract);
+            # apply_action returns the action with its API response
+            await state.service.approve_action(case_id, action_id, operator)
+            return await state.service.apply_action(case_id, action_id)
         except LookupError as e:
             raise HTTPException(404, str(e))
         except ActionConflict as e:
