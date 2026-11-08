@@ -199,14 +199,15 @@ def create_app(state: AppState | None = None) -> FastAPI:
 
     @app.get("/sensors", response_model=list[SensorStatus])
     async def list_sensors(_: str = Depends(require_human)):
-        now = utcnow()
+        now = state.service.now()
         with state.sf() as session:
             rows = session.execute(select(SensorRow).order_by(SensorRow.instance_id)).scalars()
             return [SensorStatus(
                 instance_id=row.instance_id, enrolled_at=row.enrolled_at,
                 last_seen=row.last_seen,
-                healthy=(row.last_seen is not None and
-                         row.last_seen >= now - timedelta(seconds=180)),
+                healthy=((row.is_demo and state.is_fake) or
+                         (row.last_seen is not None and
+                          row.last_seen >= now - timedelta(seconds=180))),
             ) for row in rows]
 
     @app.get("/sensors/install.sh", include_in_schema=True)
@@ -370,7 +371,7 @@ def create_app(state: AppState | None = None) -> FastAPI:
             session.add(SensorRow(
                 instance_id=instance_id,
                 token_sha256=hashlib.sha256(token.encode()).hexdigest(),
-                enrolled_at=now, last_seen=now))
+                enrolled_at=now, last_seen=now, is_demo=True))
             session.commit()
         state.sensor_tokens[instance_id] = token
         finding_ids = {

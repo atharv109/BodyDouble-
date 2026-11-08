@@ -56,3 +56,28 @@ async def test_watcher_raises_exactly_one_alert_per_lapse(client, state, human):
     with state.sf() as session:
         alerts = list(session.execute(select(AlertRow).order_by(AlertRow.received_at)).scalars())
     assert [alert.signal for alert in alerts] == ["heartbeat_lost", "heartbeat_lost"]
+
+
+async def test_fake_demo_sensor_stays_healthy_and_never_raises_heartbeat_loss(
+        client, state, human):
+    base = datetime(2026, 11, 8, 12, 0, 0)
+    state.clock = lambda: base
+    infected = await client.post("/dev/infect", headers=human,
+                                 json={"attacks": []})
+    assert infected.status_code == 201, infected.text
+    instance_id = infected.json()["instance_id"]
+    with state.sf() as session:
+        sensor = session.get(SensorRow, instance_id)
+        assert sensor.is_demo is True
+
+    state.clock = lambda: base + timedelta(seconds=HEARTBEAT_LOST_S * 10)
+    assert await state.service.check_heartbeat_losses() == []
+    sensors = (await client.get("/sensors", headers=human)).json()
+    demo = next(sensor for sensor in sensors if sensor["instance_id"] == instance_id)
+    assert demo["healthy"] is True
+    with state.sf() as session:
+        alerts = list(session.execute(select(AlertRow).where(
+            AlertRow.instance_id == instance_id,
+            AlertRow.signal == "heartbeat_lost",
+        )).scalars())
+    assert alerts == []

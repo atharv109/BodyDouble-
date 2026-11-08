@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import JSON, DateTime, String, Text, create_engine
+from sqlalchemy import JSON, DateTime, String, Text, create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from contracts.agent import Report, TimelineEntry
@@ -244,6 +244,7 @@ class SensorRow(Base):
     token_sha256: Mapped[str] = mapped_column(String(64))
     enrolled_at: Mapped[datetime] = mapped_column(DateTime)
     last_seen: Mapped[datetime | None] = mapped_column(DateTime)
+    is_demo: Mapped[bool] = mapped_column(default=False)
 
 
 class AlertRow(Base):
@@ -276,4 +277,41 @@ def make_engine(database_url: str):
 
 
 def init_db(engine) -> None:
+    """Create new tables and apply additive, data-preserving upgrades.
+
+    SQLAlchemy's create_all intentionally does not alter existing tables. Keep
+    this small migration list for columns introduced after the first release;
+    every operation is additive and safe to run on every startup.
+    """
     Base.metadata.create_all(engine)
+    inspector = inspect(engine)
+    additions = {
+        "cases": {
+            "alert_id": "VARCHAR(64)",
+        },
+        "actions": {
+            "recommended": ("BOOLEAN NOT NULL DEFAULT FALSE"
+                            if engine.dialect.name == "postgresql"
+                            else "BOOLEAN NOT NULL DEFAULT 0"),
+            "created_by": "VARCHAR(16) NOT NULL DEFAULT 'agent'",
+        },
+        "sensors": {
+            "is_demo": ("BOOLEAN NOT NULL DEFAULT FALSE"
+                        if engine.dialect.name == "postgresql"
+                        else "BOOLEAN NOT NULL DEFAULT 0"),
+        },
+    }
+    with engine.begin() as connection:
+        for table_name, columns in additions.items():
+            existing = {column["name"] for column in inspector.get_columns(table_name)}
+            for column_name, definition in columns.items():
+                if column_name in existing:
+                    continue
+                if engine.dialect.name == "postgresql":
+                    ddl = (f'ALTER TABLE "{table_name}" ADD COLUMN IF NOT EXISTS '
+                           f'"{column_name}" {definition}')
+                else:
+                    ddl = (f'ALTER TABLE "{table_name}" ADD COLUMN '
+                           f'"{column_name}" {definition}')
+                connection.execute(text(ddl))
+                existing.add(column_name)
