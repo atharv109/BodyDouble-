@@ -51,6 +51,7 @@ body { font-family: var(--font-sans); font-size: 16px; line-height: 1.5; -webkit
 .btn:active:not(:disabled) { translate: 0 0; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn-primary { background: var(--color-ink); color: var(--color-ground); border-color: var(--color-ink); }
+.btn-primary:disabled { background: transparent; border-color: var(--color-agent); color: var(--color-ink); opacity: .7; }
 .btn-primary:hover:not(:disabled) { background: #fff; border-color: #fff; }
 .btn-agent { background: var(--color-agent); color: var(--color-ground); border-color: var(--color-agent); }
 .btn-agent:disabled { background: transparent; border-color: var(--color-line); color: var(--color-muted); opacity: 1; }

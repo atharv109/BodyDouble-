@@ -51,7 +51,8 @@ export function CaseScreen() {
           <span aria-hidden="true" className={`size-1.5 rounded-full ${live.connected ? 'bg-ink' : 'bg-muted/50'}`} />
           {live.connected ? 'live' : live.state === 'closed' ? 'closed' : 'reconnecting'} · {events} events
         </p>
-        <div className="ml-auto flex flex-wrap gap-3">
+        {/* Phone: primary first and full width (column-reverse puts the approve button on top). */}
+        <div className="w-full sm:w-auto sm:ml-auto flex flex-col-reverse sm:flex-row flex-wrap gap-3 [&>*]:justify-center">
           {canClose && (
             <Link to={`/cases/${id}/evidence`} className="btn">Close and evidence</Link>
           )}
@@ -83,8 +84,8 @@ export function CaseScreen() {
         <h2 className="label mb-2">Event log, from the case stream</h2>
         <ul className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-xs text-muted" data-testid="event-ledger">
           {EVENT_NAMES.map((n) => (
-            <li key={n} data-event={n} data-count={live.seen[n] ?? 0} className={live.seen[n] ? 'text-ink/80' : ''}>
-              {n} <span className="text-muted">{live.seen[n] ?? 0}</span>
+            <li key={n} data-event={n} data-count={live.seen[n] ?? 0} className={live.seen[n] ? 'text-ink' : 'text-muted'}>
+              {n} <span className={live.seen[n] ? 'text-agent' : 'text-muted'}>{live.seen[n] ?? 0}</span>
             </li>
           ))}
         </ul>
