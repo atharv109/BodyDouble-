@@ -116,23 +116,23 @@ data: {"case_id":"case-0001","from_state":"investigating","to_state":"reported",
 
 event: action_proposed
 id: 29
-data: {"action":{"id":"act-1","case_id":"case-0001","kind":"quarantine_firewall","target":"inst-shop-prod","api_method":"PATCH","api_path":"/v2/instances/inst-shop-prod","api_body":{"firewall_group_id":"fw-0005"},"description":"Move shop-prod to quarantine group fw-0005 (SSH from 203.0.113.7 only).","status":"proposed","approved_by":null,"response":null}}
+data: {"action":{"id":"act-1","case_id":"case-0001","kind":"quarantine_firewall","target":"inst-shop-prod","api_method":"PATCH","api_path":"/v2/instances/inst-shop-prod","api_body":{"firewall_group_id":"fw-0005"},"description":"Move shop-prod to quarantine group fw-0005 (SSH from 203.0.113.7 only).","status":"proposed","recommended":true,"created_by":"agent","approved_by":null,"response":null}}
 
 event: action_proposed
 id: 30
-data: {"action":{"id":"act-2","case_id":"case-0001","kind":"revoke_ssh_key","target":"inst-shop-prod","api_method":null,"api_path":null,"api_body":null,"description":"Run on shop-prod: sed -i '/x@kali$/d' /root/.ssh/authorized_keys","status":"proposed","approved_by":null,"response":null}}
+data: {"action":{"id":"act-2","case_id":"case-0001","kind":"revoke_ssh_key","target":"inst-shop-prod","api_method":null,"api_path":null,"api_body":null,"description":"Run on shop-prod: sed -i '/x@kali$/d' /root/.ssh/authorized_keys","status":"proposed","recommended":false,"created_by":"agent","approved_by":null,"response":null}}
 
 event: action_proposed
 id: 31
-data: {"action":{"id":"act-3","case_id":"case-0001","kind":"stop_instance","target":"inst-shop-prod","api_method":"POST","api_path":"/v2/instances/inst-shop-prod/halt","api_body":null,"description":"Halt shop-prod. Takes the shop offline.","status":"proposed","approved_by":null,"response":null}}
+data: {"action":{"id":"act-3","case_id":"case-0001","kind":"stop_instance","target":"inst-shop-prod","api_method":"POST","api_path":"/v2/instances/inst-shop-prod/halt","api_body":null,"description":"Halt shop-prod. Takes the shop offline.","status":"proposed","recommended":false,"created_by":"agent","approved_by":null,"response":null}}
 
 event: action_proposed
 id: 32
-data: {"action":{"id":"act-4","case_id":"case-0001","kind":"rotate_secrets","target":"inst-shop-prod","api_method":null,"api_path":null,"api_body":null,"description":"Rotate: /var/www/shop/.env (DB_PASSWORD, STRIPE_KEY)","status":"proposed","approved_by":null,"response":null}}
+data: {"action":{"id":"act-4","case_id":"case-0001","kind":"rotate_secrets","target":"inst-shop-prod","api_method":null,"api_path":null,"api_body":null,"description":"Rotate: /var/www/shop/.env (DB_PASSWORD, STRIPE_KEY)","status":"proposed","recommended":false,"created_by":"agent","approved_by":null,"response":null}}
 
 event: action_applied
 id: 33
-data: {"action":{"id":"act-1","case_id":"case-0001","kind":"quarantine_firewall","target":"inst-shop-prod","api_method":"PATCH","api_path":"/v2/instances/inst-shop-prod","api_body":{"firewall_group_id":"fw-0005"},"description":"Move shop-prod to quarantine group fw-0005 (SSH from 203.0.113.7 only).","status":"applied","approved_by":"operator","response":{"method":"PATCH","path":"/v2/instances/inst-shop-prod","body":{"firewall_group_id":"fw-0005"},"status_code":202,"response":{"instance":{"id":"inst-shop-prod","firewall_group_id":"fw-0005"}}}},"api":{"method":"PATCH","path":"/v2/instances/inst-shop-prod","body":{"firewall_group_id":"fw-0005"},"status_code":202,"response":{"instance":{"id":"inst-shop-prod","firewall_group_id":"fw-0005"}}}}
+data: {"action":{"id":"act-1","case_id":"case-0001","kind":"quarantine_firewall","target":"inst-shop-prod","api_method":"PATCH","api_path":"/v2/instances/inst-shop-prod","api_body":{"firewall_group_id":"fw-0005"},"description":"Move shop-prod to quarantine group fw-0005 (SSH from 203.0.113.7 only).","status":"applied","recommended":true,"created_by":"agent","approved_by":"operator","response":{"method":"PATCH","path":"/v2/instances/inst-shop-prod","body":{"firewall_group_id":"fw-0005"},"status_code":202,"response":{"instance":{"id":"inst-shop-prod","firewall_group_id":"fw-0005"}}}},"api":{"method":"PATCH","path":"/v2/instances/inst-shop-prod","body":{"firewall_group_id":"fw-0005"},"status_code":202,"response":{"instance":{"id":"inst-shop-prod","firewall_group_id":"fw-0005"}}}}
 
 event: state_changed
 id: 34

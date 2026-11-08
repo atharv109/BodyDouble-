@@ -1,0 +1,30 @@
+{
+  "properties": {
+    "instance_id": {
+      "title": "Instance Id",
+      "type": "string"
+    },
+    "alert_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Alert Id"
+    },
+    "case_id": {
+      "title": "Case Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "instance_id",
+    "alert_id",
+    "case_id"
+  ],
+  "title": "InfectResponse",
+  "type": "object"
+}

@@ -3,6 +3,7 @@ when appending and by anyone verifying a bundle."""
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 
 from .models import GENESIS_HASH, LogEntry
@@ -26,3 +27,9 @@ def verify_chain(entries: list[LogEntry]) -> int | None:
             return e.seq
         prev = e.hash
     return None
+
+
+def sensor_signature(secret: str, raw_body: bytes) -> str:
+    """X-BD-Signature for sensor reports, heartbeats and webhooks: hex HMAC-SHA256 of the raw body.
+    Verify with hmac.compare_digest. The sensor computes the same with `openssl dgst -sha256 -hmac`."""
+    return hmac.new(secret.encode(), raw_body, hashlib.sha256).hexdigest()

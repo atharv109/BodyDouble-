@@ -66,6 +66,7 @@ class ActionKind(str, Enum):
     revoke_ssh_key = "revoke_ssh_key"  # shown as a command for the human; no API call
     stop_instance = "stop_instance"  # POST /v2/instances/{id}/halt
     rotate_secrets = "rotate_secrets"  # checklist only; no API call
+    manual_plan = "manual_plan"  # the human's own written plan; recorded, never executed, no API call
 
 
 class ActionStatus(str, Enum):
@@ -106,6 +107,7 @@ class Case(BaseModel):
     twin_instance_id: str | None = None
     vpc_id: str | None = None
     firewall_group_id: str | None = None  # the twin's inbound-deny group
+    alert_id: str | None = None  # set when a sensor/webhook alert opened this case
     created_at: datetime
     closed_at: datetime | None = None
 
@@ -155,6 +157,8 @@ class Action(BaseModel):
     api_body: dict[str, Any] | None = None
     description: str  # human text; for revoke_ssh_key the command to run
     status: ActionStatus = ActionStatus.proposed
+    recommended: bool = False  # exactly one agent-proposed action per case is the recommended fix
+    created_by: Actor = Actor.agent  # Actor.human for CustomActionRequest
     approved_by: str | None = None
     response: dict[str, Any] | None = None  # ApiResponse.model_dump()
 
@@ -335,3 +339,133 @@ class ToolResult(BaseModel):
     # F16, detonate/custom_script: after cleanup; backend sums them into BlastRadius. Must be 0.
     containers_left: int = 0
     packets_out: int = 0  # outbound packets that left the twin
+
+
+# ---------------------------------------------------------------- sensors and alerts (plug and play)
+# Trust rule: a sensor runs on a server the attacker may control, so every alert is untrusted DATA.
+# An alert may only START a case (snapshot + sealed twin + report, all read-only for production).
+# It never approves, applies or proposes containment, and its text never reaches the agent as
+# instructions (it becomes Case.reason, shown quoted). The sensor is push-only: it opens no port,
+# accepts no commands and ignores response bodies.
+class SensorSignal(str, Enum):
+    file_changed = "file_changed"  # cron, authorized_keys, system binaries changed vs baseline
+    new_outbound = "new_outbound"  # outbound destination not in the baseline
+    heartbeat_lost = "heartbeat_lost"  # raised by the control plane: no heartbeat for HEARTBEAT_LOST_S
+    external = "external"  # Wazuh / Falco / any webhook
+
+
+HEARTBEAT_EVERY_S = 60
+HEARTBEAT_LOST_S = 180
+SENSOR_CLOCK_SKEW_S = 300  # reject reports whose sent_at is further than this from now
+ALERTS_PER_INSTANCE_PER_MIN = 10  # over this: 429, no alert, no case
+
+
+class Alert(BaseModel):
+    id: str
+    instance_id: str
+    signal: SensorSignal
+    source: Literal["sensor", "control_plane", "wazuh", "falco", "webhook"]
+    summary: str = Field(max_length=500)
+    detail: dict[str, str] = Field(default_factory=dict)  # untrusted; rendered as text only
+    received_at: datetime
+    # One live case per instance: if a non-terminal case exists, the alert attaches to it.
+    case_id: str | None = None
+
+
+class SensorEnrollRequest(BaseModel):
+    """POST /sensors (human). Issues a per-instance token, shown once."""
+
+    instance_id: str
+
+
+class SensorEnrollResponse(BaseModel):
+    instance_id: str
+    token: str  # 32 random bytes, hex; stored hashed; re-enrolling rotates it
+    # curl -fsSL <BD_PUBLIC_URL>/api/sensors/install.sh | sudo sh -s -- <BD_PUBLIC_URL> <instance_id> <token>
+    install_command: str
+    startup_script: str  # the same install as a Vultr startup script ("#!/bin/sh" ...) for new servers
+
+
+class SensorStatus(BaseModel):
+    """GET /sensors (human): one row per enrolled instance."""
+
+    instance_id: str
+    enrolled_at: datetime
+    last_seen: datetime | None = None
+    healthy: bool  # last_seen within HEARTBEAT_LOST_S
+
+
+class SensorReport(BaseModel):
+    """POST /sensors/report. Header X-BD-Signature = hashing.sensor_signature(token, raw body)."""
+
+    instance_id: str
+    signal: Literal[SensorSignal.file_changed, SensorSignal.new_outbound]
+    summary: str = Field(min_length=1, max_length=500)
+    detail: dict[str, str] = Field(default_factory=dict, max_length=20)
+    sent_at: datetime
+    nonce: str = Field(pattern=r"^[A-Za-z0-9]{16,64}$")  # unique per instance; replay -> 409
+
+
+class SensorHeartbeat(BaseModel):
+    """POST /sensors/heartbeat, signed like SensorReport."""
+
+    instance_id: str
+    sent_at: datetime
+    nonce: str = Field(pattern=r"^[A-Za-z0-9]{16,64}$")
+
+
+class WebhookAlert(BaseModel):
+    """POST /alerts/webhook. Header X-BD-Signature = sensor_signature(BD_WEBHOOK_SECRET, raw body).
+    Disabled (404) when BD_WEBHOOK_SECRET is unset."""
+
+    instance_id: str
+    source: Literal["wazuh", "falco", "webhook"] = "webhook"
+    summary: str = Field(min_length=1, max_length=500)
+    detail: dict[str, str] = Field(default_factory=dict, max_length=20)
+
+
+class CustomActionRequest(BaseModel):
+    """POST /cases/{id}/actions (human, case in `reported`): the operator's own fix.
+    kind is a menu kind or manual_plan. The backend builds any API call itself with the same builder
+    as agent proposals, never from client-supplied paths or bodies. It still needs Approve."""
+
+    kind: ActionKind
+    description: str = Field(min_length=1, max_length=2000)
+    created_by: str = Field(min_length=1, max_length=80)
+
+
+# ---------------------------------------------------------------- interactive demo (fake mode only)
+class Attack(str, Enum):
+    cron_backdoor = "cron_backdoor"
+    rogue_ssh_key = "rogue_ssh_key"
+    replaced_top = "replaced_top"
+    c2_beacon = "c2_beacon"  # the payload + its miner drop
+    ai_note = "ai_note"  # text on the disk addressed to an AI investigator (F13)
+
+
+# Which recorded fixture findings each planted attack produces. A demo case replays only the
+# steps/evidence/findings of the chosen attacks; none chosen = clean-control result (F15, 0 findings).
+ATTACK_FINDINGS: dict[Attack, list[str]] = {
+    Attack.cron_backdoor: ["fd-01"],
+    Attack.rogue_ssh_key: ["fd-02"],
+    Attack.replaced_top: ["fd-03"],
+    Attack.c2_beacon: ["fd-04", "fd-05"],
+    Attack.ai_note: ["fd-06"],
+}
+# act-1 quarantine (recommended), act-3 stop, act-4 rotate: proposed whenever any finding exists.
+# act-2 revoke key: only with rogue_ssh_key.
+ATTACK_ACTIONS: dict[Attack, list[str]] = {Attack.rogue_ssh_key: ["act-2"]}
+ALWAYS_ACTIONS = ["act-1", "act-3", "act-4"]
+
+
+class InfectRequest(BaseModel):
+    """POST /dev/infect (fake mode only; 404 in real mode). Plants the chosen attacks on a fresh
+    fake server, fires the matching sensor alert, and auto-opens its case (stops at `reported`)."""
+
+    attacks: list[Attack] = Field(default_factory=list, max_length=5)
+
+
+class InfectResponse(BaseModel):
+    instance_id: str
+    alert_id: str | None  # None when no attacks chosen: no alert, case opened as a clean control
+    case_id: str

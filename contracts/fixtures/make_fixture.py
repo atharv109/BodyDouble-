@@ -156,7 +156,7 @@ def build() -> tuple[str, CaseDetail]:
     move(CaseState.reported, "6 findings, 4 proposed actions")
 
     actions = [
-        Action(id="act-1", case_id=CASE_ID, kind=ActionKind.quarantine_firewall, target=PROD,
+        Action(id="act-1", case_id=CASE_ID, kind=ActionKind.quarantine_firewall, target=PROD, recommended=True,
                api_method="PATCH", api_path=f"/v2/instances/{PROD}", api_body={"firewall_group_id": "fw-0005"},
                description="Move shop-prod to quarantine group fw-0005 (SSH from 203.0.113.7 only)."),
         Action(id="act-2", case_id=CASE_ID, kind=ActionKind.revoke_ssh_key, target=PROD,
@@ -192,6 +192,9 @@ def schemas() -> dict[str, dict]:
     from contracts import models
     types = {"CaseDetail": models.CaseDetail, "OpenCaseRequest": models.OpenCaseRequest,
              "ApproveRequest": models.ApproveRequest, "VultrInstance": models.VultrInstance,
+             "Alert": models.Alert, "SensorEnrollResponse": models.SensorEnrollResponse,
+             "SensorStatus": models.SensorStatus, "CustomActionRequest": models.CustomActionRequest,
+             "InfectRequest": models.InfectRequest, "InfectResponse": models.InfectResponse,
              **{f"event_{n.value}": t for n, t in PAYLOADS.items()}}
     return {name: t.model_json_schema() for name, t in types.items()}
 

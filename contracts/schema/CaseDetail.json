@@ -68,6 +68,15 @@
           "$ref": "#/$defs/ActionStatus",
           "default": "proposed"
         },
+        "recommended": {
+          "default": false,
+          "title": "Recommended",
+          "type": "boolean"
+        },
+        "created_by": {
+          "$ref": "#/$defs/Actor",
+          "default": "agent"
+        },
         "approved_by": {
           "anyOf": [
             {
@@ -109,7 +118,8 @@
         "quarantine_firewall",
         "revoke_ssh_key",
         "stop_instance",
-        "rotate_secrets"
+        "rotate_secrets",
+        "manual_plan"
       ],
       "title": "ActionKind",
       "type": "string"
@@ -122,6 +132,15 @@
         "rejected"
       ],
       "title": "ActionStatus",
+      "type": "string"
+    },
+    "Actor": {
+      "enum": [
+        "system",
+        "agent",
+        "human"
+      ],
+      "title": "Actor",
       "type": "string"
     },
     "BlastRadius": {
@@ -217,6 +236,18 @@
           ],
           "default": null,
           "title": "Firewall Group Id"
+        },
+        "alert_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Alert Id"
         },
         "created_at": {
           "format": "date-time",

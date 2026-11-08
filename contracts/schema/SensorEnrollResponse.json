@@ -1,0 +1,28 @@
+{
+  "properties": {
+    "instance_id": {
+      "title": "Instance Id",
+      "type": "string"
+    },
+    "token": {
+      "title": "Token",
+      "type": "string"
+    },
+    "install_command": {
+      "title": "Install Command",
+      "type": "string"
+    },
+    "startup_script": {
+      "title": "Startup Script",
+      "type": "string"
+    }
+  },
+  "required": [
+    "instance_id",
+    "token",
+    "install_command",
+    "startup_script"
+  ],
+  "title": "SensorEnrollResponse",
+  "type": "object"
+}

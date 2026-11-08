@@ -9,6 +9,7 @@
     "twin_instance_id": "inst-0004",
     "vpc_id": "vpc-0002",
     "firewall_group_id": "fw-0003",
+    "alert_id": null,
     "created_at": "2026-11-07T07:02:00Z",
     "closed_at": "2026-11-07T07:02:58Z"
   },
@@ -274,6 +275,8 @@
       },
       "description": "Move shop-prod to quarantine group fw-0005 (SSH from 203.0.113.7 only).",
       "status": "applied",
+      "recommended": true,
+      "created_by": "agent",
       "approved_by": "operator",
       "response": {
         "method": "PATCH",
@@ -300,6 +303,8 @@
       "api_body": null,
       "description": "Run on shop-prod: sed -i '/x@kali$/d' /root/.ssh/authorized_keys",
       "status": "proposed",
+      "recommended": false,
+      "created_by": "agent",
       "approved_by": null,
       "response": null
     },
@@ -313,6 +318,8 @@
       "api_body": null,
       "description": "Halt shop-prod. Takes the shop offline.",
       "status": "proposed",
+      "recommended": false,
+      "created_by": "agent",
       "approved_by": null,
       "response": null
     },
@@ -326,6 +333,8 @@
       "api_body": null,
       "description": "Rotate: /var/www/shop/.env (DB_PASSWORD, STRIPE_KEY)",
       "status": "proposed",
+      "recommended": false,
+      "created_by": "agent",
       "approved_by": null,
       "response": null
     }

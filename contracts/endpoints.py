@@ -37,4 +37,21 @@ ENDPOINTS: list[Endpoint] = [
              "Long-poll for the next ToolCall; 204 when none within 25 s", "twin"),
     Endpoint("POST", "/twin/jobs/{job_id}/result", m.ToolResult, None, "Return a ToolResult", "twin"),
     Endpoint("POST", "/twin/heartbeat", None, None, "Liveness every 10 s (F4)", "twin"),
+    # sensors and alerts (plug and play). auth "sensor" = X-BD-Signature with the instance token,
+    # "webhook" = X-BD-Signature with BD_WEBHOOK_SECRET, "public" = none, "dev" = fake mode only.
+    Endpoint("POST", "/sensors", m.SensorEnrollRequest, m.SensorEnrollResponse,
+             "Enroll a server: per-instance token + install command, shown once", "human"),
+    Endpoint("GET", "/sensors", None, list[m.SensorStatus], "Watched servers and their health", "human"),
+    Endpoint("GET", "/sensors/install.sh", None, "text/x-shellscript",
+             "Serves forensics' sensor/install.sh verbatim; args: url instance_id token", "public"),
+    Endpoint("POST", "/sensors/report", m.SensorReport, m.Alert, "Sensor alert -> auto case", "sensor"),
+    Endpoint("POST", "/sensors/heartbeat", m.SensorHeartbeat, None, "Sensor liveness", "sensor"),
+    Endpoint("POST", "/alerts/webhook", m.WebhookAlert, m.Alert, "Wazuh/Falco/other -> auto case", "webhook"),
+    Endpoint("GET", "/alerts", None, list[m.Alert], "Alert inbox, newest first", "human"),
+    # choose the fix
+    Endpoint("POST", "/cases/{id}/actions", m.CustomActionRequest, m.Action,
+             "Operator's own fix (menu kind or manual_plan); still needs approve", "human"),
+    # interactive demo
+    Endpoint("POST", "/dev/infect", m.InfectRequest, m.InfectResponse,
+             "Plant chosen attacks on a fake server; its sensor fires; case auto-opens", "dev"),
 ]

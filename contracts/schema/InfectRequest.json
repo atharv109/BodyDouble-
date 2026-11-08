@@ -1,0 +1,28 @@
+{
+  "$defs": {
+    "Attack": {
+      "enum": [
+        "cron_backdoor",
+        "rogue_ssh_key",
+        "replaced_top",
+        "c2_beacon",
+        "ai_note"
+      ],
+      "title": "Attack",
+      "type": "string"
+    }
+  },
+  "description": "POST /dev/infect (fake mode only; 404 in real mode). Plants the chosen attacks on a fresh\nfake server, fires the matching sensor alert, and auto-opens its case (stops at `reported`).",
+  "properties": {
+    "attacks": {
+      "items": {
+        "$ref": "#/$defs/Attack"
+      },
+      "maxItems": 5,
+      "title": "Attacks",
+      "type": "array"
+    }
+  },
+  "title": "InfectRequest",
+  "type": "object"
+}

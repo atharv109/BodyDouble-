@@ -1,0 +1,77 @@
+{
+  "$defs": {
+    "SensorSignal": {
+      "enum": [
+        "file_changed",
+        "new_outbound",
+        "heartbeat_lost",
+        "external"
+      ],
+      "title": "SensorSignal",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "instance_id": {
+      "title": "Instance Id",
+      "type": "string"
+    },
+    "signal": {
+      "$ref": "#/$defs/SensorSignal"
+    },
+    "source": {
+      "enum": [
+        "sensor",
+        "control_plane",
+        "wazuh",
+        "falco",
+        "webhook"
+      ],
+      "title": "Source",
+      "type": "string"
+    },
+    "summary": {
+      "maxLength": 500,
+      "title": "Summary",
+      "type": "string"
+    },
+    "detail": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Detail",
+      "type": "object"
+    },
+    "received_at": {
+      "format": "date-time",
+      "title": "Received At",
+      "type": "string"
+    },
+    "case_id": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Case Id"
+    }
+  },
+  "required": [
+    "id",
+    "instance_id",
+    "signal",
+    "source",
+    "summary",
+    "received_at"
+  ],
+  "title": "Alert",
+  "type": "object"
+}

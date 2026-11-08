@@ -1,0 +1,40 @@
+{
+  "$defs": {
+    "ActionKind": {
+      "enum": [
+        "quarantine_firewall",
+        "revoke_ssh_key",
+        "stop_instance",
+        "rotate_secrets",
+        "manual_plan"
+      ],
+      "title": "ActionKind",
+      "type": "string"
+    }
+  },
+  "description": "POST /cases/{id}/actions (human, case in `reported`): the operator's own fix.\nkind is a menu kind or manual_plan. The backend builds any API call itself with the same builder\nas agent proposals, never from client-supplied paths or bodies. It still needs Approve.",
+  "properties": {
+    "kind": {
+      "$ref": "#/$defs/ActionKind"
+    },
+    "description": {
+      "maxLength": 2000,
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "created_by": {
+      "maxLength": 80,
+      "minLength": 1,
+      "title": "Created By",
+      "type": "string"
+    }
+  },
+  "required": [
+    "kind",
+    "description",
+    "created_by"
+  ],
+  "title": "CustomActionRequest",
+  "type": "object"
+}

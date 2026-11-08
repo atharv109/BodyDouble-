@@ -141,3 +141,28 @@ async def test_raw_request_allowlist(method, path, body):
     for client in (FakeVultr(), RealVultr(api_key="test-not-a-key")):
         with pytest.raises(DisallowedCall):
             await client.request(method, path, body)
+
+
+def test_sensor_signature_and_attack_map():
+    import hashlib, hmac
+    from contracts.hashing import sensor_signature
+    from contracts.models import ALWAYS_ACTIONS, ATTACK_ACTIONS, ATTACK_FINDINGS, Attack
+    assert sensor_signature("k", b"{}") == hmac.new(b"k", b"{}", hashlib.sha256).hexdigest()
+    detail = CaseDetail.model_validate_json((FIX / "fake_case_detail.json").read_text())
+    fids = {f.id for f in detail.findings}
+    aids = {a.id for a in detail.actions}
+    assert set(ATTACK_FINDINGS) == set(Attack)
+    assert sorted(x for v in ATTACK_FINDINGS.values() for x in v) == sorted(fids)
+    assert {x for v in ATTACK_ACTIONS.values() for x in v} | set(ALWAYS_ACTIONS) == aids
+    assert [a.id for a in detail.actions if a.recommended] == ["act-1"]
+
+
+def test_sensor_report_rejects_bad_nonce_and_control_plane_signal():
+    from pydantic import ValidationError
+    from contracts.models import SensorReport
+    ok = dict(instance_id="i", signal="file_changed", summary="s", sent_at="2026-11-08T00:00:00Z",
+              nonce="a" * 16)
+    SensorReport.model_validate(ok)
+    for bad in ({"nonce": "short"}, {"nonce": "a" * 16 + "!"}, {"signal": "heartbeat_lost"}):
+        with pytest.raises(ValidationError):
+            SensorReport.model_validate({**ok, **bad})

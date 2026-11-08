@@ -1,0 +1,38 @@
+{
+  "description": "GET /sensors (human): one row per enrolled instance.",
+  "properties": {
+    "instance_id": {
+      "title": "Instance Id",
+      "type": "string"
+    },
+    "enrolled_at": {
+      "format": "date-time",
+      "title": "Enrolled At",
+      "type": "string"
+    },
+    "last_seen": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Last Seen"
+    },
+    "healthy": {
+      "title": "Healthy",
+      "type": "boolean"
+    }
+  },
+  "required": [
+    "instance_id",
+    "enrolled_at",
+    "healthy"
+  ],
+  "title": "SensorStatus",
+  "type": "object"
+}
