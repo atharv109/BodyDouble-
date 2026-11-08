@@ -70,3 +70,42 @@ async def test_t1_fallback_attaches_iso_before_the_cloned_os_boots(tmp_path):
         assert attach_i < poll_i
         assert fake.isos[twin_id] == ISO_ID
         assert fake.instances[twin_id].status == "active"
+
+
+class _AttachExplodes(FakeVultr):
+    """T1 fallback path where the ISO attach call dies unexpectedly."""
+
+    async def attach_iso(self, instance_id: str, iso_id: str) -> None:
+        raise RuntimeError("iso attach exploded")
+
+
+async def test_unexpected_failure_fails_case_and_keeps_twin_id(tmp_path):
+    fake = _AttachExplodes()
+    async with open_env(tmp_path, fake=fake, t1_fallback=True) as (st, client):
+        r = await client.post("/cases", json={
+            "instance_id": FakeVultr.SHOP_PROD, "reason": "x"})
+        # the case row is the outcome even when something unexpected blows up
+        assert r.status_code == 201, r.text
+        case = r.json()
+        assert case["state"] == CaseState.failed.value
+        # the live twin's id was persisted before the failure, so teardown
+        # (F11) can find and destroy it — never orphan the instance
+        assert case["twin_instance_id"] in fake.instances
+        with st.sf() as s:
+            row = s.get(CaseRow, case["id"])
+        assert row.twin_instance_id == case["twin_instance_id"]
+
+
+async def test_vultr_rejecting_combined_create_autofalls_back(tmp_path):
+    fake = FakeVultr(reject_snapshot_plus_iso=True)  # day-one test T1 failure
+    async with open_env(tmp_path, fake=fake) as (st, client):
+        r = await client.post("/cases", json={
+            "instance_id": FakeVultr.SHOP_PROD, "reason": "x"})
+        case = r.json()
+        assert case["state"] == CaseState.sealed.value
+        creates = [c for c in fake.calls if c[:2] == ("POST", "/v2/instances")]
+        assert len(creates) == 2                     # combined attempt, then retry
+        assert creates[0][2]["iso_id"] == ISO_ID      # rejected by Vultr (T1)
+        assert "iso_id" not in creates[1][2]          # retried from snapshot alone
+        twin_id = case["twin_instance_id"]
+        assert fake.isos[twin_id] == ISO_ID           # ...then attached before boot polling

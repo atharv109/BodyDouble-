@@ -146,6 +146,9 @@ class CaseService:
             await self.fail_case(case_id, f"Vultr API {e.status_code} error")
         except VultrNotFound as e:
             await self.fail_case(case_id, f"resource vanished mid-case: {e}")
+        except Exception as e:  # security review: never strand a live twin
+            log.exception("unexpected error in case %s", case_id)
+            await self.fail_case(case_id, f"unexpected {type(e).__name__}: {e}")
         return self.model(case_id)
 
     # ------------------------------------------------------------- F2: snapshot
@@ -202,19 +205,33 @@ class CaseService:
         row.vpc_id, row.firewall_group_id = vpc.id, fw.id
         row.vpc_subnet, row.vpc_mask = vpc.v4_subnet, vpc.v4_subnet_mask
         self._touch(row)
-        twin = await self.vultr.create_instance(CreateTwinRequest(
+        req = CreateTwinRequest(
             region=source.region, plan=self.settings.twin_plan, label=f"bd-twin-{row.id}",
             snapshot_id=row.snapshot_id,
             iso_id=None if self.settings.t1_fallback else self.settings.iso_id,
-            attach_vpc=[vpc.id], firewall_group_id=fw.id))
-        if self.settings.t1_fallback:
-            # attach before the first boot poll, so the cloned OS never boots
-            await self.vultr.attach_iso(twin.id, self.settings.iso_id)
+            attach_vpc=[vpc.id], firewall_group_id=fw.id)
+        try:
+            twin = await self.vultr.create_instance(req)
+            iso_in_create = req.iso_id is not None
+        except VultrError as e:
+            # Vultr rejected snapshot_id + iso_id in one call (day-one test T1):
+            # per the PRD, fall back to create-from-snapshot + attach_iso
+            if self.settings.t1_fallback or e.status_code != 400:
+                raise
+            twin = await self.vultr.create_instance(req.model_copy(update={"iso_id": None}))
+            iso_in_create = False
+        # persist the twin id before anything else can fail on it: teardown
+        # (F11) must always know the live instance (security review)
         row.twin_instance_id = twin.id
         self._touch(row)
+        if not iso_in_create:
+            # attach right after create, before any boot polling. On real
+            # Vultr the instance may already be booting in this window — see
+            # the day-one T1 decision (halt/attach/boot needs a contracts call).
+            await self.vultr.attach_iso(twin.id, self.settings.iso_id)
         self.log.append(row.id, "twin_created", {
             "twin_instance_id": twin.id, "vpc_id": vpc.id, "firewall_group_id": fw.id,
-            "iso_id": self.settings.iso_id, "t1_fallback": self.settings.t1_fallback})
+            "iso_id": self.settings.iso_id, "iso_attached_in_create": iso_in_create})
         # F4: one-time registration token, consumed at first register. FakeVultr
         # mode hands it to the in-process twin stand-in; real mode delivers it
         # to the ISO (delivery mechanism is the orchestrator's day-one call).
