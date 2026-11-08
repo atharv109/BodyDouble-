@@ -16,12 +16,12 @@ import asyncio
 import hashlib
 import hmac
 import secrets
-from datetime import datetime, timedelta, timezone
+from datetime import timedelta, timezone
 from pathlib import Path
 
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse, StreamingResponse
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
 from contracts.models import (
@@ -36,8 +36,6 @@ from contracts.models import (
     SensorReport,
     SensorHeartbeat,
     Alert,
-    CaseState,
-    ALERTS_PER_INSTANCE_PER_MIN,
     SENSOR_CLOCK_SKEW_S,
     ToolCall,
     ToolResult,
@@ -48,9 +46,9 @@ from contracts.vultr import FakeVultr, VultrError, VultrNotFound
 from contracts.hashing import sensor_signature
 
 from .sessions import mint, verify
-from .db import AlertRow, CaseRow, SensorNonceRow, SensorRow, utcnow
+from .db import CaseRow, SensorNonceRow, SensorRow, utcnow
 from .state import AppState, build_state
-from .service import ActionConflict, TransitionError
+from .service import ActionConflict, AlertRateLimit, TransitionError
 from .twin import TwinChannelError, in_subnet
 
 COOKIE_NAME = "bd_session"
@@ -103,6 +101,30 @@ def create_app(state: AppState | None = None) -> FastAPI:
                     "propose containment a human approves.",
     )
     app.state.bd = state
+
+    async def heartbeat_watch_loop():
+        while True:
+            await asyncio.sleep(30)
+            try:
+                await state.service.check_heartbeat_losses()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                # A transient watcher failure must not stop API service; the
+                # next scan is idempotent and retries any still-due lapse.
+                import logging
+                logging.getLogger("backend").exception("heartbeat watcher failed")
+
+    @app.on_event("startup")
+    async def start_heartbeat_watcher():
+        state.heartbeat_task = asyncio.create_task(heartbeat_watch_loop())
+
+    @app.on_event("shutdown")
+    async def stop_heartbeat_watcher():
+        if state.heartbeat_task is not None:
+            state.heartbeat_task.cancel()
+            await asyncio.gather(state.heartbeat_task, return_exceptions=True)
+            state.heartbeat_task = None
 
     @app.get("/healthz", include_in_schema=False)
     async def healthz():
@@ -186,12 +208,6 @@ def create_app(state: AppState | None = None) -> FastAPI:
             raise HTTPException(404, "sensor installer is not available")
         return FileResponse(path, media_type="text/x-shellscript")
 
-    def _now() -> datetime:
-        value = state.clock()
-        if value.tzinfo is not None:
-            value = value.astimezone(timezone.utc).replace(tzinfo=None)
-        return value
-
     async def _authenticated_sensor(request: Request, model_type):
         raw = await request.body()
         try:
@@ -206,7 +222,7 @@ def create_app(state: AppState | None = None) -> FastAPI:
         sent_at = body.sent_at
         if sent_at.tzinfo is not None:
             sent_at = sent_at.astimezone(timezone.utc).replace(tzinfo=None)
-        now = _now()
+        now = state.service.now()
         if abs((now - sent_at).total_seconds()) > SENSOR_CLOCK_SKEW_S:
             raise HTTPException(401, "sensor timestamp outside allowed skew")
         with state.sf() as session:
@@ -219,50 +235,15 @@ def create_app(state: AppState | None = None) -> FastAPI:
                 raise HTTPException(409, "sensor nonce already used")
         return body, now
 
-    def _check_alert_rate(instance_id: str, now: datetime) -> None:
-        with state.sf() as session:
-            count = session.scalar(select(func.count()).select_from(AlertRow).where(
-                AlertRow.instance_id == instance_id,
-                AlertRow.received_at > now - timedelta(minutes=1),
-            )) or 0
-        if count >= ALERTS_PER_INSTANCE_PER_MIN:
-            raise HTTPException(429, "alert rate limit exceeded")
-
-    async def _store_alert(instance_id: str, signal, source: str,
-                           summary: str, detail: dict[str, str], now: datetime) -> Alert:
-        _check_alert_rate(instance_id, now)
-        with state.sf() as session:
-            live = session.execute(select(CaseRow).where(
-                CaseRow.instance_id == instance_id,
-                CaseRow.state.not_in([CaseState.closed.value, CaseState.failed.value]),
-            ).order_by(CaseRow.created_at.desc())).scalars().first()
-            number = (session.scalar(select(func.count()).select_from(AlertRow)) or 0) + 1
-            alert = AlertRow(id=f"alert-{number:04d}", instance_id=instance_id,
-                             signal=signal.value, source=source, summary=summary,
-                             detail=detail, received_at=now,
-                             case_id=live.id if live else None)
-            session.add(alert)
-            session.commit()
-            result = alert.to_model()
-        if live is None:
-            case = await state.service.open_case(instance_id, f"Sensor: {summary}",
-                                                 operator="sensor")
-            with state.sf() as session:
-                case_row = session.get(CaseRow, case.id)
-                case_row.alert_id = result.id
-                alert_row = session.get(AlertRow, result.id)
-                alert_row.case_id = case.id
-                session.commit()
-                result = alert_row.to_model()
-            await state.service.run_case(case.id, force_full=True, auto_close=False,
-                                         propose_actions=False)
-        return result
-
     @app.post("/sensors/report", response_model=Alert)
     async def sensor_report(request: Request):
         body, now = await _authenticated_sensor(request, SensorReport)
-        return await _store_alert(body.instance_id, body.signal, "sensor",
-                                  body.summary, body.detail, now)
+        try:
+            return await state.service.create_alert(
+                body.instance_id, body.signal, "sensor", body.summary, body.detail,
+                now=now)
+        except AlertRateLimit:
+            raise HTTPException(429, "alert rate limit exceeded")
 
     @app.post("/sensors/heartbeat", status_code=204)
     async def sensor_heartbeat(request: Request):

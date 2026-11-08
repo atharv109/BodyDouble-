@@ -17,7 +17,7 @@ import logging
 import re
 import secrets
 import zipfile
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -42,17 +42,23 @@ from contracts.models import (
     FirewallRule,
     SealStatus,
     BlastRadius,
+    Alert,
+    SensorSignal,
+    HEARTBEAT_LOST_S,
+    ALERTS_PER_INSTANCE_PER_MIN,
     can_transition,
 )
 from contracts.vultr import VultrError, VultrNotFound
 
 from .db import (
     ActionRow,
+    AlertRow,
     CaseRow,
     EvidenceRow,
     FindingRow,
     ReportRow,
     StepRow,
+    SensorRow,
     WarmTwinRow,
     utcnow,
 )
@@ -83,6 +89,10 @@ class TransitionError(ValueError):
 
 class ActionConflict(ValueError):
     """The action is not in `proposed` any more (approved twice, etc.)."""
+
+
+class AlertRateLimit(ValueError):
+    pass
 
 
 class CaseService:
@@ -123,6 +133,77 @@ class CaseService:
 
     def _touch(self, row: CaseRow) -> None:  # persist column updates
         self._save(row)
+
+    def now(self) -> datetime:
+        value = self.state.clock()
+        if value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value
+
+    async def create_alert(self, instance_id: str, signal: SensorSignal,
+                           source: str, summary: str, detail: dict[str, str],
+                           *, now: datetime | None = None,
+                           rate_limit: bool = True) -> Alert:
+        now = now or self.now()
+        with self.state.sf() as s:
+            if rate_limit:
+                count = s.scalar(select(func.count()).select_from(AlertRow).where(
+                    AlertRow.instance_id == instance_id,
+                    AlertRow.received_at > now - timedelta(minutes=1),
+                )) or 0
+                if count >= ALERTS_PER_INSTANCE_PER_MIN:
+                    raise AlertRateLimit(instance_id)
+            live = s.execute(select(CaseRow).where(
+                CaseRow.instance_id == instance_id,
+                CaseRow.state.not_in([CaseState.closed.value, CaseState.failed.value]),
+            ).order_by(CaseRow.created_at.desc())).scalars().first()
+            number = (s.scalar(select(func.count()).select_from(AlertRow)) or 0) + 1
+            row = AlertRow(id=f"alert-{number:04d}", instance_id=instance_id,
+                           signal=signal.value, source=source, summary=summary,
+                           detail=detail, received_at=now,
+                           case_id=live.id if live else None)
+            s.add(row)
+            s.commit()
+            result = row.to_model()
+        if live is None:
+            case = await self.open_case(instance_id, f"Sensor: {summary}",
+                                        operator="sensor")
+            with self.state.sf() as s:
+                case_row = s.get(CaseRow, case.id)
+                case_row.alert_id = result.id
+                alert_row = s.get(AlertRow, result.id)
+                alert_row.case_id = case.id
+                s.commit()
+                result = alert_row.to_model()
+            await self.run_case(case.id, force_full=True, auto_close=False,
+                                propose_actions=False)
+        return result
+
+    async def check_heartbeat_losses(self) -> list[Alert]:
+        """Raise at most one control-plane alert for each continuous lapse."""
+        now = self.now()
+        cutoff = now - timedelta(seconds=HEARTBEAT_LOST_S)
+        with self.state.sf() as s:
+            sensors = list(s.execute(select(SensorRow).where(
+                func.coalesce(SensorRow.last_seen, SensorRow.enrolled_at) < cutoff
+            )).scalars())
+            due = []
+            for sensor in sensors:
+                since = sensor.last_seen or sensor.enrolled_at
+                exists = s.scalar(select(func.count()).select_from(AlertRow).where(
+                    AlertRow.instance_id == sensor.instance_id,
+                    AlertRow.signal == SensorSignal.heartbeat_lost.value,
+                    AlertRow.received_at >= since,
+                ))
+                if not exists:
+                    due.append(sensor.instance_id)
+        alerts = []
+        for instance_id in due:
+            alerts.append(await self.create_alert(
+                instance_id, SensorSignal.heartbeat_lost, "control_plane",
+                "Sensor heartbeat lost", {"threshold_s": str(HEARTBEAT_LOST_S)},
+                now=now, rate_limit=False))
+        return alerts
 
     def next_case_id(self) -> str:
         with self.state.sf() as s:
