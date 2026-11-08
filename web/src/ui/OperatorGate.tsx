@@ -1,6 +1,7 @@
 import { useEffect, useId, useState, type ReactNode } from 'react'
 import { api, ApiError, AUTH_REQUIRED, getOperator } from '../api/client'
 import { Lifecycle } from '../routes/Servers'
+import { useTitle } from './useTitle'
 
 /**
  * Every human endpoint needs an operator session (POST /auth/session). On load we re-mint it from the
@@ -33,6 +34,8 @@ export function OperatorGate({ children }: { children: ReactNode }) {
 }
 
 function SignIn({ error: initial, needsPassword, onDone }: { error: string | null; needsPassword: boolean; onDone: () => void }) {
+  useTitle('Console: who is operating?',
+    'Sign in to the Body Double console. Every approval to change a production server is signed with your operator name in the case log.')
   const id = useId()
   const pwId = useId()
   const [name, setName] = useState(() => (needsPassword ? getOperator() ?? '' : ''))

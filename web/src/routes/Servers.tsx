@@ -10,7 +10,8 @@ const REGIONS: Record<string, string> = {
 }
 
 export function Servers() {
-  useTitle('Servers')
+  useTitle('Console: pick the server that worries you',
+    'The Body Double console lists your Vultr servers. Pick one, say what looks wrong, and it opens a case on a sealed twin while that server keeps running.')
   const [list, setList] = useState<VultrInstance[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [target, setTarget] = useState<VultrInstance | null>(null)

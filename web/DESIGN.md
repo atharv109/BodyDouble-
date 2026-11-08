@@ -84,3 +84,11 @@ phone: lanes stack; PROD lane becomes a 44 px sticky strip under the header that
   would compete with the peel (awwwards: one signature). Works without WebGL by construction.
 - Every number on the page comes from the PRD, the fixture or a cited source.
 - Red is never used for UI errors; those use ink on a line-bordered panel.
+
+## Jury round 2 (story)
+- One header (`src/ui/SiteHeader.tsx`) on every route: same grid, height and labels (How it works, Console, Try it; the case breadcrumb replaces Try it inside a case). Sticky on the story only.
+- Route change: the old page steps back and fades out, a brass seal line draws along the header's bottom edge, and the new page wipes in from the left under it (`clip-path`). Reduced motion: none of this.
+- Left rail: under the production card, an index of the 8 case states. The one crossing mid-screen gets a brass tick, finished ones turn ink, and Approve is always brass. Desktop only; on phones the rail is the one-line production strip.
+- Approve is the climax: brass rules above and below, a warm ground, "The only write to production" kicker, display-size title, larger API call.
+- Phone h1 line-height 1.02 so descenders clear the next line's ascenders.
+- Peel labels are HTML over the drawing on a solid ground, so axe can measure their contrast (0 to review).

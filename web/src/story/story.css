@@ -1,11 +1,8 @@
 /* Story page. Tokens come from index.css (@theme); layout and type follow web/DESIGN.md. */
 :root { --color-frame: #5b616a; --head-h: 64px; --lane-pad: clamp(2rem, 4.5vw, 5rem); }
 
-.wrap { width: 100%; max-width: 1600px; margin-inline: auto; padding-inline: 16px; }
-@media (min-width: 768px) { .wrap { padding-inline: 24px; } }
-
 .story { min-height: 100dvh; }
-.story-head { view-transition-name: site-head; position: sticky; top: 0; z-index: 40; background: var(--color-ground); border-bottom: 1px solid var(--color-line); }
+.story .site-head { position: sticky; top: 0; z-index: 40; }
 
 .display { font-weight: 600; font-size: clamp(2.6rem, 0.8rem + 6.2vw, 7.5rem); line-height: 0.92; letter-spacing: -0.045em;
   margin-left: -0.05em; text-wrap: balance; }
@@ -28,25 +25,35 @@
 .hero-h1 span + span { color: var(--color-muted); }
 .hero-copy { grid-column: 1 / 5; grid-row: 2; align-self: center; max-width: 30rem; }
 .hero-peel { grid-column: 5 / -1; grid-row: 2; align-self: center; min-height: 0; height: 100%; display: flex; align-items: center; }
-.peel { width: 100%; height: 100%; max-height: 62vh; display: block; overflow: visible; }
-.peel-label { font-family: var(--font-mono); font-size: 3.4px; fill: var(--color-muted); letter-spacing: 0.02em; }
-.peel-label--agent { fill: var(--color-agent); }
+.hero-peel { container-type: size; justify-content: center; }
+.peel-box { position: relative; container-type: inline-size; width: min(100cqw, 100cqh * 150 / 66, 62vh * 150 / 66); aspect-ratio: 150 / 66; }
+.peel { width: 100%; height: 100%; display: block; overflow: visible; }
+.peel-labels { position: absolute; inset: 0; }
+/* one SVG unit = 100cqw / 150; labels sit on their SVG baseline, centred like text-anchor middle */
+.peel-label { position: absolute; translate: -50% -78%; white-space: nowrap; font-family: var(--font-mono); font-size: calc(3.4 * 100cqw / 150);
+  line-height: 1.4; color: var(--color-muted); letter-spacing: 0.02em; background: var(--color-ground); padding: 0 0.3em; } /* solid ground: same as around it, and measurable */
+.peel-label--agent { color: var(--color-agent); }
 
 @media (max-width: 1023px) {
   .hero-stage { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto; align-content: start; row-gap: 1.25rem; min-height: 0; max-height: none; }
   .hero-copy, .hero-peel { grid-column: 1; grid-row: auto; max-width: 36rem; }
   .hero-peel { order: -1; grid-row: 2; height: auto; }
   .hero-copy { grid-row: 3; }
-  .peel { max-height: 34svh; }
+  .hero-peel { container-type: normal; }
+  .peel-box { width: min(100%, 34svh * 150 / 66); }
 }
-@media (max-width: 640px) { .peel-label { font-size: 5px; } }
+@media (max-width: 640px) {
+  .peel-label { font-size: calc(5 * 100cqw / 150); }
+  .display { line-height: 1.02; } /* descenders (the g of Investigate) clear the ascenders below (the b of double) */
+}
 
 /* ---------- the two lanes ---------- */
 .lanes { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); column-gap: 24px; }
 .lane-prod { grid-column: 1 / 4; }
 .lane-twin { grid-column: 4 / -1; min-width: 0; border-left: 1px solid var(--color-line); padding-left: var(--lane-pad); }
 
-.prod-card { position: sticky; top: calc(var(--head-h) + 24px); margin-top: clamp(5rem, 10vw, 9rem); padding: 20px;
+.rail { position: sticky; top: calc(var(--head-h) + 24px); margin-top: clamp(5rem, 10vw, 9rem); }
+.prod-card { padding: 20px;
   background: var(--color-panel); border: 1px solid var(--color-line); border-radius: 2px;
   transition: border-color 280ms var(--ease-latch); }
 .w-short { display: none; }
@@ -60,7 +67,27 @@
 .story[data-contained] .prod-card { border-color: var(--color-agent); }
 .story[data-contained] .prod-fw dd { color: var(--color-agent); animation: latch-in 280ms var(--ease-latch) both; }
 
+/* the rail index: one row per case state, the one on screen in ink with a brass tick; Approve is brass */
+.step-index { margin-top: 28px; }
+.step-index ol { margin-top: 10px; border-top: 1px solid var(--color-line); }
+.step-index a { position: relative; display: grid; grid-template-columns: 1.75rem minmax(0, 1fr) auto; align-items: baseline; gap: 8px;
+  min-height: 34px; padding: 7px 0 7px 12px; border-bottom: 1px solid var(--color-line); font-size: 14px; color: var(--color-muted);
+  transition: color 160ms, translate 160ms var(--ease-latch); }
+.step-index a::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; background: var(--color-agent);
+  scale: 1 0; transition: scale 280ms var(--ease-latch); }
+.si-n { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
+.si-s { font-family: var(--font-mono); font-size: 12px; }
+.step-index [data-done] a { color: var(--color-ink); }
+.step-index [data-done] .si-s, .step-index [data-done] .si-n { color: var(--color-muted); }
+.step-index a[aria-current] { color: var(--color-ink); font-weight: 500; }
+.step-index a[aria-current]::before { scale: 1 1; }
+.step-index [data-approve] a { color: var(--color-agent); }
+@media (hover: hover) { .step-index a:hover { color: var(--color-ink); translate: 3px 0; } }
+.step-index a:active { translate: 0 0; }
+
 @media (max-width: 1023px) {
+  .step-index { display: none; }
+  .rail { position: static; margin: 0; }
   .lanes { display: block; }
   .lane-prod { position: sticky; top: var(--head-h); z-index: 30; margin-inline: -16px; }
   .lane-twin { border-left: 0; padding-left: 0; }
@@ -89,13 +116,13 @@
 .coda { margin-top: clamp(2.5rem, 5vw, 4rem); font-size: clamp(1.25rem, 1rem + 1vw, 1.75rem); line-height: 1.3; letter-spacing: -0.015em; max-width: 34ch; font-weight: 500; }
 
 .source { display: inline-flex; align-items: center; gap: 2px; min-height: 28px; color: var(--color-ink); text-decoration: none; font-size: 14px;
-  background: linear-gradient(color-mix(in srgb, var(--color-agent) 32%, transparent) 0 0) left calc(100% - 4px) / 100% 1px no-repeat;
-  transition: background-size 280ms var(--ease-latch); }
+  text-decoration: underline 1px rgba(214, 178, 94, .45); text-underline-offset: 5px;
+  transition: box-shadow 280ms var(--ease-latch); }
 .source .arrow { display: inline-block; transition: translate 160ms var(--ease-latch); color: var(--color-agent); }
-@media (hover: hover) { .source:hover { background-size: 100% 0.55em; } .source:hover .arrow { translate: 3px -3px; } }
-.source:focus-visible { background-size: 100% 0.55em; }
+/* hover: the brass band rises under the label (an inset shadow, so the text keeps a solid, measurable ground) */
+@media (hover: hover) { .source:hover { box-shadow: inset 0 -0.6em 0 rgba(214, 178, 94, .32); } .source:hover .arrow { translate: 3px -3px; } }
+.source:focus-visible { box-shadow: inset 0 -0.6em 0 rgba(214, 178, 94, .32); }
 .source:focus-visible .arrow { translate: 3px -3px; }
-@media (prefers-reduced-motion: reduce) and (hover: hover) { .source:hover { background-size: 100% 0.55em; } }
 
 .evidence-quote { margin-top: 2rem; max-width: 46rem; border-left: 2px solid var(--color-agent); padding-left: 20px; }
 .evidence-quote .incidents { margin-top: 0; }
@@ -118,8 +145,18 @@
 .stop-state { font-size: 12px; color: var(--color-muted); }
 @media (max-width: 640px) { .stop { grid-template-columns: minmax(0, 1fr); gap: 8px; } .stop-head { flex-direction: row; gap: 10px; } }
 
+/* Approve is the climax: the only write to production gets the room, the brass and the type */
+.stop[data-crossing] { margin-block: clamp(1.5rem, 3vw, 2.5rem); padding-block: clamp(2.25rem, 4vw, 3.5rem); border-top: 2px solid var(--color-agent);
+  border-bottom: 2px solid var(--color-agent); background: #17161290; }
+.stop[data-crossing] + .stop { border-top: 0; }
+.stop[data-crossing] .stop-n, .stop[data-crossing] .stop-state { color: var(--color-agent); }
+.stop-kicker { font-family: var(--font-mono); font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-agent); margin-bottom: 10px; }
+.stop-climax { font-weight: 600; font-size: clamp(2.5rem, 1.4rem + 3.6vw, 5rem); line-height: 0.95; letter-spacing: -0.04em; margin-left: -0.04em; }
+.stop[data-crossing] .artifact { font-size: clamp(13px, 0.7rem + 0.35vw, 16px); padding: 10px 14px; }
+.stop[data-crossing] p.text-muted { color: var(--color-ink); font-size: 1.0625rem; margin-top: 0.75rem; }
+
 /* the crossing: the approved action is the only line drawn into the production lane */
-.crossing { position: absolute; right: 100%; top: calc(1.75rem + 0.8em); width: calc(var(--lane-pad) + 1px); height: 2px;
+.crossing { position: absolute; right: 100%; top: calc(clamp(2.25rem, 4vw, 3.5rem) + 0.55em); width: calc(var(--lane-pad) + 1px); height: 2px;
   background: var(--color-agent); transform-origin: right center; scale: 0 1; transition: scale 600ms var(--ease-latch); }
 .crossing::before { content: ""; position: absolute; left: -4px; top: -3px; width: 8px; height: 8px; border-radius: 50%; background: var(--color-agent); }
 .story[data-contained] .crossing { scale: 1 1; }
