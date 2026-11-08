@@ -10,8 +10,8 @@ from contracts.vultr import FakeVultr
 from backend.db import CaseRow, LogEntryRow
 
 
-async def test_open_case_creates_row_with_instance_reason_and_ts(client, state):
-    r = await client.post("/cases", json={
+async def test_open_case_creates_row_with_instance_reason_and_ts(client, state, human):
+    r = await client.post("/cases", headers=human, json={
         "instance_id": FakeVultr.SHOP_PROD, "reason": "irregular auth log entries"})
     assert r.status_code == 201, r.text
     body = r.json()
@@ -31,8 +31,8 @@ async def test_open_case_creates_row_with_instance_reason_and_ts(client, state):
         assert row.created_at is not None
 
 
-async def test_open_case_logs_state_change_by_human(client, state):
-    await client.post("/cases", json={
+async def test_open_case_logs_state_change_by_human(client, state, human):
+    await client.post("/cases", headers=human, json={
         "instance_id": FakeVultr.SHOP_PROD, "reason": "cpu pegged"})
     with state.sf() as s:
         rows = list(s.execute(select(LogEntryRow).order_by(LogEntryRow.seq)).scalars())
@@ -47,11 +47,22 @@ async def test_open_case_logs_state_change_by_human(client, state):
     assert e.hash
 
 
-async def test_open_case_rejects_unknown_instance(client):
-    r = await client.post("/cases", json={"instance_id": "inst-nope", "reason": "x"})
+async def test_open_case_rejects_unknown_instance(client, human):
+    r = await client.post("/cases", headers=human, json={"instance_id": "inst-nope", "reason": "x"})
     assert r.status_code == 404
 
 
-async def test_open_case_requires_reason(client):
-    r = await client.post("/cases", json={"instance_id": FakeVultr.SHOP_PROD, "reason": ""})
+async def test_open_case_requires_reason(client, human):
+    r = await client.post("/cases", headers=human, json={"instance_id": FakeVultr.SHOP_PROD, "reason": ""})
     assert r.status_code == 422
+
+
+async def test_open_case_rejects_bad_instance_id(client, human):
+    r = await client.post("/cases", headers=human,
+                          json={"instance_id": "../account/x", "reason": "x"})
+    assert r.status_code == 422
+
+
+async def test_open_case_requires_human_session(client):
+    r = await client.post("/cases", json={"instance_id": FakeVultr.SHOP_PROD, "reason": "x"})
+    assert r.status_code == 401

@@ -56,3 +56,11 @@ def make_src_client(app, ip: str) -> httpx.AsyncClient:
 @pytest.fixture
 def fake(state):
     return state.vultr
+
+
+@pytest.fixture
+async def human(client):
+    """Headers carrying a valid human (operator) session."""
+    r = await client.post("/auth/session", json={"operator": "operator"})
+    assert r.status_code == 200, r.text
+    return {"X-Human-Session": r.json()["session_token"]}

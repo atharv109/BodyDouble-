@@ -47,17 +47,21 @@ def make_vultr_client(settings: Settings) -> VultrClient:
     return FakeVultr()
 
 
-def build_state(settings: Settings | None = None) -> AppState:
+def build_state(settings: Settings | None = None, vultr: VultrClient | None = None) -> AppState:
     from .app import create_app  # local import: app.py imports this module
 
     settings = settings or settings_from_env()
+    if settings.vultr_api_key and settings.app_secret == "body-double-dev-secret":
+        raise RuntimeError(
+            "refusing to start in real-Vultr mode with the default APP_SECRET; "
+            "set APP_SECRET to a high-entropy value")
     engine = make_engine(settings.database_url)
     init_db(engine)
     state = AppState(
         settings=settings,
         engine=engine,
         sf=sessionmaker(engine, expire_on_commit=False),
-        vultr=make_vultr_client(settings),
+        vultr=vultr or make_vultr_client(settings),
     )
     from .bus import CaseBus
     from .log import CaseLog

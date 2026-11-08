@@ -1,16 +1,42 @@
 """FastAPI control plane. All routes are thin: they pull AppState from
 request.app.state.bd and delegate to CaseService / TwinChannel.
 
+Auth (per contracts.endpoints `auth` column):
+  * human endpoints require an operator session — POST /auth/session mints one
+    (cookie bd_session, also accepted as X-Human-Session header);
+  * /twin/* uses the one-time registration token then X-Twin-Session, and only
+    accepts requests from the case's VPC subnet.
+
 Endpoint shapes are owned here (TASK.md); every change is logged to
 ~/bd-bridge/to-frontend.md.
 """
 from __future__ import annotations
 
-from fastapi import FastAPI, HTTPException
+from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Response
 
 from contracts.models import Case, OpenCaseRequest
+from contracts.vultr import VultrError
 
+from .sessions import mint, verify
 from .state import AppState, build_state
+
+COOKIE_NAME = "bd_session"
+
+
+async def get_operator(
+    request: Request,
+    bd_session: str | None = Cookie(default=None),
+) -> str | None:
+    token = bd_session or request.headers.get("X-Human-Session")
+    if not token:
+        return None
+    return verify(token, request.app.state.bd.settings.app_secret)
+
+
+async def require_human(operator: str | None = Depends(get_operator)) -> str:
+    if operator is None:
+        raise HTTPException(401, "human session required (POST /auth/session)")
+    return operator
 
 
 def create_app(state: AppState | None = None) -> FastAPI:
@@ -28,17 +54,32 @@ def create_app(state: AppState | None = None) -> FastAPI:
     async def healthz():
         return {"ok": True, "vultr": "fake" if state.is_fake else "real"}
 
+    # ---------------------------------------------------------------- auth
+    @app.post("/auth/session")
+    async def create_session(body: dict, response: Response):
+        operator = (body or {}).get("operator", "").strip()
+        if not operator or len(operator) > 64:
+            raise HTTPException(422, "operator name required (1-64 chars)")
+        token = mint(operator, state.settings.app_secret, state.settings.session_ttl_s)
+        response.set_cookie(COOKIE_NAME, token, httponly=True, samesite="lax")
+        return {"operator": operator, "session_token": token}
+
     # ---------------------------------------------------------------- F1
-    @app.get("/instances")
+    @app.get("/instances", dependencies=[Depends(require_human)])
     async def list_instances():
         return await state.vultr.list_instances()
 
-    @app.post("/cases", response_model=Case, status_code=201)
-    async def open_case(body: OpenCaseRequest):
+    @app.post("/cases", response_model=Case, status_code=201,
+              dependencies=[Depends(require_human)])
+    async def open_case(body: OpenCaseRequest, operator: str = Depends(require_human)):
         try:
-            case = await state.service.open_case(body.instance_id, body.reason)
+            case = await state.service.open_case(body.instance_id, body.reason, operator=operator)
         except LookupError as e:
             raise HTTPException(404, str(e))
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+        except VultrError:
+            raise HTTPException(502, "Vultr API error while opening the case")
         return await state.service.run_case(case.id)
 
     return app

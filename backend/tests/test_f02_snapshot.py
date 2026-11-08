@@ -8,8 +8,8 @@ from contracts.vultr import FakeVultr
 from backend.db import EvidenceRow
 
 
-async def test_snapshot_stored_and_polled_to_complete(client, state, fake):
-    r = await client.post("/cases", json={
+async def test_snapshot_stored_and_polled_to_complete(client, state, fake, human):
+    r = await client.post("/cases", headers=human, json={
         "instance_id": FakeVultr.SHOP_PROD, "reason": "cpu pegged"})
     case = r.json()
     assert case["snapshot_id"] is not None
@@ -26,8 +26,8 @@ async def test_snapshot_stored_and_polled_to_complete(client, state, fake):
     assert len(polls) >= 2
 
 
-async def test_snapshot_is_evidence_item_one(client, state):
-    r = await client.post("/cases", json={
+async def test_snapshot_is_evidence_item_one(client, state, human):
+    r = await client.post("/cases", headers=human, json={
         "instance_id": FakeVultr.SHOP_PROD, "reason": "cpu pegged"})
     case = r.json()
     with state.sf() as s:

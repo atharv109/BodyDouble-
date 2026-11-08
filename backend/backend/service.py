@@ -9,15 +9,23 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import logging
+import re
 from datetime import timedelta
 
 from sqlalchemy import func, select
+from sqlalchemy.exc import IntegrityError
 
 from contracts.events import StateChanged
 from contracts.models import Actor, Case, CaseState, Evidence, can_transition
-from contracts.vultr import VultrNotFound
+from contracts.vultr import VultrError, VultrNotFound
 
 from .db import CaseRow, EvidenceRow, utcnow
+
+log = logging.getLogger("backend")
+
+# Vultr instance ids: the charset ALLOWED_RAW_CALLS already assumes
+_INSTANCE_ID = re.compile(r"^[A-Za-z0-9-]{1,64}$")
 
 
 class CaseNotFound(LookupError):
@@ -85,21 +93,31 @@ class CaseService:
 
     # ------------------------------------------------------------- F1: open
     async def open_case(self, instance_id: str, reason: str, operator: str = "operator") -> Case:
+        if not _INSTANCE_ID.fullmatch(instance_id):
+            raise ValueError("instance_id must be 1-64 chars of [A-Za-z0-9-]")
         try:
             instance = await self.vultr.get_instance(instance_id)
         except VultrNotFound as e:
             raise LookupError(f"unknown instance {instance_id}") from e
-        case_id = self.next_case_id()
-        row = CaseRow(
-            id=case_id, instance_id=instance_id, instance_label=instance.label,
-            reason=reason, state=CaseState.opened.value, created_at=utcnow(),
-            operator=operator,
-        )
-        with self.state.sf() as s:
-            s.add(row)
-            s.commit()
-        self.log.append(case_id, "state_changed",
-                        StateChanged(case_id=case_id, from_state=None,
+        row = None
+        for _ in range(5):  # concurrent opens may race on next_case_id; retry
+            row = CaseRow(
+                id=self.next_case_id(), instance_id=instance_id, instance_label=instance.label,
+                reason=reason, state=CaseState.opened.value, created_at=utcnow(),
+                operator=operator,
+            )
+            with self.state.sf() as s:
+                s.add(row)
+                try:
+                    s.commit()
+                except IntegrityError:
+                    continue
+                s.expunge(row)
+            break
+        else:
+            raise CaseFailure("could not allocate a case id")
+        self.log.append(row.id, "state_changed",
+                        StateChanged(case_id=row.id, from_state=None,
                                      to_state=CaseState.opened,
                                      detail="opened by operator"),
                         actor=Actor.human)
@@ -112,6 +130,9 @@ class CaseService:
             await self._snapshot_phase(row)
         except CaseFailure as e:
             await self.fail_case(case_id, str(e))
+        except VultrError as e:
+            log.exception("vultr error in case %s", case_id)
+            await self.fail_case(case_id, f"Vultr API {e.status_code} error")
         return self.model(case_id)
 
     # ------------------------------------------------------------- F2: snapshot

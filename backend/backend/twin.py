@@ -17,7 +17,7 @@ from sqlalchemy import select
 
 from contracts.models import SealStatus, ToolCall, ToolResult, TwinRegisterResponse
 
-from .db import JobRow, utcnow
+from .db import CaseRow, JobRow, utcnow
 
 
 class TwinChannelError(Exception):
@@ -80,22 +80,30 @@ class TwinChannel:
         self._registered.pop(case_id, None)
         self._queues.pop(case_id, None)
         self.sessions = {k: v for k, v in self.sessions.items() if v.case_id != case_id}
-        for job_id, fut in list(self._pending.items()):
-            if not fut.done() and fut.get_loop() is asyncio.get_running_loop():
+        for job_id, (owner, fut) in list(self._pending.items()):
+            if owner == case_id and not fut.done():
                 fut.cancel()
+            if owner == case_id:
+                self._pending.pop(job_id, None)
 
     def register(self, case_id: str, token: str, vpc_ip: str, seal: SealStatus,
-                 client_ip: str, case_row) -> TwinRegisterResponse:
-        if case_row.reg_token is None or not secrets.compare_digest(case_row.reg_token, token):
-            raise TwinChannelError(403, "unknown or already-used registration token")
-        if not in_subnet(client_ip, case_row.vpc_subnet, case_row.vpc_mask):
-            raise TwinChannelError(403, f"registration not from the case VPC (source {client_ip})")
-        if vpc_ip != client_ip:
-            raise TwinChannelError(403, f"claimed vpc_ip {vpc_ip} != source {client_ip}")
-        # one-time: consume the token before answering
-        case_row.reg_token = None
-        case_row.twin_internal_ip = vpc_ip
-        case_row.seal = seal.model_dump(mode="json")
+                 client_ip: str, case_row=None) -> TwinRegisterResponse:
+        # atomic one-time consume: token check AND null-out in one DB transaction
+        with self._sf() as s:
+            row = s.get(CaseRow, case_id)
+            if row is None:
+                raise TwinChannelError(404, "unknown case")
+            if row.reg_token is None or not secrets.compare_digest(row.reg_token, token):
+                raise TwinChannelError(403, "unknown or already-used registration token")
+            if not in_subnet(client_ip, row.vpc_subnet, row.vpc_mask):
+                raise TwinChannelError(403, f"registration not from the case VPC (source {client_ip})")
+            if vpc_ip != client_ip:
+                raise TwinChannelError(403, f"claimed vpc_ip {vpc_ip} != source {client_ip}")
+            row.reg_token = None  # one-time: consumed
+            row.twin_internal_ip = vpc_ip
+            row.seal = seal.model_dump(mode="json")
+            s.commit()
+            subnet, mask = row.vpc_subnet, row.vpc_mask
         key = "twinsess-" + secrets.token_urlsafe(24)
         self.sessions[key] = TwinSession(key, case_id, vpc_ip)
         ev, _, _ = self._registered[case_id]
@@ -126,7 +134,7 @@ class TwinChannel:
             s.commit()
         self._queues.setdefault(call.case_id, asyncio.Queue()).put_nowait(call.job_id)
         fut: asyncio.Future[ToolResult] = asyncio.get_running_loop().create_future()
-        self._pending[call.job_id] = fut
+        self._pending[call.job_id] = (call.case_id, fut)
         return fut
 
     async def next_job(self, sess: TwinSession, case_row, timeout_s: float) -> ToolCall | None:
@@ -154,7 +162,8 @@ class TwinChannel:
                 raise TwinChannelError(409, "job already has a result")
             row.result = result.model_dump(mode="json")
             s.commit()
-        fut = self._pending.pop(job_id, None)
+        entry = self._pending.pop(job_id, None)
+        fut = entry[1] if entry else None
         if fut and not fut.done():
             fut.set_result(result)
 
