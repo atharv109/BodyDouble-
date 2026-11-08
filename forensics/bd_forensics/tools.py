@@ -345,7 +345,12 @@ def execute(call: ToolCall, mount: str, timeout_s: float = 60.0) -> ToolResult:
     """Build + run one ToolCall on this host (the twin does exactly this).
     detonate/custom_script route through the sandbox (F7) instead."""
     if call.tool in (ToolName.detonate, ToolName.custom_script):
-        raise ValueError(f"{call.tool} must run through the detonation sandbox")
+        # Local import avoids a module cycle: sandbox reuses valid_args from
+        # this module before dispatching the isolated execution.
+        from .sandbox import detonate, run_custom_script
+
+        sandbox_fn = detonate if call.tool == ToolName.detonate else run_custom_script
+        return sandbox_fn(call, mount, wall_s=timeout_s)
     code = build_code(call)
     stdout, stderr, exit_code, duration_ms = run_code(code, mount, timeout_s, step_argv(call))
     artifacts: list[Artifact] = []
