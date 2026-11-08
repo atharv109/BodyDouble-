@@ -11,6 +11,7 @@ import asyncio
 import base64
 import hashlib
 import io
+import ipaddress
 import json
 import logging
 import re
@@ -389,9 +390,13 @@ class CaseService:
         row.vpc_subnet, row.vpc_mask = vpc.v4_subnet, vpc.v4_subnet_mask
         self._touch(row)
         token = "twreg-" + secrets.token_urlsafe(24)
+        vpc_subnet = f"{vpc.v4_subnet}/{vpc.v4_subnet_mask}"
+        vpc_ip = str(ipaddress.ip_network(vpc_subnet, strict=False).network_address + 3)
         user_data = base64.b64encode(json.dumps({
             "case_id": row.id, "token": token,
             "control_plane": self.settings.control_url,
+            "vpc_subnet": vpc_subnet,
+            "vpc_ip": vpc_ip,
         }, separators=(",", ":")).encode()).decode()
         req = CreateTwinRequest(
             region=source.region, plan=self.settings.twin_plan, label=f"bd-twin-{row.id}",

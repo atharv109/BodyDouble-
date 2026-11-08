@@ -40,9 +40,14 @@ async def test_twin_created_on_dedicated_vpc_with_inbound_deny(client, state, fa
     assert create[2]["attach_vpc"] == [vpc_id]
     assert create[2]["firewall_group_id"] == fw_id
     user_data = json.loads(base64.b64decode(create[2]["user_data"]))
+    assert set(user_data) == {
+        "case_id", "token", "control_plane", "vpc_subnet", "vpc_ip",
+    }
     assert user_data["case_id"] == case["id"]
     assert user_data["token"].startswith("twreg-")
     assert user_data["control_plane"] == "http://10.0.0.1:8000"
+    assert user_data["vpc_subnet"] == f"{fake.vpcs[vpc_id].v4_subnet}/24"
+    assert user_data["vpc_ip"] == fake.instances[twin_id].internal_ip
     assert fake.instances[twin_id].os == "Snapshot"
     # ISO attached, and the twin booted (Vultr reports it active)
     assert fake.isos[twin_id] == ISO_ID
