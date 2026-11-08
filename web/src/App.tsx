@@ -13,16 +13,16 @@ function Shell() {
   return (
     <div className="min-h-dvh flex flex-col">
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:inset-x-0 focus:top-0 focus:h-14 focus:z-50 focus:justify-center btn skip">Skip to content</a>
-      <header className="border-b border-line">
+      <header className="border-b border-line" style={{ viewTransitionName: 'site-head' }}>
         <div className="mx-auto max-w-[1600px] px-4 md:px-6 h-14 flex items-center gap-3 sm:gap-6">
-          <Link to="/" className="brand min-h-11 flex items-center gap-2.5 whitespace-nowrap shrink-0 font-semibold tracking-[-0.01em]" aria-label="Body Double, home">
+          <Link to="/" viewTransition className="brand min-h-11 flex items-center gap-2.5 whitespace-nowrap shrink-0 font-semibold tracking-[-0.01em]" aria-label="Body Double, home">
             <Emblem className="size-7" />
             <span>Body Double</span>
           </Link>
           {/* phone + case open: the wordmark stays; the breadcrumb scrolls sideways if it runs out of room */}
           <nav aria-label="Primary" className="flex items-center gap-1 text-sm whitespace-nowrap min-w-0 overflow-x-auto">
 
-            <NavLink to="/console" end className={({ isActive }) => `navlink ${isActive ? 'text-ink' : 'text-muted'}`}>
+            <NavLink to="/console" end viewTransition className={({ isActive }) => `navlink ${isActive ? 'text-ink' : 'text-muted'}`}>
               Servers
             </NavLink>
             {caseId && (

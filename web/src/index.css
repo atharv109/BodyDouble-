@@ -80,3 +80,10 @@ details[open] > summary .chev { rotate: 90deg; }
 .navlink::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: 0; height: 1px; background: currentColor;
   scale: 0 1; transform-origin: left; transition: scale 160ms var(--ease-latch); }
 .navlink:hover::after, .navlink[aria-current="page"]::after { scale: 1 1; }
+
+/* route changes (story <-> console): latch, not a cut */
+@keyframes vt-out { to { opacity: 0; } }
+::view-transition-old(root) { animation: 220ms var(--ease-latch) both vt-out; }
+::view-transition-new(root) { animation: 420ms var(--ease-latch) 120ms both latch-in; }
+::view-transition-group(site-head) { animation-duration: 420ms; animation-timing-function: var(--ease-latch); }
+@media (prefers-reduced-motion: reduce) { ::view-transition-old(root), ::view-transition-new(root) { animation: none; } }
