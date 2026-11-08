@@ -160,14 +160,24 @@ class CaseService:
                         actor=Actor.human)
         return row.to_model()
 
-    async def run_case(self, case_id: str) -> Case:
+    async def run_case(self, case_id: str, *, force_full: bool = False,
+                       auto_apply: bool = False) -> Case:
         """Walk the case as far as the phases implemented so far allow."""
         row = self.row(case_id)
         try:
             await self._snapshot_phase(row)
             await self._twin_phase(row)
-            if self.settings.full_pipeline:
+            if self.settings.full_pipeline or force_full:
                 await self._investigation_phase(self.row(case_id))
+                if auto_apply:
+                    actions = await self.build_action_menu(case_id)
+                    for action in actions:
+                        await self.approve_action(case_id, action.id, "dev-demo")
+                        await self.apply_action(case_id, action.id)
+                    row = self.row(case_id)
+                    self._move(row, CaseState.contained,
+                               "development demo containment applied",
+                               actor=Actor.human)
                 if self.state.is_fake:
                     await self.close_case(case_id)
         except CaseFailure as e:

@@ -105,6 +105,24 @@ def create_app(state: AppState | None = None) -> FastAPI:
             raise HTTPException(502, "Vultr API error while opening the case")
         return await state.service.run_case(case.id)
 
+    @app.post("/dev/fake-case", response_model=Case, status_code=201)
+    async def dev_fake_case(body: dict | None = None,
+                            _: str = Depends(require_human)):
+        if not state.is_fake:
+            raise HTTPException(404, "development fake case is unavailable")
+        body = body or {}
+        instance_id = body.get("instance_id", "inst-shop-prod")
+        reason = body.get("reason", "Development demo: investigate shop-prod")
+        try:
+            case = await state.service.open_case(instance_id, reason, operator="dev-demo")
+            return await state.service.run_case(
+                case.id, force_full=True, auto_apply=True
+            )
+        except LookupError as e:
+            raise HTTPException(404, str(e))
+        except ValueError as e:
+            raise HTTPException(422, str(e))
+
     @app.get("/cases/{case_id}", response_model=CaseDetail,
              dependencies=[Depends(require_human)])
     async def get_case(case_id: str):
