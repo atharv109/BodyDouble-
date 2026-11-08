@@ -32,6 +32,8 @@ body { font-family: var(--font-sans); font-size: 16px; line-height: 1.5; -webkit
 /* latch: short travel, hard stop */
 @keyframes latch-in { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
 .latch { animation: latch-in 280ms var(--ease-latch) both; }
+@keyframes drawer-in { from { opacity: 0; translate: 24px 0; } to { opacity: 1; translate: 0 0; } }
+.drawer[open] { animation: drawer-in 280ms var(--ease-latch) both; }
 @keyframes pulse-dot { 50% { opacity: .25; } }
 .running-dot { animation: pulse-dot 1s steps(2, jump-none) infinite; }
 
@@ -51,6 +53,7 @@ body { font-family: var(--font-sans); font-size: 16px; line-height: 1.5; -webkit
 .btn-primary { background: var(--color-ink); color: var(--color-ground); border-color: var(--color-ink); }
 .btn-primary:hover:not(:disabled) { background: #fff; border-color: #fff; }
 .btn-agent { background: var(--color-agent); color: var(--color-ground); border-color: var(--color-agent); }
+.btn-agent:disabled { background: transparent; border-color: var(--color-line); color: var(--color-muted); opacity: 1; }
 .btn-agent:hover:not(:disabled) { background: var(--color-ink); border-color: var(--color-ink); color: var(--color-ground); }
 
 details > summary { cursor: pointer; list-style: none; }

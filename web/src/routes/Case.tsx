@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { api } from '../api/client'
 import type { VultrInstance } from '../api/types'
 import { EVENT_NAMES } from '../api/types'
+import { ApproveDrawer } from '../case/Approve'
 import { Findings } from '../case/Findings'
 import { Production } from '../case/Production'
 import { Twin } from '../case/Twin'
@@ -33,6 +34,7 @@ export function CaseScreen() {
     return () => clearTimeout(t)
   }, [ready, live.detail, live.connected, events])
 
+  const [drawer, setDrawer] = useState(false)
   const proposed = live.actions.filter((a) => a.status === 'proposed').length
   const canClose = live.state === 'reported' || live.state === 'contained' || live.state === 'closed'
 
@@ -54,7 +56,7 @@ export function CaseScreen() {
             <Link to={`/cases/${id}/evidence`} className="btn">Close and evidence</Link>
           )}
           <button type="button" className="btn btn-agent" disabled={!proposed} data-testid="open-approve"
-            onClick={() => window.dispatchEvent(new CustomEvent('bd:approve'))}>
+            onClick={() => setDrawer(true)}>
             {proposed ? `Review ${proposed} proposed ${proposed === 1 ? 'action' : 'actions'}` : 'No actions proposed yet'}
           </button>
         </div>
@@ -74,6 +76,8 @@ export function CaseScreen() {
         <div className="order-3 lg:order-2 lg:col-span-5 lg:px-6 lg:border-l lg:border-r border-line"><Twin live={live} /></div>
         <div className="order-2 lg:order-3 lg:col-span-4 lg:pl-6"><Findings live={live} /></div>
       </div>
+
+      {id && <ApproveDrawer live={live} caseId={id} open={drawer} onClose={() => setDrawer(false)} />}
 
       <footer className="mt-12 pt-4 border-t border-line">
         <h2 className="label mb-2">Event log, from the case stream</h2>
