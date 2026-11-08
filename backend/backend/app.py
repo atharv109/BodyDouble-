@@ -15,6 +15,8 @@ from __future__ import annotations
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
 
 from contracts.models import (
+    Action,
+    ApproveRequest,
     Case,
     OpenCaseRequest,
     ToolCall,
@@ -26,6 +28,7 @@ from contracts.vultr import VultrError
 
 from .sessions import mint, verify
 from .state import AppState, build_state
+from .service import ActionConflict
 from .twin import TwinChannelError
 
 COOKIE_NAME = "bd_session"
@@ -136,6 +139,22 @@ def create_app(state: AppState | None = None) -> FastAPI:
             state.channel.submit_result(sess, job_id, body)
         except TwinChannelError as e:
             raise _twin_channel_error(e)
+
+    # ---------------------------------------------------------------- F9: approve
+    @app.post("/cases/{case_id}/actions/{action_id}/approve",
+              response_model=Action, status_code=200)
+    async def approve_action(case_id: str, action_id: str, body: ApproveRequest,
+                             operator: str = Depends(require_human)):
+        if body.approved_by != operator:
+            raise HTTPException(422, "approved_by must match your session operator")
+        try:
+            # F10 turns approval into the actual apply; for now it only
+            # marks the action approved — nothing touches production.
+            return await state.service.approve_action(case_id, action_id, operator)
+        except LookupError as e:
+            raise HTTPException(404, str(e))
+        except ActionConflict as e:
+            raise HTTPException(409, str(e))
 
     return app
 

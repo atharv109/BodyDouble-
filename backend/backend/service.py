@@ -17,19 +17,23 @@ from datetime import timedelta
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from contracts.events import SealCheck, StateChanged
+from contracts.events import ActionProposed, SealCheck, StateChanged
 from contracts.models import (
+    Action,
+    ActionKind,
+    ActionStatus,
     Actor,
     Case,
     CaseState,
     CreateTwinRequest,
     Evidence,
+    FirewallRule,
     SealStatus,
     can_transition,
 )
 from contracts.vultr import VultrError, VultrNotFound
 
-from .db import CaseRow, EvidenceRow, utcnow
+from .db import ActionRow, CaseRow, EvidenceRow, FindingRow, ReportRow, utcnow
 from .fake_twin import fake_twin_loop
 
 log = logging.getLogger("backend")
@@ -50,6 +54,10 @@ class TransitionError(ValueError):
     def __init__(self, src: CaseState, dst: CaseState):
         super().__init__(f"illegal transition {src.value} -> {dst.value}")
         self.src, self.dst = src, dst
+
+
+class ActionConflict(ValueError):
+    """The action is not in `proposed` any more (approved twice, etc.)."""
 
 
 class CaseService:
@@ -170,16 +178,11 @@ class CaseService:
             await asyncio.sleep(self.settings.poll_interval_s)
         # evidence item #1: the snapshot itself (PRD "Preserve")
         self._add_evidence(Evidence(
-            id=self._next_evidence_id(row.id), case_id=row.id, step_id=None,
+            id=self._next_id(EvidenceRow, row.id, "ev"), case_id=row.id, step_id=None,
             path=f"snapshot:{snap.id}", sha256=hashlib.sha256(snap.id.encode()).hexdigest(),
             excerpt=f"Vultr snapshot {snap.id} of {row.instance_id} at "
                     f"{utcnow().isoformat()}Z",
         ))
-
-    def _next_evidence_id(self, case_id: str) -> str:
-        with self.state.sf() as s:
-            n = s.scalar(select(func.count()).where(EvidenceRow.case_id == case_id)) or 0
-        return f"{case_id}-ev-{n + 1:03d}"
 
     def _add_evidence(self, evidence: Evidence) -> Evidence:
         with self.state.sf() as s:
@@ -267,6 +270,99 @@ class CaseService:
                 case_id=row.id, check=check, passed=passed,
                 output=seal.detail.get(check, "")))
         self._move(row, CaseState.sealed, "twin sealed: disk read-only, egress blocked")
+
+    # ------------------------------------------------------------- F9: actions
+    async def build_action_menu(self, case_id: str) -> list[Action]:
+        """Containment menu built by code, never the model (PRD rows):
+        findings propose quarantine + halt; the report adds the human-run SSH
+        and secrets entries. Every action is inert data until approved."""
+        row = self.row(case_id)
+        with self.state.sf() as s:
+            report = s.get(ReportRow, case_id)
+            has_findings = bool(s.scalar(
+                select(func.count()).where(FindingRow.case_id == case_id)))
+            existing = {ActionKind(k) for k in s.execute(
+                select(ActionRow.kind).where(ActionRow.case_id == case_id)).scalars()}
+
+        desired: list[ActionKind] = []
+        if has_findings:
+            desired += [ActionKind.quarantine_firewall, ActionKind.stop_instance]
+            if report is not None and report.rogue_ssh_keys:
+                desired.append(ActionKind.revoke_ssh_key)
+            if report is not None and report.secrets_found:
+                desired.append(ActionKind.rotate_secrets)
+
+        for kind in [k for k in desired if k not in existing]:
+            await self._propose_action(row, kind, report)
+        with self.state.sf() as s:
+            rows = list(s.execute(select(ActionRow)
+                                  .where(ActionRow.case_id == case_id)
+                                  .order_by(ActionRow.id)).scalars())
+        return [r.to_model() for r in rows]
+
+    async def _propose_action(self, row: CaseRow, kind: ActionKind,
+                              report: ReportRow | None) -> None:
+        target = row.instance_id
+        if kind is ActionKind.quarantine_firewall:
+            if row.quarantine_group_id is None:
+                group = await self.vultr.create_firewall_group(
+                    f"bd quarantine {row.id}")
+                await self.vultr.add_firewall_rule(group.id, FirewallRule(
+                    protocol="tcp", subnet=self.settings.admin_ip, subnet_size=32,
+                    port="22", notes="admin SSH only"))
+                row.quarantine_group_id = group.id
+                self._touch(row)
+            action = Action(
+                id=self._next_id(ActionRow, row.id, "act"), case_id=row.id, kind=kind,
+                target=target, api_method="PATCH", api_path=f"/v2/instances/{target}",
+                api_body={"firewall_group_id": row.quarantine_group_id},
+                description=f"Move {row.instance_label} into the quarantine "
+                            f"group (admin SSH only)")
+        elif kind is ActionKind.stop_instance:
+            action = Action(
+                id=self._next_id(ActionRow, row.id, "act"), case_id=row.id, kind=kind,
+                target=target, api_method="POST",
+                api_path=f"/v2/instances/{target}/halt",
+                description=f"Halt {row.instance_label}")
+        elif kind is ActionKind.revoke_ssh_key:
+            keys = "; ".join(report.rogue_ssh_keys)
+            action = Action(
+                id=self._next_id(ActionRow, row.id, "act"), case_id=row.id, kind=kind,
+                target=target, api_method=None, api_path=None,
+                description=f"On {row.instance_label}, remove the rogue "
+                            f"authorized_keys lines: {keys}")
+        else:  # rotate_secrets
+            paths = ", ".join(report.secrets_found)
+            action = Action(
+                id=self._next_id(ActionRow, row.id, "act"), case_id=row.id, kind=kind,
+                target=target, api_method=None, api_path=None,
+                description=f"Rotate the secrets found on the disk: {paths}")
+        with self.state.sf() as s:
+            s.add(ActionRow(**action.model_dump()))
+            s.commit()
+        self.log.append(row.id, "action_proposed", ActionProposed(action=action),
+                        actor=Actor.agent)
+
+    def _next_id(self, row_class, case_id: str, prefix: str) -> str:
+        with self.state.sf() as s:
+            n = s.scalar(select(func.count()).where(row_class.case_id == case_id)) or 0
+        return f"{case_id}-{prefix}-{n + 1:03d}"
+
+    async def approve_action(self, case_id: str, action_id: str, operator: str) -> Action:
+        with self.state.sf() as s:
+            row = s.get(ActionRow, action_id)
+            if row is None or row.case_id != case_id:
+                raise LookupError(f"unknown action {action_id}")
+            if row.status != ActionStatus.proposed.value:
+                raise ActionConflict(f"action is {row.status}, not proposed")
+            row.status = ActionStatus.approved.value
+            row.approved_by = operator
+            s.commit()
+            model = row.to_model()
+        self.log.append(case_id, "action_approved",
+                        {"action_id": action_id, "approved_by": operator},
+                        actor=Actor.human)
+        return model
 
     async def fail_case(self, case_id: str, reason: str) -> None:
         row = self.row(case_id)
