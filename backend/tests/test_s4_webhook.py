@@ -48,6 +48,7 @@ async def test_webhook_creates_external_alert_rate_limits_and_lists_newest(
     over = await _send(client, _payload("over limit"), secret)
     assert over.status_code == 429
 
+    client.cookies.clear()
     assert (await client.get("/alerts")).status_code == 401
     listing = await client.get("/alerts", headers=human)
     assert listing.status_code == 200
