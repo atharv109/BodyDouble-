@@ -239,6 +239,22 @@ def create_app(state: AppState | None = None) -> FastAPI:
         except TransitionError as e:
             raise HTTPException(409, str(e))
 
+    # ---------------------------------------------------------------- F14: evidence bundle
+    @app.get("/cases/{case_id}/bundle")
+    async def evidence_bundle(case_id: str, _: str = Depends(require_human)):
+        try:
+            content = state.service.evidence_bundle(case_id)
+        except LookupError as e:
+            raise HTTPException(404, str(e))
+        except ValueError as e:
+            raise HTTPException(409, str(e))
+        return Response(
+            content=content,
+            media_type="application/zip",
+            headers={"Content-Disposition":
+                     f'attachment; filename="body-double-{case_id}.zip"'},
+        )
+
     return app
 
 

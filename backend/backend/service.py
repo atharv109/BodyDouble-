@@ -9,9 +9,12 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import io
+import json
 import logging
 import re
 import secrets
+import zipfile
 from datetime import timedelta
 
 from sqlalchemy import func, select
@@ -212,6 +215,34 @@ class CaseService:
             blast_radius=BlastRadius.model_validate(row.blast_radius)
             if row.blast_radius else None,
         )
+
+    def evidence_bundle(self, case_id: str) -> bytes:
+        row = self.row(case_id)
+        if not row.snapshot_id:
+            raise ValueError("case has no snapshot")
+        with self.state.sf() as s:
+            evidence = s.execute(
+                select(EvidenceRow).where(EvidenceRow.case_id == case_id)
+                .order_by(EvidenceRow.id)
+            ).scalars().all()
+            report = s.get(ReportRow, case_id)
+        if report is None:
+            raise ValueError("case has no report")
+        entries = [entry.model_dump(mode="json") for entry in self.log.entries(case_id)]
+        hashes = [
+            {"id": item.id, "path": item.path, "sha256": item.sha256}
+            for item in evidence
+        ]
+        output = io.BytesIO()
+        with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as bundle:
+            bundle.writestr("snapshot_id.txt", row.snapshot_id + "\n")
+            bundle.writestr("file_hashes.json", json.dumps(hashes, indent=2))
+            bundle.writestr("case_log.json", json.dumps(entries, indent=2))
+            bundle.writestr(
+                "report.json",
+                report.to_model().model_dump_json(indent=2),
+            )
+        return output.getvalue()
 
     # ------------------------------------------------------------- F2: snapshot
     async def _snapshot_phase(self, row: CaseRow) -> None:
