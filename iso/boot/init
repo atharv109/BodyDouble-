@@ -3,9 +3,8 @@
 #
 # Trusted, busybox-only bootstrap (runs before anything from the cloned disk
 # could even be seen): mount the base trees, load the media/filesystem
-# modules packed at build time, find the BDFORENSICS boot media, hand any
-# bd-deploy.env found on an attached block device to the real root (via
-# /run, which survives switch_root), mount the squashfs read-only and
+# modules packed at build time, find the BDFORENSICS boot media, mount the
+# squashfs read-only and
 # switch_root into busybox init, whose inittab runs /etc/bd/boot.sh.
 export PATH=/bin:/sbin:/usr/bin:/usr/sbin
 
@@ -26,21 +25,6 @@ if [ -f /modules ]; then
         [ -n "$ko" ] && $BB insmod "$ko" 2>/dev/null || true
     done < /modules
 fi
-
-# pass any deploy-time bd-deploy.env from an attached device to the root:
-# mount each candidate read-only, copy the file to /run/bd/deploy.env, umount
-for d in /dev/sr1 /dev/vd[a-z] /dev/sd[a-z] /dev/nvme[0-9]n[0-9]; do
-    if [ -b "$d" ] && [ ! -f /run/bd/deploy.env ]; then
-        if $BB mount -o ro "$d" /media 2>/dev/null; then
-            if [ -f /media/bd-deploy.env ]; then
-                $BB cp /media/bd-deploy.env /run/bd/deploy.env
-                $BB chmod 600 /run/bd/deploy.env
-                echo "bd-init: deploy config found on $d"
-            fi
-            $BB umount /media
-        fi
-    fi
-done
 
 # find the BDFORENSICS boot media (holds /rootfs.squashfs)
 media=

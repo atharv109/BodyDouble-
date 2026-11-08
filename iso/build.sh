@@ -20,11 +20,10 @@
 #     /etc/bd/boot.sh -> bd-twin (seal checks, register over the VPC with
 #     the ONE-TIME token, long-poll /twin/jobs/next, post ToolResults)
 #
-# SECRET HYGIENE: nothing case-specific is baked. The case id, one-time
-# registration token and control-plane URL arrive at boot from Vultr's
-# link-local user_data as base64 JSON. Only the non-secret VPC subnet,
-# VPC address and disk device use bd.subnet=/bd.vpc_ip=/bd.disk=. No Vultr
-# API key and no inference key
+# SECRET HYGIENE: nothing case-specific is baked. All deploy-time values
+# arrive at boot from Vultr's link-local user_data
+# as base64 JSON and are strictly validated in Python. No block-device or
+# kernel-command-line configuration is accepted. No Vultr API key or inference key
 # exists anywhere in the build context or the image.
 #
 # Modes:
@@ -86,10 +85,9 @@ stage() {
     cp -a "$BOOTFILES/." "$s/boot/"
 
     log "stage: live egress ruleset demo (fake deploy-time subnet)"
-    # the exact substitution /etc/bd/boot.sh performs at boot, demonstrated
-    # with the RFC 5737 placeholder subnet from deploy.env.example
-    . "$s/etc/bd/deploy.env.example"
-    sed "s|__BD_VPC_SUBNET__|$BD_SUBNET|g" \
+    # Demonstrate the validated Python renderer's final substitution using
+    # the documentation-only RFC 5737 subnet.
+    sed "s|__BD_VPC_SUBNET__|192.0.2.0/24|g" \
         "$s/etc/bd/egress.nft" > "$s/etc/bd/egress.live.nft"
 
     log "stage: sha256 manifest"

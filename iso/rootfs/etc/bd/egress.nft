@@ -9,13 +9,9 @@
 # that another component (e.g. dockerd's iptables shims) adds to a different
 # table can only tighten these drops, never loosen them.
 #
-# The case VPC subnet is a DEPLOY-TIME value. The placeholder
-# __BD_VPC_SUBNET__ below is never loaded as-is: /etc/bd/boot.sh substitutes
-# it with the subnet from bd.subnet= on the kernel cmdline (or from the
-# bd-deploy.env file the deploy step attaches) and feeds the result to
-# `nft -f`. With no subnet provided, boot.sh REMOVES the accept line
-# entirely (allow nothing anywhere) and refuses to start the twin agent -
-# fail closed.
+# The placeholder is never loaded as-is. Python strictly validates the
+# user_data IPv4 CIDR, renders the rule, and writes a drop-only ruleset on
+# any error. Shell code never parses or substitutes metadata values.
 #
 # Allowed outbound, exhaustively: loopback, established/related replies, and
 # the case VPC subnet. Nothing else. Inbound allows nothing beyond
