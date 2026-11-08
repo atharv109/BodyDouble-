@@ -7,8 +7,10 @@ then switches to production-scale values via env overrides.
 from __future__ import annotations
 
 import os
+import ipaddress
 from dataclasses import dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 DEV_APP_SECRET = "body-double-dev-secret"
@@ -40,7 +42,9 @@ class Settings:
     operator_password: str | None = None  # required when vultr_api_key enables real mode
     iso_id: str = "iso-bd-forensics"
     twin_plan: str = "vc2-1c-2gb"
-    control_url: str = "http://10.0.0.1:8000"  # told to the twin via user_data (real mode)
+    control_url: str | None = "http://10.0.0.1:8000"  # control plane address on investigation VPC
+    investigation_vpc_id: str | None = None
+    investigation_vpc_subnet: str | None = None
     admin_ip: str = "203.0.113.7"  # the one IP allowed SSH in the quarantine group
     public_url: str = "http://localhost:5173"
     webhook_secret: str | None = None
@@ -74,7 +78,10 @@ def settings_from_env() -> Settings:
         operator_password=os.environ.get("BD_OPERATOR_PASSWORD") or None,
         iso_id=os.environ.get("VULTR_ISO_ID", "iso-bd-forensics"),
         twin_plan=os.environ.get("TWIN_PLAN", "vc2-1c-2gb"),
-        control_url=os.environ.get("CONTROL_URL", "http://10.0.0.1:8000"),
+        control_url=(os.environ.get("CONTROL_URL") or
+                     (None if real else "http://10.0.0.1:8000")),
+        investigation_vpc_id=os.environ.get("BD_VPC_ID") or None,
+        investigation_vpc_subnet=os.environ.get("BD_VPC_SUBNET") or None,
         admin_ip=os.environ.get("ADMIN_IP", "203.0.113.7"),
         public_url=os.environ.get("BD_PUBLIC_URL", "http://localhost:5173").rstrip("/"),
         webhook_secret=os.environ.get("BD_WEBHOOK_SECRET") or None,
@@ -111,6 +118,26 @@ def validate_real_mode(settings: Settings) -> None:
             "refusing to start in real-Vultr mode without a strong APP_SECRET "
             "of at least 32 characters"
         )
+
+
+def validate_investigation_vpc(settings: Settings) -> None:
+    if settings.vultr_api_key and not (
+            settings.investigation_vpc_id
+            and settings.investigation_vpc_subnet
+            and settings.control_url):
+        raise RuntimeError(
+            "real-Vultr mode requires BD_VPC_ID, BD_VPC_SUBNET, and CONTROL_URL"
+        )
+    if settings.investigation_vpc_id:
+        try:
+            network = ipaddress.ip_network(settings.investigation_vpc_subnet,
+                                           strict=False)
+            control_ip = ipaddress.ip_address(urlsplit(settings.control_url).hostname)
+        except (TypeError, ValueError) as error:
+            raise RuntimeError("BD_VPC_SUBNET and CONTROL_URL must identify the investigation VPC") from error
+        if control_ip not in network or control_ip in {
+                network.network_address, network.broadcast_address}:
+            raise RuntimeError("CONTROL_URL must use a host address inside BD_VPC_SUBNET")
 
 
 def test_settings(database_url: str) -> Settings:

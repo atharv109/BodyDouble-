@@ -80,6 +80,9 @@ async def test_infect_is_404_in_real_mode(tmp_path):
     settings.vultr_api_key = "not-a-real-key"
     settings.operator_password = "correct-horse-battery"
     settings.app_secret = "a" * 32
+    settings.investigation_vpc_id = "vpc-shared"
+    settings.investigation_vpc_subnet = "10.77.0.0/24"
+    settings.control_url = "http://10.77.0.1:8000"
     state = build_state(settings, vultr=FakeVultr())
     try:
         async with httpx.AsyncClient(

@@ -14,7 +14,8 @@ from sqlalchemy.orm import sessionmaker
 
 from contracts.vultr import FakeVultr, RealVultr, VultrClient
 
-from .config import Settings, settings_from_env, validate_real_mode
+from .config import (Settings, settings_from_env, validate_investigation_vpc,
+                     validate_real_mode)
 from .db import make_engine, init_db
 
 
@@ -63,6 +64,7 @@ def build_state(settings: Settings | None = None, vultr: VultrClient | None = No
             "refusing to start in real-Vultr mode without BD_OPERATOR_PASSWORD "
             "of at least 12 characters"
         )
+    validate_investigation_vpc(settings)
     engine = make_engine(settings.database_url)
     init_db(engine)
     state = AppState(
