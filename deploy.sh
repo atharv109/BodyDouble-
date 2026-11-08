@@ -12,6 +12,7 @@ if [[ $(id -u) -ne 0 ]]; then
 fi
 
 export DEBIAN_FRONTEND=noninteractive
+rm -f /etc/apt/sources.list.d/caddy-stable.list  # re-added below with its key; a stale copy breaks this update
 apt-get update
 apt-get install -y ca-certificates curl gnupg openssl postgresql postgresql-contrib rsync
 
