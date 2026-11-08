@@ -152,3 +152,43 @@ export const attacks: { value: Attack; name: string; path: string }[] = [
   { value: 'c2_beacon', name: 'C2 beacon and miner', path: 'beacon.c2.example' },
   { value: 'ai_note', name: 'A note for the AI', path: '/root/NOTE_FOR_AI_ANALYST.txt' },
 ]
+
+/**
+ * Incident presets for "Infect a server". Each plants the subset of our five attacks that matches a technique
+ * its source reports. "happened" says only what that source says; "helped" says only what is true of this product
+ * (PRD.md): a sealed copy instead of a shutdown, an OS that never boots, findings to a human. Never prevention.
+ */
+export type Scenario = {
+  id: string; company: string; title: string; year: string; attacks: Attack[]
+  happened: string; planted: string; helped: string; source: { label: string; href: string }
+}
+export const scenarios: Scenario[] = [
+  {
+    id: 'lapsus', company: 'Microsoft', title: 'Lapsus$ (DEV-0537)', year: '2022', attacks: ['rogue_ssh_key', 'c2_beacon'],
+    happened: 'Microsoft reports the group created global admin accounts in victims’ cloud tenants, downloaded sensitive data for extortion, and joined their incident-response calls.',
+    planted: 'A root SSH key nobody issued stands in for the added admin; a beacon calling out stands in for the data leaving.',
+    helped: 'The investigation happens on a sealed copy, so the production server they are inside does not change while they watch. Findings go to a person, who decides.',
+    source: { label: 'Microsoft Security blog', href: 'https://www.microsoft.com/security/blog/dev-0537' },
+  },
+  {
+    id: 'sunburst', company: 'SolarWinds', title: 'SolarWinds SUNBURST', year: '2020', attacks: ['replaced_top', 'c2_beacon'],
+    happened: 'A trojanized, digitally signed Orion plugin carried a backdoor that talked to outside servers. When it found forensic tools running, it paused and tried again later.',
+    planted: 'A replaced system binary stands in for the trojanized plugin; a beacon to a C2 domain stands in for the backdoor’s calls out.',
+    helped: 'The copy’s OS never boots, so malware that hides from forensic tools never runs. Suspect files run only in a no-network container whose fake DNS logs every name they ask for.',
+    source: { label: 'Mandiant, SUNBURST technical details', href: 'https://cloud.google.com/blog/topics/threat-intelligence/sunburst-additional-technical-details/' },
+  },
+  {
+    id: 'change', company: 'Change Healthcare', title: 'Change Healthcare', year: '2024', attacks: ['rogue_ssh_key', 'c2_beacon'],
+    happened: 'Attackers got in with stolen credentials to an internal system that had no multi-factor authentication, stole medical records, and caused widespread disruption.',
+    planted: 'A root SSH key nobody issued stands in for the stolen login; a beacon calling out stands in for the records leaving.',
+    helped: 'Body Double investigates a sealed copy instead of shutting the server down, and reports each finding with its evidence to a person.',
+    source: { label: 'TechCrunch', href: 'https://techcrunch.com/2024/06/21/change-healthcare-confirms-ransomware-hackers-stole-medical-records-on-a-substantial-proportion-of-americans' },
+  },
+  {
+    id: 'notpetya', company: 'Maersk', title: 'Maersk and NotPetya', year: '2017', attacks: ['replaced_top'],
+    happened: 'NotPetya arrived in a malicious update to MeDoc accounting software. Maersk reinstalled about 4,000 servers, 45,000 PCs and 2,500 applications in ten days.',
+    planted: 'A system binary swapped for a tampered one stands in for the poisoned update.',
+    helped: 'Body Double examines a snapshot copy, so a suspect server is investigated without being shut down or touched. Any fix waits for a person’s approval.',
+    source: { label: 'The Register', href: 'https://www.theregister.com/2018/01/25/after_notpetya_maersk_replaced_everything' },
+  },
+]
