@@ -13,7 +13,7 @@ fi
 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
-apt-get install -y ca-certificates curl gnupg postgresql postgresql-contrib rsync
+apt-get install -y ca-certificates curl gnupg openssl postgresql postgresql-contrib rsync
 
 install -d -m 0755 /etc/apt/keyrings
 curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/gpg.key \
@@ -51,22 +51,30 @@ if [[ "$database_exists" != "1" ]]; then
 fi
 
 if [[ ! -e "$ENV_FILE" ]]; then
+  app_secret=$(openssl rand -hex 32)
   install -m 0600 /dev/null "$ENV_FILE"
-  cat > "$ENV_FILE" <<'EOF'
+  cat > "$ENV_FILE" <<EOF
 VULTR_API_KEY=
 VULTR_INFERENCE_KEY=
 BD_OPERATOR_PASSWORD=CHANGE_ME
 DATABASE_URL=postgresql:///body_double
 BD_DOMAIN=example.com
-APP_SECRET=CHANGE_ME_WITH_A_LONG_RANDOM_VALUE
+APP_SECRET=$app_secret
 EOF
 fi
 chmod 0600 "$ENV_FILE"
 
 vultr_key=$(sed -n 's/^VULTR_API_KEY=//p' "$ENV_FILE" | tail -n 1)
 operator_password=$(sed -n 's/^BD_OPERATOR_PASSWORD=//p' "$ENV_FILE" | tail -n 1)
+app_secret=$(sed -n 's/^APP_SECRET=//p' "$ENV_FILE" | tail -n 1)
 if [[ -n "$vultr_key" && "$vultr_key" != "CHANGE_ME" && "$operator_password" == "CHANGE_ME" ]]; then
   echo "Refusing deployment: set BD_OPERATOR_PASSWORD before enabling VULTR_API_KEY" >&2
+  exit 1
+fi
+if [[ -n "$vultr_key" && "$vultr_key" != "CHANGE_ME" ]] \
+  && [[ ${#app_secret} -lt 32 || "${app_secret^^}" == *CHANGE_ME* \
+        || "${app_secret^^}" == *PLACEHOLDER* ]]; then
+  echo "Refusing deployment: APP_SECRET must be generated and at least 32 characters" >&2
   exit 1
 fi
 

@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+DEV_APP_SECRET = "body-double-dev-secret"
 
 
 def default_database_url() -> str:
@@ -56,13 +57,13 @@ class Settings:
     spawn_fake_twin: bool = True  # FakeVultr runs an in-process forensics ISO stand-in
     full_pipeline: bool = True  # POST /cases continues past sealing through report/close
 
-    app_secret: str = "body-double-dev-secret"  # HMAC key for human sessions (prod: env)
+    app_secret: str = DEV_APP_SECRET  # HMAC key for human sessions (prod: env)
     session_ttl_s: int = 86400
 
 
 def settings_from_env() -> Settings:
     real = bool(os.environ.get("VULTR_API_KEY"))
-    return Settings(
+    settings = Settings(
         database_url=normalize_db_url(os.environ.get("DATABASE_URL") or default_database_url()),
         vultr_api_key=os.environ.get("VULTR_API_KEY") or None,
         operator_password=os.environ.get("BD_OPERATOR_PASSWORD") or None,
@@ -78,8 +79,23 @@ def settings_from_env() -> Settings:
         twin_job_poll_s=_f("TWIN_JOB_POLL_S", 25.0),
         heartbeat_ttl_s=_f("HEARTBEAT_TTL_S", 90.0),
         t1_fallback=os.environ.get("T1_FALLBACK", "1" if real else "0").lower() in ("1", "true", "yes"),
-        app_secret=os.environ.get("APP_SECRET", "body-double-dev-secret"),
+        app_secret=os.environ.get("APP_SECRET", DEV_APP_SECRET),
     )
+    validate_real_mode(settings)
+    return settings
+
+
+def validate_real_mode(settings: Settings) -> None:
+    """Fail closed before real-Vultr mode can mint forgeable sessions."""
+    if not settings.vultr_api_key:
+        return
+    secret = settings.app_secret or ""
+    if (secret == DEV_APP_SECRET or "CHANGE_ME" in secret.upper()
+            or len(secret) < 32):
+        raise RuntimeError(
+            "refusing to start in real-Vultr mode without a strong APP_SECRET "
+            "of at least 32 characters"
+        )
 
 
 def test_settings(database_url: str) -> Settings:
