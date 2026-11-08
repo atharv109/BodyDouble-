@@ -17,6 +17,8 @@ function seo(site: string): Plugin {
   const files: Record<string, [string, string]> = { 'robots.txt': [robots, 'text/plain'], 'sitemap.xml': [sitemap, 'application/xml'] }
   return {
     name: 'bd-seo',
+    // %VITE_SITE_URL% in index.html, with the same default the JS gets (no .env needed)
+    transformIndexHtml: { order: 'pre', handler: (html) => html.replaceAll('%VITE_SITE_URL%', site) },
     configureServer(server) {
       server.middlewares.use((req, res, next) => {
         const f = files[(req.url ?? '').replace(/^\//, '')]
@@ -32,9 +34,10 @@ function seo(site: string): Plugin {
 }
 
 export default defineConfig(({ mode }) => {
-  const site = (process.env.VITE_SITE_URL ?? loadEnv(mode, process.cwd(), 'VITE_').VITE_SITE_URL ?? 'http://localhost:5173').replace(/\/$/, '')
+  const site = (process.env.VITE_SITE_URL || loadEnv(mode, process.cwd(), 'VITE_').VITE_SITE_URL || 'http://localhost:5173').replace(/\/$/, '')
   return {
     plugins: [react(), tailwindcss(), seo(site)],
+    define: { 'import.meta.env.VITE_SITE_URL': JSON.stringify(site) },
     server: { port: Number(process.env.WEB_PORT ?? 5173), proxy },
     preview: { port: Number(process.env.WEB_PORT ?? 4173), proxy },
   }
