@@ -51,6 +51,26 @@ invented numbers, customers or quotes.
 9. **Try it:** one action that opens a live fake-mode case in the console so the visitor can
    watch it and click Approve themselves.
 
+## Real-world evidence (Atharv: cite these, and theme the demo case on them)
+
+Use in beats 2-3, each with a visible link to its source. Quote only what the source says.
+
+| Point it proves | Incident | Sources |
+|---|---|---|
+| Shutting down takes the business offline | Colonial Pipeline, May 2021: systems taken offline as a precaution halted the pipeline for six days; fuel shortages across the Southeast | https://www.pbs.org/newshour/nation/major-us-pipeline-halts-operations-after-ransomware-attack , https://www.bleepingcomputer.com/news/security/largest-us-pipeline-shuts-down-operations-after-ransomware-attack/ |
+| | MGM Resorts, Sept 2023: casino and hotel systems shut down; about $100M hit to quarterly results (SEC filing) | https://bleepingcomputer.com/news/security/mgm-resorts-ransomware-attack-led-to-100-million-loss-data-theft/ |
+| | Change Healthcare, Feb 2024: systems shut down, outages for thousands of providers, some services back only months later; $2.3-2.45B projected cost | https://techcrunch.com/2024/06/21/change-healthcare-confirms-ransomware-hackers-stole-medical-records-on-a-substantial-proportion-of-americans , https://www.paubox.com/blog/change-healthcare-ransomware-attack-projected-to-cost-2.3-billion |
+| | Maersk / NotPetya, 2017: 4,000 servers, 45,000 PCs and 2,500 applications reinstalled in ten days; $250-300M cost | https://www.theregister.com/2018/01/25/after_notpetya_maersk_replaced_everything |
+| Attackers watch the responders | Lapsus$ (DEV-0537), 2022: joined victims' ongoing crisis-communication calls (Microsoft) | https://www.microsoft.com/security/blog/dev-0537 |
+| | Scattered Spider: searched victims' Slack and Teams for intrusion and incident-response discussions (MITRE ATT&CK) | https://attack.mitre.org/techniques/T1213/005/ |
+| Malware reacts to being investigated (why the twin's OS never runs) | SolarWinds SUNBURST, 2020: checked for forensic and security tools and went quiet, exited, or disabled them; evaded investigators for about seven months | https://cloud.google.com/blog/topics/threat-intelligence/sunburst-additional-technical-details/ |
+
+**Demo case theming (orchestrator's call, within scope):** the live demo stays the fictional
+`shop-prod`. Its planted indicators and recorded data do not change. The story frames it as the
+same playbook those incidents document (persistence: cron backdoor; access: rogue SSH key;
+hiding: replaced `top`; calling home: the C2 beacon), run against a small team with no IR staff.
+Never put a real company's name on the demo case or attribute its data to them.
+
 ## Brand mark
 
 `C:\Users\athar\Downloads\Contained Server Twin Emblem.png` (1254x1254 PNG: a rounded frame
