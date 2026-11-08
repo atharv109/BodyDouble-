@@ -10,6 +10,8 @@ async def test_fake_run_reports_zero_blast_radius(client, human):
     response = await client.post("/dev/fake-case", headers=human, json={})
     assert response.status_code == 201, response.text
     case_id = response.json()["id"]
+    closed = await client.post(f"/cases/{case_id}/close", headers=human)
+    assert closed.status_code == 200, closed.text
     detail = await client.get(f"/cases/{case_id}", headers=human)
     assert detail.json()["blast_radius"] == {
         "prod_writes_before_approval": 0,

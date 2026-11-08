@@ -28,7 +28,7 @@ from contracts.models import (
     TwinRegisterRequest,
     TwinRegisterResponse,
 )
-from contracts.vultr import VultrError
+from contracts.vultr import FakeVultr, VultrError
 
 from .sessions import mint, verify
 from .state import AppState, build_state
@@ -110,13 +110,32 @@ def create_app(state: AppState | None = None) -> FastAPI:
                             _: str = Depends(require_human)):
         if not state.is_fake:
             raise HTTPException(404, "development fake case is unavailable")
+        for task in state.fake_twin_tasks.values():
+            task.cancel()
+        if state.fake_twin_tasks:
+            await asyncio.gather(*state.fake_twin_tasks.values(), return_exceptions=True)
+        state.fake_twin_tasks.clear()
+        from .db import Base
+        from .twin import TwinChannel
+        with state.sf() as session:
+            for table in reversed(Base.metadata.sorted_tables):
+                session.execute(table.delete())
+            session.commit()
+        state.vultr = FakeVultr()
+        state.service.vultr = state.vultr
+        state.channel = TwinChannel(state.sf, state.settings)
+        state.service.channel = state.channel
         body = body or {}
         instance_id = body.get("instance_id", "inst-shop-prod")
         reason = body.get("reason", "Development demo: investigate shop-prod")
+        production = state.vultr.instances.get(instance_id)
+        if production is not None:
+            production.firewall_group_id = "fw-shop-web"
+            production.power_status = "running"
         try:
             case = await state.service.open_case(instance_id, reason, operator="dev-demo")
             return await state.service.run_case(
-                case.id, force_full=True, auto_apply=True
+                case.id, force_full=True, auto_apply=False, auto_close=False
             )
         except LookupError as e:
             raise HTTPException(404, str(e))
@@ -217,8 +236,6 @@ def create_app(state: AppState | None = None) -> FastAPI:
               response_model=Action, status_code=200)
     async def approve_action(case_id: str, action_id: str, body: ApproveRequest,
                              operator: str = Depends(require_human)):
-        if body.approved_by != operator:
-            raise HTTPException(422, "approved_by must match your session operator")
         try:
             # approval applies the action immediately (endpoint contract);
             # apply_action returns the action with its API response
@@ -230,10 +247,11 @@ def create_app(state: AppState | None = None) -> FastAPI:
             raise HTTPException(409, str(e))
 
     # ---------------------------------------------------------------- F11: teardown
-    @app.post("/cases/{case_id}/close", response_model=Case)
+    @app.post("/cases/{case_id}/close", response_model=CaseDetail)
     async def close_case(case_id: str, _: str = Depends(require_human)):
         try:
-            return await state.service.close_case(case_id)
+            await state.service.close_case(case_id)
+            return state.service.detail(case_id)
         except LookupError as e:
             raise HTTPException(404, str(e))
         except TransitionError as e:

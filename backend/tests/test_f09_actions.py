@@ -125,12 +125,13 @@ async def test_approve_marks_action_approved_by_the_session_operator(client, sta
     assert r3.status_code == 404
 
 
-async def test_approve_rejects_approved_by_that_is_not_the_session_operator(
+async def test_approve_uses_session_operator_not_untrusted_body_attribution(
         client, state, human):
     cid, actions = await _menu(client, state, human)
     r = await client.post(f"/cases/{cid}/actions/{actions[0].id}/approve",
                          headers=human, json={"approved_by": "mallory"})
-    assert r.status_code == 422
+    assert r.status_code == 200
     with state.sf() as sn:
         row = sn.get(ActionRow, actions[0].id)
-    assert row.status == ActionStatus.proposed.value  # untouched by the attempt
+    assert row.status == ActionStatus.applied.value
+    assert row.approved_by == "operator"

@@ -166,7 +166,7 @@ class CaseService:
         return row.to_model()
 
     async def run_case(self, case_id: str, *, force_full: bool = False,
-                       auto_apply: bool = False) -> Case:
+                       auto_apply: bool = False, auto_close: bool = True) -> Case:
         """Walk the case as far as the phases implemented so far allow."""
         row = self.row(case_id)
         try:
@@ -184,7 +184,7 @@ class CaseService:
                     self._move(row, CaseState.contained,
                                "development demo containment applied",
                                actor=Actor.human)
-                if self.state.is_fake:
+                if self.state.is_fake and auto_close:
                     await self.close_case(case_id)
         except CaseFailure as e:
             await self.fail_case(case_id, str(e))
@@ -334,7 +334,9 @@ class CaseService:
             await asyncio.sleep(self.settings.poll_interval_s)
         # evidence item #1: the snapshot itself (PRD "Preserve")
         self._add_evidence(Evidence(
-            id=self._next_id(EvidenceRow, row.id, "ev"), case_id=row.id, step_id=None,
+            id="ev-001" if row.operator == "dev-demo"
+            else self._next_id(EvidenceRow, row.id, "ev"),
+            case_id=row.id, step_id=None,
             path=f"snapshot:{snap.id}", sha256=hashlib.sha256(snap.id.encode()).hexdigest(),
             excerpt=f"Vultr snapshot {snap.id} of {row.instance_id} at "
                     f"{utcnow().isoformat()}Z",
@@ -352,7 +354,9 @@ class CaseService:
 
     async def _investigation_phase(self, row: CaseRow) -> None:
         self._move(row, CaseState.investigating, "sealed investigation started")
-        report = await ScriptedInvestigator().investigate(
+        report = await ScriptedInvestigator(
+            fixture_ids=row.operator == "dev-demo"
+        ).investigate(
             row.to_model(),
             TwinStepRunner(self.channel, self.settings),
             DbCaseRecorder(self.state.sf, self.log),
@@ -469,9 +473,10 @@ class CaseService:
 
         desired: list[ActionKind] = []
         if has_findings:
-            desired += [ActionKind.quarantine_firewall, ActionKind.stop_instance]
+            desired.append(ActionKind.quarantine_firewall)
             if report is not None and report.rogue_ssh_keys:
                 desired.append(ActionKind.revoke_ssh_key)
+            desired.append(ActionKind.stop_instance)
             if report is not None and report.secrets_found:
                 desired.append(ActionKind.rotate_secrets)
 
@@ -496,28 +501,28 @@ class CaseService:
                 row.quarantine_group_id = group.id
                 self._touch(row)
             action = Action(
-                id=self._next_id(ActionRow, row.id, "act"), case_id=row.id, kind=kind,
+                id=self._action_id(row), case_id=row.id, kind=kind,
                 target=target, api_method="PATCH", api_path=f"/v2/instances/{target}",
                 api_body={"firewall_group_id": row.quarantine_group_id},
                 description=f"Move {row.instance_label} into the quarantine "
                             f"group (admin SSH only)")
         elif kind is ActionKind.stop_instance:
             action = Action(
-                id=self._next_id(ActionRow, row.id, "act"), case_id=row.id, kind=kind,
+                id=self._action_id(row), case_id=row.id, kind=kind,
                 target=target, api_method="POST",
                 api_path=f"/v2/instances/{target}/halt",
                 description=f"Halt {row.instance_label}")
         elif kind is ActionKind.revoke_ssh_key:
             keys = "; ".join(report.rogue_ssh_keys)
             action = Action(
-                id=self._next_id(ActionRow, row.id, "act"), case_id=row.id, kind=kind,
+                id=self._action_id(row), case_id=row.id, kind=kind,
                 target=target, api_method=None, api_path=None,
                 description=f"On {row.instance_label}, remove the rogue "
                             f"authorized_keys lines: {keys}")
         else:  # rotate_secrets
             paths = ", ".join(report.secrets_found)
             action = Action(
-                id=self._next_id(ActionRow, row.id, "act"), case_id=row.id, kind=kind,
+                id=self._action_id(row), case_id=row.id, kind=kind,
                 target=target, api_method=None, api_path=None,
                 description=f"Rotate the secrets found on the disk: {paths}")
         with self.state.sf() as s:
@@ -530,6 +535,13 @@ class CaseService:
         with self.state.sf() as s:
             n = s.scalar(select(func.count()).where(row_class.case_id == case_id)) or 0
         return f"{case_id}-{prefix}-{n + 1:03d}"
+
+    def _action_id(self, row: CaseRow) -> str:
+        if row.operator == "dev-demo":
+            with self.state.sf() as s:
+                n = s.scalar(select(func.count()).where(ActionRow.case_id == row.id)) or 0
+            return f"act-{n + 1}"
+        return self._next_id(ActionRow, row.id, "act")
 
     async def approve_action(self, case_id: str, action_id: str, operator: str) -> Action:
         with self.state.sf() as s:

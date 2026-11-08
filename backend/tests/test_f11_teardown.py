@@ -25,7 +25,7 @@ async def test_close_deletes_twin_and_vpc_and_records_404(tmp_path):
         response = await client.post(f"/cases/{opened.id}/close")
 
         assert response.status_code == 200, response.text
-        assert response.json()["state"] == "closed"
+        assert response.json()["case"]["state"] == "closed"
         with pytest.raises(VultrNotFound):
             await state.vultr.get_instance(twin_id)
         assert vpc_id not in state.vultr.vpcs
