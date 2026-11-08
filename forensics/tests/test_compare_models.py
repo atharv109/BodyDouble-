@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
 from bd_forensics.model import Model
-from scripts.compare_models import compare, main, print_results
+from contracts.models import Finding, Severity
+from scripts.compare_models import compare, load_fixture, main, match_findings, print_results
 
 
 class FakeSolver(Model):
@@ -52,6 +54,47 @@ async def test_compare_models_scores_fake_solver_by_code(capsys: pytest.CaptureF
     output = capsys.readouterr().out
     assert "fake-a  6/6" in output
     assert output.rstrip().endswith(("BEST: fake-a", "BEST: fake-b"))
+
+
+def test_reworded_titles_match_by_evidence_overlap() -> None:
+    detail = load_fixture()
+    actual = [
+        Finding(
+            id=f"model-{index}",
+            case_id=detail.case.id,
+            title=f"Completely reworded result {index}",
+            severity=expected.severity,
+            summary="Different wording",
+            evidence_ids=expected.evidence_ids,
+        )
+        for index, expected in enumerate(detail.findings)
+    ]
+    matched = match_findings(actual, detail.findings, detail.evidence)
+    assert set(matched) == {f"fd-{index:02d}" for index in range(1, 7)}
+
+
+def test_finding_citing_nothing_real_does_not_match() -> None:
+    detail = load_fixture()
+    invented = Finding(
+        id="model-invented",
+        case_id=detail.case.id,
+        title=detail.findings[0].title,
+        severity=Severity.critical,
+        summary="Copied title but unsupported",
+        evidence_ids=["ev-does-not-exist"],
+    )
+    assert match_findings([invented], detail.findings, detail.evidence) == {}
+
+
+@pytest.mark.asyncio
+async def test_dump_writes_raw_findings_and_report(tmp_path: Path) -> None:
+    results = await compare(
+        ["vendor/fake:model"], "not-real", lambda _id, _key: FakeSolver(), dump_dir=tmp_path
+    )
+    assert results[0].matched == 6
+    dumped = json.loads((tmp_path / "vendor_fake_model.json").read_text())
+    assert len(dumped["raw_findings"]["findings"]) == 6
+    assert dumped["raw_report"]["summary"] == "Six evidence-bound findings confirmed."
 
 
 def test_compare_models_requires_only_named_key(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:

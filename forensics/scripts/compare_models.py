@@ -27,7 +27,7 @@ FIXTURE = Path(__file__).parents[2] / "contracts" / "fixtures" / "fake_case_deta
 class Result:
     model_id: str
     score: int
-    findings: int
+    matched: int
     latency_s: float
     tokens: int
     checks: str
@@ -45,32 +45,59 @@ def match_findings(
     actual: list[Finding], expected: list[Finding], evidence: list[Evidence]
 ) -> dict[str, Finding]:
     paths = {ev.id: ev.path for ev in evidence}
-    remaining = {item.id: item for item in expected}
+    # Rank every actual/expected pair, then greedily take the strongest
+    # non-conflicting assignments. Evidence identity is authoritative; path
+    # overlap is the fallback for fixtures whose evidence IDs were renumbered.
+    candidates: list[tuple[tuple[int, int, int], str, int, Finding]] = []
+    for actual_index, finding in enumerate(actual):
+        actual_ids = set(finding.evidence_ids)
+        actual_paths = {paths[ref] for ref in actual_ids if ref in paths}
+        for expected_item in expected:
+            expected_ids = set(expected_item.evidence_ids)
+            expected_paths = {paths[ref] for ref in expected_ids if ref in paths}
+            id_overlap = len(actual_ids & expected_ids)
+            path_overlap = len(actual_paths & expected_paths)
+            if not id_overlap and not path_overlap:
+                continue
+            title_equal = int(normalized(finding.title) == normalized(expected_item.title))
+            candidates.append(
+                ((id_overlap, path_overlap, title_equal), expected_item.id, actual_index, finding)
+            )
+
     matched: dict[str, Finding] = {}
-    for finding in actual:
-        title_matches = [
-            item for item in remaining.values() if normalized(item.title) == normalized(finding.title)
-        ]
-        candidates = title_matches
-        if not candidates:
-            cited_paths = {paths[ref] for ref in finding.evidence_ids if ref in paths}
-            candidates = [
-                item
-                for item in remaining.values()
-                if cited_paths
-                and cited_paths.intersection(paths[ref] for ref in item.evidence_ids if ref in paths)
-            ]
-        if len(candidates) == 1:
-            expected_item = candidates[0]
-            matched[expected_item.id] = finding
-            remaining.pop(expected_item.id)
+    used_actual: set[int] = set()
+    for _score, expected_id, actual_index, finding in sorted(
+        candidates, key=lambda item: (item[0], item[1], -item[2]), reverse=True
+    ):
+        if expected_id in matched or actual_index in used_actual:
+            continue
+        matched[expected_id] = finding
+        used_actual.add(actual_index)
     return matched
 
 
-async def evaluate(model_id: str, model: Model, detail: CaseDetail) -> Result:
+class RecordingModel:
+    def __init__(self, delegate: Model) -> None:
+        self.delegate = delegate
+        self.responses: list[str] = []
+
+    @property
+    def total_tokens(self) -> int:
+        return int(getattr(self.delegate, "total_tokens", 0))
+
+    async def chat(self, messages: list[dict[str, str]]) -> str:
+        response = await self.delegate.chat(messages)
+        self.responses.append(response)
+        return response
+
+
+async def evaluate(
+    model_id: str, model: Model, detail: CaseDetail, dump_dir: Path | None = None
+) -> Result:
+    recording = RecordingModel(model)
     started = time.perf_counter()
-    findings, timeline = await analyze(model, detail.case.id, detail.evidence)
-    solver_report = await report(model, detail.evidence, timeline)
+    findings, timeline = await analyze(recording, detail.case.id, detail.evidence)
+    solver_report = await report(recording, detail.evidence, timeline)
     latency = time.perf_counter() - started
 
     known_ids = {ev.id for ev in detail.evidence}
@@ -85,10 +112,32 @@ async def evaluate(model_id: str, model: Model, detail: CaseDetail) -> Result:
     )
     report_ok = isinstance(solver_report, Report) and bool(solver_report.summary.strip())
     checks_list = [report_ok, evidence_ok, complete, no_invented, note_ok, severity_ok]
+    if dump_dir is not None:
+        dump_dir.mkdir(parents=True, exist_ok=True)
+        safe_id = re.sub(r"[^A-Za-z0-9_.-]+", "_", model_id).strip("._") or "model"
+
+        def raw_json(index: int) -> object:
+            if index >= len(recording.responses):
+                return None
+            try:
+                return json.loads(recording.responses[index])
+            except json.JSONDecodeError:
+                return recording.responses[index]
+
+        payload = {
+            "model_id": model_id,
+            "raw_findings": raw_json(0),
+            "raw_report": raw_json(1),
+            "accepted_findings": [item.model_dump(mode="json") for item in findings],
+            "report": solver_report.model_dump(mode="json"),
+        }
+        (dump_dir / f"{safe_id}.json").write_text(
+            json.dumps(payload, indent=2) + "\n", encoding="utf-8"
+        )
     return Result(
         model_id=model_id,
         score=sum(checks_list),
-        findings=len(findings),
+        matched=len(matched),
         latency_s=latency,
         tokens=int(getattr(model, "total_tokens", 0)),
         checks="".join("Y" if value else "-" for value in checks_list),
@@ -96,13 +145,16 @@ async def evaluate(model_id: str, model: Model, detail: CaseDetail) -> Result:
 
 
 async def compare(
-    model_ids: list[str], key: str, factory: Callable[[str, str], Model] | None = None
+    model_ids: list[str],
+    key: str,
+    factory: Callable[[str, str], Model] | None = None,
+    dump_dir: Path | None = None,
 ) -> list[Result]:
     detail = load_fixture()
     make_model = factory or (lambda model_id, api_key: OpenAIModel(api_key, model_id))
     results = []
     for model_id in model_ids:
-        results.append(await evaluate(model_id, make_model(model_id, key), detail))
+        results.append(await evaluate(model_id, make_model(model_id, key), detail, dump_dir))
     return results
 
 
@@ -110,7 +162,7 @@ def print_results(results: list[Result]) -> None:
     print("MODEL  SCORE  FOUND  LATENCY  TOKENS  CHECKS(R,E,6,N,I,S)")
     for item in results:
         print(
-            f"{item.model_id}  {item.score}/6  {item.findings}/6  "
+            f"{item.model_id}  {item.score}/6  {item.matched}/6  "
             f"{item.latency_s:.2f}s  {item.tokens}  {item.checks}"
         )
     best = min(results, key=lambda item: (-item.score, item.latency_s, item.tokens, item.model_id))
@@ -120,12 +172,13 @@ def print_results(results: list[Result]) -> None:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("model_ids", nargs="+", help="Vultr inference model IDs")
+    parser.add_argument("--dump", type=Path, metavar="DIR", help="write raw model JSON per model")
     args = parser.parse_args(argv)
     key = os.environ.get("VULTR_INFERENCE_KEY")
     if not key:
         print("VULTR_INFERENCE_KEY is missing", file=sys.stderr)
         return 2
-    results = asyncio.run(compare(args.model_ids, key))
+    results = asyncio.run(compare(args.model_ids, key, dump_dir=args.dump))
     print_results(results)
     return 0
 
