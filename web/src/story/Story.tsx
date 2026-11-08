@@ -5,7 +5,7 @@ import { SiteHeader } from '../ui/SiteHeader'
 import { useTitle } from '../ui/useTitle'
 import { Peel } from './Peel'
 import { useStoryMotion } from './motion'
-import { TryIt } from './TryIt'
+import { Infect } from './Infect'
 import { blast, hero, how, note, problem, prod, tryIt, vultr, walls, whyCopy, type Incident } from './content'
 import './story.css'
 
@@ -34,7 +34,7 @@ export function Story() {
               <h2 id="b1" className="t-m font-medium">{hero.h2}</h2>
               <p className="mt-3 text-muted">{hero.lede}</p>
               <div className="mt-6 flex flex-wrap gap-3">
-                <a className="btn btn-agent btn-lg" href="#try">Try a live case</a>
+                <a className="btn btn-agent btn-lg" href="#try">Infect a server</a>
                 <a className="btn btn-lg" href="#how">How it works</a>
               </div>
             </div>
@@ -173,7 +173,7 @@ export function Story() {
             <section id="try" data-testid="beat-9" aria-labelledby="b9" className="beat beat-final">
               <h2 id="b9" className="display">{tryIt.h2}</h2>
               <p className="lede">{tryIt.text}</p>
-              <TryIt label={tryIt.button} />
+              <Infect />
             </section>
           </div>
         </div>

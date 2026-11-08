@@ -2,6 +2,8 @@
 // shop-prod case) and the cited incident sources in docs/superpowers/specs/2026-11-08-story-site-design.md.
 // shop-prod is a fictional demo server; no real company is attached to it.
 
+import type { Attack } from '../api/types'
+
 export type Source = { label: string; href: string }
 export type Incident = { name: string; when: string; text: string; sources: Source[] }
 
@@ -138,7 +140,15 @@ export const vultr = {
 }
 
 export const tryIt = {
-  h2: 'Run a case yourself.',
-  text: 'This opens a live case against shop-prod on a simulated Vultr account. Watch the twin seal and the findings land, then click Approve yourself.',
-  button: 'Open a live case',
+  h2: 'Infect a server.',
+  text: 'Pick what to plant on a fresh demo server. Its sensor trips, Body Double opens the case, and you approve the fix.',
 }
+
+// contracts Attack, in fixture order. The path is the file each one plants (contracts/fixtures evidence).
+export const attacks: { value: Attack; name: string; path: string }[] = [
+  { value: 'cron_backdoor', name: 'Cron backdoor', path: '/etc/cron.d/sysupdate' },
+  { value: 'rogue_ssh_key', name: 'Rogue root SSH key', path: '/root/.ssh/authorized_keys' },
+  { value: 'replaced_top', name: 'Trojaned top', path: '/usr/bin/top' },
+  { value: 'c2_beacon', name: 'C2 beacon and miner', path: 'beacon.c2.example' },
+  { value: 'ai_note', name: 'A note for the AI', path: '/root/NOTE_FOR_AI_ANALYST.txt' },
+]

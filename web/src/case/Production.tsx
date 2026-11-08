@@ -1,4 +1,6 @@
-import type { Action, VultrInstance } from '../api/types'
+import { useEffect, useState } from 'react'
+import { api } from '../api/client'
+import type { Action, Alert, VultrInstance } from '../api/types'
 import type { LiveCase } from './useCase'
 
 /** Left column: the real server. Nothing here moves unless a human approved it. */
@@ -56,7 +58,9 @@ export function Production({ live, server }: { live: LiveCase; server: VultrInst
         </div>
       </article>
 
-      {c?.reason && (
+      {c?.alert_id && <AlertQuote alertId={c.alert_id} />}
+
+      {c?.reason && !c.alert_id && (
         <figure className="border-l border-line pl-4">
           <blockquote className="text-sm">&ldquo;{c.reason}&rdquo;</blockquote>
           <figcaption className="mt-1 text-xs text-muted">Reason given when the case was opened</figcaption>
@@ -81,5 +85,26 @@ function LockBadge({ applied }: { applied: Action[] }) {
     <span className="shrink-0 inline-flex items-center gap-1.5 border border-agent text-agent rounded-xs px-2 py-1 font-mono text-xs" data-testid="lock-badge">
       {applied.length} approved {applied.length === 1 ? 'change' : 'changes'}
     </span>
+  )
+}
+
+const SIGNAL: Record<string, string> = {
+  file_changed: 'file changed', new_outbound: 'new outbound', heartbeat_lost: 'heartbeat lost', external: 'external alert',
+}
+
+/** The alert that opened this case, quoted. Alert text is untrusted data: rendered as text, never as HTML. */
+function AlertQuote({ alertId }: { alertId: string }) {
+  const [alert, setAlert] = useState<Alert | null>(null)
+  useEffect(() => {
+    api.alerts().then((xs) => setAlert(xs.find((a) => a.id === alertId) ?? null)).catch(() => {})
+  }, [alertId])
+  return (
+    <figure className="latch border-l-2 border-finding pl-4" data-testid="case-alert">
+      <p className="label"><span className="text-finding">Sensor alert</span> opened this case</p>
+      <blockquote className="mt-2 text-sm">&ldquo;{alert?.summary ?? '...'}&rdquo;</blockquote>
+      <figcaption className="mt-1 font-mono text-xs text-muted">
+        {alert ? `${SIGNAL[alert.signal] ?? alert.signal} · ${alert.source} · ${alert.id}` : alertId}
+      </figcaption>
+    </figure>
   )
 }

@@ -200,3 +200,15 @@
 .inline-link { text-decoration: none; background: linear-gradient(var(--color-agent) 0 0) left calc(100% - 1px) / 100% 1px no-repeat; transition: background-size 280ms var(--ease-latch); }
 @media (hover: hover) { .inline-link:hover { background-size: 100% 0.45em; } }
 .inline-link:focus-visible { background-size: 100% 0.45em; }
+
+/* Infect a server: the five attacks are toggles; the button plants them. */
+.infect { margin-top: 32px; }
+.attacks { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(min(100%, 240px), 1fr)); border: 0; padding: 0; margin: 0 0 24px; }
+.attack { position: relative; display: grid; gap: 4px; padding: 14px 16px 14px 44px; border: 1px solid var(--color-line); border-radius: 2px; cursor: pointer; background: var(--color-ground);
+  transition: border-color 160ms var(--ease-latch), background-color 160ms var(--ease-latch), translate 160ms var(--ease-latch); }
+.attack:hover { border-color: var(--color-muted); translate: 0 -2px; }
+.attack:has(:focus-visible) { outline: 2px solid var(--color-ink); outline-offset: 2px; }
+.attack[data-on] { border-color: var(--color-finding, #ff5a4e); background: color-mix(in srgb, var(--color-finding, #ff5a4e) 10%, var(--color-ground)); }
+.attack-box { position: absolute; left: 16px; top: 17px; width: 16px; height: 16px; accent-color: var(--color-finding, #ff5a4e); }
+.attack-name { font-weight: 600; }
+.attack-path { font-size: 12px; color: var(--color-muted); overflow-wrap: anywhere; }
