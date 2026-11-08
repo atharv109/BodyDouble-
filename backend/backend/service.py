@@ -11,6 +11,7 @@ from sqlalchemy import select
 
 from contracts.events import StateChanged
 from contracts.models import Actor, Case, CaseState, can_transition
+from contracts.vultr import VultrNotFound
 
 from .db import CaseRow, utcnow
 
@@ -80,7 +81,10 @@ class CaseService:
 
     # ------------------------------------------------------------- F1: open
     async def open_case(self, instance_id: str, reason: str, operator: str = "operator") -> Case:
-        instance = await self.vultr.get_instance(instance_id)  # LookupError -> 404 upstream
+        try:
+            instance = await self.vultr.get_instance(instance_id)
+        except VultrNotFound as e:
+            raise LookupError(f"unknown instance {instance_id}") from e
         case_id = self.next_case_id()
         row = CaseRow(
             id=case_id, instance_id=instance_id, instance_label=instance.label,

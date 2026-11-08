@@ -19,7 +19,7 @@ the PRD ("Body Double — PRD.pdf" in the repo root) is the reference behind it.
 - Until forensics/ is merged, use a scripted stub `Investigator` (contracts.agent) inside backend/.
 
 ## Checklist
-- [ ] F1: GET /instances lists the account's instances; POST /cases opens a case on one. Done when: case row created with instance ID, reason, timestamp. Test file: backend/tests/test_f01_open_case.py
+- [x] F1: GET /instances lists the account's instances; POST /cases opens a case on one. Done when: case row created with instance ID, reason, timestamp. Test file: backend/tests/test_f01_open_case.py
 - [ ] F2: snapshot the suspect instance through VultrClient and poll until complete. Done when: snapshot ID stored; status `complete`. Test file: backend/tests/test_f02_snapshot.py
 - [ ] F3: create the twin from the snapshot on a dedicated VPC with an inbound-deny firewall group, booting the forensics ISO (snapshot_id + iso_id in one create call; the T1 fallback FakeVultr supports is fine behind a flag). Done when: twin instance ID stored; ISO attached before the cloned OS boots. Test file: backend/tests/test_f03_twin.py
 - [ ] F4: POST /twin/register (one-time token, VPC source address only), POST /twin/heartbeat, GET /twin/jobs/next, POST /twin/jobs/{id}/result, all with X-Twin-Session; plus the StepRunner and CaseRecorder from contracts/agent.py. Done when: heartbeat received from the VPC address; a request from a non-VPC address or a reused token is rejected. Test file: backend/tests/test_f04_twin_channel.py

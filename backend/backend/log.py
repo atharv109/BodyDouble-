@@ -40,6 +40,7 @@ class CaseLog:
             entry = LogEntry(
                 seq=seq, case_id=case_id, ts=utcnow(), actor=actor, event=event,
                 payload=payload, prev_hash=last.hash if last else GENESIS_HASH,
+                hash="placeholder",  # replaced by entry_hash below
             )
             entry.hash = entry_hash(entry)
             s.add(LogEntryRow(**entry.model_dump()))

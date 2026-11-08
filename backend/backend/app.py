@@ -6,7 +6,9 @@ Endpoint shapes are owned here (TASK.md); every change is logged to
 """
 from __future__ import annotations
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
+
+from contracts.models import Case, OpenCaseRequest
 
 from .state import AppState, build_state
 
@@ -30,6 +32,14 @@ def create_app(state: AppState | None = None) -> FastAPI:
     @app.get("/instances")
     async def list_instances():
         return await state.vultr.list_instances()
+
+    @app.post("/cases", response_model=Case, status_code=201)
+    async def open_case(body: OpenCaseRequest):
+        try:
+            case = await state.service.open_case(body.instance_id, body.reason)
+        except LookupError as e:
+            raise HTTPException(404, str(e))
+        return await state.service.run_case(case.id)
 
     return app
 
