@@ -6,6 +6,7 @@ const live = process.env.API_TARGET
 const api = live ?? 'http://localhost:8011' // own port: never collides with a dev/QA mock on :8001
 const port = 5179
 export const pwPort = 5180
+export const offPort = 5181 // real-mode-like: /dev/fake-case returns 404 (e2e/tryit.spec.ts)
 
 export default defineConfig({
   testDir: './e2e',
@@ -26,6 +27,10 @@ export default defineConfig({
         env: { MOCK_DELAY: '60', MOCK_PASSWORD: 'e2e-secret' }, reuseExistingServer: false },
       { command: `npx vite --port ${pwPort} --strictPort`, url: `http://localhost:${pwPort}`,
         env: { API_TARGET: 'http://localhost:8012' }, reuseExistingServer: false },
+      { command: 'node mock/server.mjs 8013', url: 'http://localhost:8013/auth/config',
+        env: { MOCK_DELAY: '60', MOCK_FAKE_CASE_OFF: '1' }, reuseExistingServer: false },
+      { command: `npx vite --port ${offPort} --strictPort`, url: `http://localhost:${offPort}`,
+        env: { API_TARGET: 'http://localhost:8013' }, reuseExistingServer: false },
     ]),
   ],
 })
