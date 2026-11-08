@@ -8,6 +8,7 @@ F4 register/seal, then investigate -> report -> approve -> teardown).
 from __future__ import annotations
 
 import asyncio
+import base64
 import hashlib
 import io
 import json
@@ -383,37 +384,44 @@ class CaseService:
         row.vpc_id, row.firewall_group_id = vpc.id, fw.id
         row.vpc_subnet, row.vpc_mask = vpc.v4_subnet, vpc.v4_subnet_mask
         self._touch(row)
+        token = "twreg-" + secrets.token_urlsafe(24)
+        user_data = base64.b64encode(json.dumps({
+            "case_id": row.id, "token": token,
+            "control_plane": self.settings.control_url,
+        }, separators=(",", ":")).encode()).decode()
         req = CreateTwinRequest(
             region=source.region, plan=self.settings.twin_plan, label=f"bd-twin-{row.id}",
-            snapshot_id=row.snapshot_id,
-            iso_id=None if self.settings.t1_fallback else self.settings.iso_id,
-            attach_vpc=[vpc.id], firewall_group_id=fw.id)
-        try:
-            twin = await self.vultr.create_instance(req)
-            iso_in_create = req.iso_id is not None
-        except VultrError as e:
-            # Vultr rejected snapshot_id + iso_id in one call (day-one test T1):
-            # per the PRD, fall back to create-from-snapshot + attach_iso
-            if self.settings.t1_fallback or e.status_code != 400:
-                raise
-            twin = await self.vultr.create_instance(req.model_copy(update={"iso_id": None}))
-            iso_in_create = False
+            snapshot_id=row.snapshot_id, iso_id=self.settings.iso_id,
+            user_data=user_data, attach_vpc=[vpc.id], firewall_group_id=fw.id)
+        fallback = self.settings.t1_fallback
+        if fallback:
+            twin = await self.vultr.create_instance(
+                req.model_copy(update={"snapshot_id": None}))
+        else:
+            try:
+                twin = await self.vultr.create_instance(req)
+            except VultrError as e:
+                if e.status_code != 400:
+                    raise
+                fallback = True
+                twin = await self.vultr.create_instance(
+                    req.model_copy(update={"snapshot_id": None}))
         # persist the twin id before anything else can fail on it: teardown
         # (F11) must always know the live instance (security review)
         row.twin_instance_id = twin.id
         self._touch(row)
-        if not iso_in_create:
+        if fallback:
             # attach right after create, before any boot polling. On real
             # Vultr the instance may already be booting in this window — see
             # the day-one T1 decision (halt/attach/boot needs a contracts call).
-            await self.vultr.attach_iso(twin.id, self.settings.iso_id)
+            await self.vultr.restore_snapshot(twin.id, row.snapshot_id)
         self.log.append(row.id, "twin_created", {
             "twin_instance_id": twin.id, "vpc_id": vpc.id, "firewall_group_id": fw.id,
-            "iso_id": self.settings.iso_id, "iso_attached_in_create": iso_in_create})
+            "iso_id": self.settings.iso_id, "iso_attached_in_create": True,
+            "snapshot_restored_after_create": fallback})
         # F4: one-time registration token, consumed at first register. FakeVultr
         # mode hands it to the in-process twin stand-in; real mode delivers it
         # to the ISO (delivery mechanism is the orchestrator's day-one call).
-        token = "twreg-" + secrets.token_urlsafe(24)
         row.reg_token = token
         self._touch(row)
         self.channel.prepare_registration(row.id, token)

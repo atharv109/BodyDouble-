@@ -4,6 +4,9 @@ ISO attached before the cloned OS boots (snapshot_id + iso_id in one create
 call; the T1 fallback behind settings.t1_fallback)."""
 from __future__ import annotations
 
+import base64
+import json
+
 from contracts.models import CaseState
 from contracts.vultr import FakeVultr
 
@@ -36,6 +39,10 @@ async def test_twin_created_on_dedicated_vpc_with_inbound_deny(client, state, fa
     assert create[2]["iso_id"] == ISO_ID
     assert create[2]["attach_vpc"] == [vpc_id]
     assert create[2]["firewall_group_id"] == fw_id
+    user_data = json.loads(base64.b64decode(create[2]["user_data"]))
+    assert user_data["case_id"] == case["id"]
+    assert user_data["token"].startswith("twreg-")
+    assert user_data["control_plane"] == "http://10.0.0.1:8000"
     assert fake.instances[twin_id].os == "Snapshot"
     # ISO attached, and the twin booted (Vultr reports it active)
     assert fake.isos[twin_id] == ISO_ID
@@ -49,7 +56,7 @@ async def test_twin_created_on_dedicated_vpc_with_inbound_deny(client, state, fa
         assert row.vpc_mask == fake.vpcs[vpc_id].v4_subnet_mask
 
 
-async def test_t1_fallback_attaches_iso_before_the_cloned_os_boots(tmp_path):
+async def test_t1_fallback_restores_snapshot_while_iso_stays_attached(tmp_path):
     fake = FakeVultr()
     async with open_env(tmp_path, fake=fake, t1_fallback=True) as (st, client):
         r = await client.post("/cases", json={
@@ -58,29 +65,29 @@ async def test_t1_fallback_attaches_iso_before_the_cloned_os_boots(tmp_path):
         assert case["twin_instance_id"]
         twin_id = case["twin_instance_id"]
 
-        # created from the snapshot alone, no iso_id in the create call
+        # created from the ISO alone, then restored while the ISO stays attached
         create = next(c for c in fake.calls if c[:2] == ("POST", "/v2/instances"))
-        assert "iso_id" not in create[2]
-        # ... and the ISO attach lands before the first boot poll, so the
-        # forensics ISO is in the drive before the cloned OS could boot
-        attach = ("POST", f"/v2/instances/{twin_id}/iso/attach", {"iso_id": ISO_ID})
-        attach_i = fake.calls.index(attach)
+        assert create[2]["iso_id"] == ISO_ID
+        assert "snapshot_id" not in create[2]
+        restore = ("POST", f"/v2/instances/{twin_id}/restore",
+                   {"snapshot_id": case["snapshot_id"]})
+        restore_i = fake.calls.index(restore)
         poll_i = next(i for i, c in enumerate(fake.calls)
                       if c[:2] == ("GET", f"/v2/instances/{twin_id}"))
-        assert attach_i < poll_i
+        assert restore_i < poll_i
         assert fake.isos[twin_id] == ISO_ID
         assert fake.instances[twin_id].status == "active"
 
 
-class _AttachExplodes(FakeVultr):
-    """T1 fallback path where the ISO attach call dies unexpectedly."""
+class _RestoreExplodes(FakeVultr):
+    """T1 fallback path where snapshot restore dies unexpectedly."""
 
-    async def attach_iso(self, instance_id: str, iso_id: str) -> None:
-        raise RuntimeError("iso attach exploded")
+    async def restore_snapshot(self, instance_id: str, snapshot_id: str) -> None:
+        raise RuntimeError("snapshot restore exploded")
 
 
 async def test_unexpected_failure_fails_case_and_keeps_twin_id(tmp_path):
-    fake = _AttachExplodes()
+    fake = _RestoreExplodes()
     async with open_env(tmp_path, fake=fake, t1_fallback=True) as (st, client):
         r = await client.post("/cases", json={
             "instance_id": FakeVultr.SHOP_PROD, "reason": "x"})
@@ -110,6 +117,9 @@ async def test_vultr_rejecting_combined_create_autofalls_back(tmp_path):
         creates = [c for c in fake.calls if c[:2] == ("POST", "/v2/instances")]
         assert len(creates) == 2                     # combined attempt, then retry
         assert creates[0][2]["iso_id"] == ISO_ID      # rejected by Vultr (T1)
-        assert "iso_id" not in creates[1][2]          # retried from snapshot alone
+        assert creates[1][2]["iso_id"] == ISO_ID      # retry boots trusted ISO
+        assert "snapshot_id" not in creates[1][2]
         twin_id = case["twin_instance_id"]
-        assert fake.isos[twin_id] == ISO_ID           # ...then attached before boot polling
+        assert fake.isos[twin_id] == ISO_ID
+        assert ("POST", f"/v2/instances/{twin_id}/restore",
+                {"snapshot_id": case["snapshot_id"]}) in fake.calls
