@@ -63,14 +63,16 @@ export function CloseScreen() {
               <div key={b.key} className={`py-6 md:pr-6 ${i > 0 ? 'border-t md:border-t-0 md:border-l md:pl-6' : ''} border-line`}>
                 <dt className="text-sm">{b.label}</dt>
                 <dd>
+                  {/* Before teardown: an outlined 0, a placeholder for the number, not a result. */}
                   <span
-                    className={`block mt-2 font-mono leading-none tracking-[-0.06em] text-[6rem] md:text-[8rem] ${v === undefined ? 'text-line' : ''} ${
+                    className={`block mt-2 font-mono leading-none tracking-[-0.06em] text-[6rem] md:text-[8rem] ${v === undefined ? 'blast-pending' : ''} ${
                       v ? 'text-finding' : ''}`}
                     data-testid={`blast-${b.key}`}
                     data-value={v ?? ''}
                   >
-                    {v === undefined ? <><span aria-hidden="true">?</span><span className="sr-only">known after teardown</span></> : v}
+                    {v === undefined ? <><span aria-hidden="true">0</span><span className="sr-only">counted at teardown</span></> : v}
                   </span>
+                  {v === undefined && <span aria-hidden="true" className="block mt-3 font-mono text-xs text-muted">counted at teardown</span>}
                   <span className="block mt-3 text-xs text-muted">{b.note}</span>
                 </dd>
               </div>

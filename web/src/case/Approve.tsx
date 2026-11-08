@@ -33,6 +33,7 @@ export function ApproveDrawer({ live, caseId, open, onClose }: { live: LiveCase;
 
   const pending = live.actions.filter((a) => a.status === 'proposed')
   const picked = pending.filter((a) => checked[a.id])
+  const appliedCount = live.actions.filter((a) => a.status === 'applied').length
 
   async function approve() {
     setBusy(true)
@@ -89,7 +90,10 @@ export function ApproveDrawer({ live, caseId, open, onClose }: { live: LiveCase;
 
         <footer className="px-5 sm:px-8 py-4 border-t border-line flex flex-wrap items-center gap-4">
           <p className="text-sm text-muted mr-auto" aria-live="polite">
-            {picked.length ? `${picked.length} of ${pending.length} selected` : pending.length ? 'Nothing selected. Nothing will be sent.' : 'Every proposed action has been handled.'}
+            {picked.length ? `${picked.length} of ${pending.length} selected`
+              : appliedCount && pending.length ? `${appliedCount} ${appliedCount === 1 ? 'change' : 'changes'} sent to Vultr · ${pending.length} left to review`
+              : pending.length ? 'Nothing selected. Nothing will be sent.'
+              : 'Every proposed action has been handled.'}
           </p>
           <button type="button" className="btn btn-agent" disabled={busy || picked.length === 0} onClick={approve} data-testid="approve-submit">
             {busy ? 'Applying...' : picked.length
