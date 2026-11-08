@@ -36,7 +36,9 @@ test('terminal: each pane gets its events from the fake case, live and on replay
     await expect(sbx.getByTestId('dns-card')).toBeVisible()
 
     // Seal + case log: seal output, state changes, proposed actions with their Vultr call.
-    await expect(log.getByTestId('seal-disk_read_only')).toContainText('(ro,noexec')
+    const seal = log.getByTestId('seal-disk_read_only')
+    await expect(seal).toContainText('passed')
+    await expect(seal.locator('pre')).toHaveText(/\S/) // the check's raw output (mock and live word it differently)
     await expect(log).toContainText('investigating')
     await expect(log.getByTestId('log-proposed-act-1')).toContainText('PATCH /v2/instances/')
   }
