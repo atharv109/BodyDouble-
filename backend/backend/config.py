@@ -44,6 +44,9 @@ class Settings:
     admin_ip: str = "203.0.113.7"  # the one IP allowed SSH in the quarantine group
     public_url: str = "http://localhost:5173"
     webhook_secret: str | None = None
+    inference_key: str | None = field(default=None, repr=False)
+    model_planner: str | None = None
+    model_solver: str | None = None
 
     # polling / timeouts (seconds); tests pass small values directly
     poll_interval_s: float = 0.05
@@ -75,6 +78,9 @@ def settings_from_env() -> Settings:
         admin_ip=os.environ.get("ADMIN_IP", "203.0.113.7"),
         public_url=os.environ.get("BD_PUBLIC_URL", "http://localhost:5173").rstrip("/"),
         webhook_secret=os.environ.get("BD_WEBHOOK_SECRET") or None,
+        inference_key=os.environ.get("VULTR_INFERENCE_KEY") or None,
+        model_planner=os.environ.get("BD_MODEL_PLANNER") or None,
+        model_solver=os.environ.get("BD_MODEL_SOLVER") or None,
         poll_interval_s=_f("POLL_INTERVAL_S", 5.0 if real else 0.05),
         snapshot_timeout_s=_f("SNAPSHOT_TIMEOUT_S", 900.0),
         boot_timeout_s=_f("BOOT_TIMEOUT_S", 300.0),
@@ -91,6 +97,11 @@ def settings_from_env() -> Settings:
 
 def validate_real_mode(settings: Settings) -> None:
     """Fail closed before real-Vultr mode can mint forgeable sessions."""
+    if settings.inference_key and not (
+            settings.model_planner and settings.model_solver):
+        raise RuntimeError(
+            "VULTR_INFERENCE_KEY requires both BD_MODEL_PLANNER and BD_MODEL_SOLVER"
+        )
     if not settings.vultr_api_key:
         return
     secret = settings.app_secret or ""

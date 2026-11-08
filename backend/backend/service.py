@@ -74,6 +74,19 @@ log = logging.getLogger("backend")
 _INSTANCE_ID = re.compile(r"^[A-Za-z0-9-]{1,64}$")
 
 
+def build_real_investigator(settings):
+    """Construct the production two-model investigator without exposing its key."""
+    from bd_forensics.investigator import InvestigatorImpl
+    from bd_forensics.model import OpenAIModel
+
+    planner = OpenAIModel(api_key=settings.inference_key,
+                          model=settings.model_planner)
+    solver = OpenAIModel(api_key=settings.inference_key,
+                         model=settings.model_solver)
+    # forensics is landing this parallel-model interface separately.
+    return InvestigatorImpl(planner=planner, solver=solver)
+
+
 class CaseNotFound(LookupError):
     pass
 
@@ -452,10 +465,13 @@ class CaseService:
                 fixture_ids = not bool(s.scalar(
                     select(func.count()).select_from(StepRow)
                     .where(StepRow.id.like("step-%"))))
-        report = await ScriptedInvestigator(
-            fixture_ids=fixture_ids,
-            finding_ids=fixture_finding_ids,
-        ).investigate(
+        investigator = (build_real_investigator(self.settings)
+                        if self.settings.inference_key
+                        else ScriptedInvestigator(
+                            fixture_ids=fixture_ids,
+                            finding_ids=fixture_finding_ids,
+                        ))
+        report = await investigator.investigate(
             row.to_model(),
             TwinStepRunner(self.channel, self.settings),
             DbCaseRecorder(self.state.sf, self.log),

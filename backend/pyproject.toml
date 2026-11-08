@@ -5,6 +5,7 @@ description = "Body Double control plane (FastAPI): case state machine, Vultr tw
 requires-python = ">=3.12"
 dependencies = [
     "body-double-contracts",
+    "body-double-forensics",
     "fastapi>=0.115",
     "uvicorn>=0.31",
     "sqlalchemy>=2.0.36",
@@ -19,6 +20,7 @@ dev = ["pytest>=8", "pytest-asyncio>=0.24"]
 # contracts live at the repo root; editable so `import contracts` always tracks it
 [tool.uv.sources]
 body-double-contracts = { path = "..", editable = true }
+body-double-forensics = { path = "../forensics", editable = true }
 
 [build-system]
 requires = ["hatchling"]
