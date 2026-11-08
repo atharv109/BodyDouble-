@@ -220,13 +220,15 @@ class FirewallRule(BaseModel):
 
 
 class CreateTwinRequest(BaseModel):
-    """Body for POST /v2/instances. Vultr may reject snapshot_id+iso_id together
-    (day-one test T1); the backend then creates from snapshot and calls attach_iso."""
+    """Body for POST /v2/instances. Preferred: snapshot_id + iso_id in one call (T1).
+    If Vultr rejects that, the T1 fallback (PRD) is: create with iso_id only, then
+    VultrClient.restore_snapshot() onto it with the ISO still attached, so the cloned
+    OS never boots. Attaching the ISO after a snapshot-only create is the last resort."""
 
     region: str
     plan: str
     label: str
-    snapshot_id: str
+    snapshot_id: str | None = None
     iso_id: str | None = None
     attach_vpc: list[str] = Field(default_factory=list)
     firewall_group_id: str

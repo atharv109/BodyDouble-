@@ -116,8 +116,12 @@ async def test_fake_vultr_t1_fallback_and_actions():
                             firewall_group_id=fw.id)
     with pytest.raises(VultrError):
         await v.create_instance(req)
-    twin = await v.create_instance(req.model_copy(update={"iso_id": None}))
-    await v.attach_iso(twin.id, "iso")
+    # PRD T1 fallback: ISO-only create, then restore the snapshot with the ISO still attached.
+    twin = await v.create_instance(req.model_copy(update={"snapshot_id": None}))
+    assert v.isos[twin.id] == "iso" and twin.os == "Custom ISO"
+    await v.restore_snapshot(twin.id, snap.id)
+    assert v.isos[twin.id] == "iso" and v.instances[twin.id].os == "Snapshot"
+    assert ("POST", f"/v2/instances/{twin.id}/restore", {"snapshot_id": snap.id}) in v.calls
     r = await v.request("PATCH", f"/v2/instances/{FakeVultr.SHOP_PROD}", {"firewall_group_id": fw.id})
     assert r.status_code == 202 and v.instances[FakeVultr.SHOP_PROD].firewall_group_id == fw.id
     r = await v.request("POST", f"/v2/instances/{FakeVultr.SHOP_PROD}/halt")

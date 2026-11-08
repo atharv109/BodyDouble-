@@ -65,6 +65,7 @@ class VultrClient(Protocol):
     async def delete_firewall_group(self, group_id: str) -> None: ...
     async def create_instance(self, req: CreateTwinRequest) -> VultrInstance: ...
     async def attach_iso(self, instance_id: str, iso_id: str) -> None: ...
+    async def restore_snapshot(self, instance_id: str, snapshot_id: str) -> None: ...  # T1 fallback
     async def delete_instance(self, instance_id: str) -> None: ...
 
     async def request(self, method: str, path: str, body: dict | None = None) -> ApiResponse:
@@ -183,14 +184,15 @@ class FakeVultr:
     async def create_instance(self, req: CreateTwinRequest) -> VultrInstance:
         body = req.model_dump(exclude_none=True)
         self._log("POST", "/v2/instances", body)
-        if self.reject_snapshot_plus_iso and req.iso_id:
+        if self.reject_snapshot_plus_iso and req.iso_id and req.snapshot_id:
             raise VultrError(400, {"error": "Only one of os_id, iso_id, snapshot_id may be set"})
-        self._get(self.snapshots, req.snapshot_id)
-        vpc = self.vpcs.get(req.attach_vpc[0]) if req.attach_vpc else None
+        if req.snapshot_id:
+            self._get(self.snapshots, req.snapshot_id)
+        vpc =self.vpcs.get(req.attach_vpc[0]) if req.attach_vpc else None
         inst = VultrInstance(
             id=self._id("inst"), label=req.label, region=req.region, main_ip="149.28.0.99",
             internal_ip=(vpc.v4_subnet.rsplit(".", 1)[0] + ".3") if vpc else "",
-            status="pending", plan=req.plan, os="Snapshot",
+            status="pending", plan=req.plan, os="Snapshot" if req.snapshot_id else "Custom ISO",
             firewall_group_id=req.firewall_group_id, vpc_ids=list(req.attach_vpc))
         self.instances[inst.id] = inst
         if req.iso_id:
@@ -201,6 +203,12 @@ class FakeVultr:
         self._log("POST", f"/v2/instances/{instance_id}/iso/attach", {"iso_id": iso_id})
         self._get(self.instances, instance_id)
         self.isos[instance_id] = iso_id
+
+    async def restore_snapshot(self, instance_id: str, snapshot_id: str) -> None:
+        self._log("POST", f"/v2/instances/{instance_id}/restore", {"snapshot_id": snapshot_id})
+        inst = self._get(self.instances, instance_id)
+        self._get(self.snapshots, snapshot_id)
+        inst.os, inst.status = "Snapshot", "pending"  # ISO stays attached, so it boots first
 
     async def delete_instance(self, instance_id: str) -> None:
         self._log("DELETE", f"/v2/instances/{instance_id}")
@@ -295,6 +303,9 @@ class RealVultr:
 
     async def attach_iso(self, instance_id: str, iso_id: str) -> None:
         await self._call("POST", f"/v2/instances/{instance_id}/iso/attach", {"iso_id": iso_id})
+
+    async def restore_snapshot(self, instance_id: str, snapshot_id: str) -> None:
+        await self._call("POST", f"/v2/instances/{instance_id}/restore", {"snapshot_id": snapshot_id})
 
     async def delete_instance(self, instance_id: str) -> None:
         await self._call("DELETE", f"/v2/instances/{instance_id}")
