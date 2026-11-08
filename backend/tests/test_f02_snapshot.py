@@ -19,8 +19,8 @@ async def test_snapshot_stored_and_polled_to_complete(client, state, fake, human
     assert ("POST", "/v2/snapshots",
             {"instance_id": FakeVultr.SHOP_PROD,
              "description": f"body-double case {case['id']}"}) in fake.calls
-    # state: opened -> snapshotting, and the poll loop ran at least twice
-    assert case["state"] == CaseState.snapshotting.value
+    # state: opened -> snapshotting -> restoring (F3 twin phase follows)
+    assert case["state"] == CaseState.restoring.value
     polls = [c for c in fake.calls if c[0] == "GET"
              and c[1] == f"/v2/snapshots/{case['snapshot_id']}"]
     assert len(polls) >= 2

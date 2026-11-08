@@ -17,7 +17,14 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
 from contracts.events import StateChanged
-from contracts.models import Actor, Case, CaseState, Evidence, can_transition
+from contracts.models import (
+    Actor,
+    Case,
+    CaseState,
+    CreateTwinRequest,
+    Evidence,
+    can_transition,
+)
 from contracts.vultr import VultrError, VultrNotFound
 
 from .db import CaseRow, EvidenceRow, utcnow
@@ -128,11 +135,14 @@ class CaseService:
         row = self.row(case_id)
         try:
             await self._snapshot_phase(row)
+            await self._twin_phase(row)
         except CaseFailure as e:
             await self.fail_case(case_id, str(e))
         except VultrError as e:
             log.exception("vultr error in case %s", case_id)
             await self.fail_case(case_id, f"Vultr API {e.status_code} error")
+        except VultrNotFound as e:
+            await self.fail_case(case_id, f"resource vanished mid-case: {e}")
         return self.model(case_id)
 
     # ------------------------------------------------------------- F2: snapshot
@@ -174,6 +184,42 @@ class CaseService:
             s.commit()
         self.log.append(evidence.case_id, "evidence_added", evidence.model_dump(mode="json"))
         return evidence
+
+    # ------------------------------------------------------------- F3: twin
+    async def _twin_phase(self, row: CaseRow) -> None:
+        """Build the twin: dedicated VPC, inbound-deny firewall group (a group
+        with no allow rules), and an instance restored from the snapshot
+        booting the forensics ISO — snapshot_id + iso_id in one create call, or
+        create + attach_iso when Vultr rejects the combination (day-one test
+        T1, settings.t1_fallback; on by default in real mode)."""
+        self._move(row, CaseState.restoring, f"building twin from snapshot {row.snapshot_id}")
+        source = await self.vultr.get_instance(row.instance_id)
+        vpc = await self.vultr.create_vpc(source.region, f"body-double twin {row.id}")
+        fw = await self.vultr.create_firewall_group(f"bd twin {row.id} inbound deny")
+        row.vpc_id, row.firewall_group_id = vpc.id, fw.id
+        row.vpc_subnet, row.vpc_mask = vpc.v4_subnet, vpc.v4_subnet_mask
+        self._touch(row)
+        twin = await self.vultr.create_instance(CreateTwinRequest(
+            region=source.region, plan=self.settings.twin_plan, label=f"bd-twin-{row.id}",
+            snapshot_id=row.snapshot_id,
+            iso_id=None if self.settings.t1_fallback else self.settings.iso_id,
+            attach_vpc=[vpc.id], firewall_group_id=fw.id))
+        if self.settings.t1_fallback:
+            # attach before the first boot poll, so the cloned OS never boots
+            await self.vultr.attach_iso(twin.id, self.settings.iso_id)
+        row.twin_instance_id = twin.id
+        self._touch(row)
+        self.log.append(row.id, "twin_created", {
+            "twin_instance_id": twin.id, "vpc_id": vpc.id, "firewall_group_id": fw.id,
+            "iso_id": self.settings.iso_id, "t1_fallback": self.settings.t1_fallback})
+        deadline = utcnow() + timedelta(seconds=self.settings.boot_timeout_s)
+        while True:
+            twin = await self.vultr.get_instance(twin.id)
+            if twin.status == "active":
+                break
+            if utcnow() > deadline:
+                raise CaseFailure(f"twin {twin.id} did not boot in time")
+            await asyncio.sleep(self.settings.poll_interval_s)
 
     async def fail_case(self, case_id: str, reason: str) -> None:
         row = self.row(case_id)
