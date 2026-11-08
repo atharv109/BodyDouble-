@@ -135,7 +135,7 @@ export function InvestigationLog({ live }: { live: LiveCase }) {
   }
 
   return (
-    <section aria-labelledby="log-h" className="inv seal-frame" data-sealed={sealed} data-testid="twin-frame">
+    <section aria-label="Case investigation activity log" className="inv seal-frame" data-sealed={sealed} data-testid="twin-frame">
       <header className="pane-head">
         <h2 id="log-h" className="text-ink">Investigation log</h2>
         <span className="text-muted truncate">{sealed ? 'twin sealed · no inbound · no egress' : 'twin not sealed yet'}</span>

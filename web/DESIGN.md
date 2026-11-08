@@ -111,3 +111,16 @@ phone: lanes stack; PROD lane becomes a 44 px sticky strip under the header that
 - Jury round 3 (blind): 6.8 raw (~7.9 adjusted), `web/.jury/round3-scorecard.md`. Fixed: phone fps, desktop
   overflow (options/walls clip their slide-in), late reveals, header naming (Infect a server), 404 label size,
   console phone layout + Investigate as the primary action. Not web's: the 404 HTTP status (Caddyfile).
+
+## D1–D4 release pass
+- Before: the case treated four panes as peers, supporting screens exposed every control at once, and state
+  changes relied mostly on static labels. After: a compact status band leads into one chronological log,
+  production and tasks form a narrow rail, and secondary controls sit behind explicit disclosures.
+- Supporting paths now preserve one clear next action on desktop and phone. Startup scripts, lifecycle actions,
+  and scenario provenance stay available without competing with the investigation path.
+- State motion uses the existing latch language: progress, live arrivals, disclosures, and approval transitions.
+  Reduced motion resolves every state immediately and globally suppresses nonessential animation.
+- Release evidence covers landing, servers, infection, live/reported cases, approval, and close at 1440 px and
+  390 px: no page overflow and no axe violations across all 14 captures. The production build and 39 browser
+  tests pass. Blind jury scores: case 7.57, supporting screens 7.25; neither found a visible release blocker.
+- The audit's missing-route HTTP 200 remains a deployment/Caddy concern outside `web/`; the orchestrator owns it.

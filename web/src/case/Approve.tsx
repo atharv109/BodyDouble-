@@ -162,7 +162,7 @@ function ActionRow({ a, checked, disabled, onChange, sent, response }: {
               <span className="font-mono text-[11px] uppercase tracking-[.06em] border border-ink px-1.5 rounded-xs">takes the shop offline</span>
             )}
           </div>
-          <p id={`${id}-d`} className="mt-1 text-sm text-muted">{a.description}</p>
+          <p id={`${id}-d`} className="mt-1 text-sm text-muted wrap-anywhere">{a.description}</p>
 
           {a.api_method ? (
             <pre className="mt-3 font-mono text-xs whitespace-pre-wrap wrap-anywhere border border-line bg-panel p-3" data-testid={`call-${a.id}`}>
