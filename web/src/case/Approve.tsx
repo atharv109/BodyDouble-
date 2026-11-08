@@ -134,7 +134,7 @@ function ActionRow({ a, checked, disabled, onChange, sent, response }: {
   const applied = a.status === 'applied'
   const res = response ?? (sent?.state === 'done' ? (sent.action.response as ApiResponse | null) : null)
   return (
-    <li className={`border rounded-xs ${applied ? 'border-agent/60' : checked ? 'border-ink' : a.recommended ? 'border-agent' : 'border-line'} ${a.recommended ? 'bg-agent/[.06]' : 'bg-ground'}`}
+    <li className={`border rounded-xs transition-colors duration-200 ${applied ? 'border-agent/60' : checked ? 'border-ink' : a.recommended ? 'border-agent' : 'border-line'} ${a.recommended ? 'bg-agent/[.06]' : 'bg-ground'}`}
       data-testid={`action-${a.id}`} data-status={a.status} data-recommended={a.recommended || undefined} data-created-by={a.created_by}>
       <div className="flex gap-3 p-4">
         {applied ? (
@@ -165,12 +165,12 @@ function ActionRow({ a, checked, disabled, onChange, sent, response }: {
           <p id={`${id}-d`} className="mt-1 text-sm text-muted">{a.description}</p>
 
           {a.api_method ? (
-            <pre className="mt-3 font-mono text-xs whitespace-pre-wrap wrap-anywhere border-l-2 border-agent pl-3" data-testid={`call-${a.id}`}>
+            <pre className="mt-3 font-mono text-xs whitespace-pre-wrap wrap-anywhere border border-line bg-panel p-3" data-testid={`call-${a.id}`}>
               <span className="text-agent">{a.api_method}</span> {a.api_path}
               {a.api_body ? `\n${JSON.stringify(a.api_body, null, 2)}` : ''}
             </pre>
           ) : (
-            <p className="mt-3 font-mono text-xs text-muted border-l-2 border-line pl-3" data-testid={`call-${a.id}`}>
+            <p className="mt-3 font-mono text-xs text-muted border border-line p-3" data-testid={`call-${a.id}`}>
               {a.kind === 'manual_plan'
                 ? 'No API call. Your plan is recorded in the case log; Body Double never executes it.'
                 : 'No API call. Manual step for you; approving records it in the case log.'}
@@ -180,7 +180,7 @@ function ActionRow({ a, checked, disabled, onChange, sent, response }: {
           {sent?.state === 'sending' && <p className="mt-3 font-mono text-xs text-muted">sending...</p>}
           {sent?.state === 'error' && <p role="alert" className="mt-3 font-mono text-xs border border-line p-2 wrap-anywhere">{sent.message}</p>}
           {(applied || sent?.state === 'done') && (
-            <div className="latch mt-3 border-l-2 border-ink pl-3" data-testid={`response-${a.id}`}>
+            <div className="latch mt-3 border border-ink/50 p-3" data-testid={`response-${a.id}`}>
               <p className="label">Response</p>
               {res ? (
                 <pre className="mt-1.5 font-mono text-xs whitespace-pre-wrap wrap-anywhere">

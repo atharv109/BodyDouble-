@@ -32,6 +32,7 @@ body { font-family: var(--font-sans); font-size: 16px; line-height: 1.5; -webkit
 /* latch: short travel, hard stop */
 @keyframes latch-in { from { opacity: 0; translate: 0 6px; } to { opacity: 1; translate: 0 0; } }
 .latch { animation: latch-in 280ms var(--ease-latch) both; }
+@keyframes progress-latch { from { opacity: .35; scale: .18 1; } to { opacity: 1; scale: 1 1; } }
 @keyframes drawer-in { from { opacity: 0; translate: 24px 0; } to { opacity: 1; translate: 0 0; } }
 .drawer[open] { animation: drawer-in 280ms var(--ease-latch) both; }
 @keyframes pulse-dot { 50% { opacity: .25; } }
@@ -62,6 +63,7 @@ details > summary { cursor: pointer; list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
 details > summary .chev { display: inline-block; transition: rotate 160ms var(--ease-latch); }
 details[open] > summary .chev { rotate: 90deg; }
+details[open] > :not(summary) { animation: latch-in 220ms var(--ease-latch) both; }
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -147,6 +149,7 @@ html:active-view-transition .site-head::after { animation: seal-line 760ms var(-
   transition: background-color 300ms var(--ease-latch); }
 .rail-seg[data-state="done"] { background: color-mix(in srgb, var(--color-agent) 55%, transparent); }
 .rail-seg[data-state="current"] { background: var(--color-agent); }
+.rail-seg[data-state="current"] { animation: progress-latch 360ms var(--ease-latch) both; }
 .band-stats { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--color-line); display: grid; gap: 8px 24px;
   grid-template-columns: repeat(2, minmax(0, 1fr)); font-family: var(--font-mono); font-size: 12.5px; }
 @media (min-width: 768px) { .band-stats { grid-template-columns: repeat(4, auto) minmax(0, 1fr); } }

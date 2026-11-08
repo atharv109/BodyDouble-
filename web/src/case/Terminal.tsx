@@ -197,7 +197,7 @@ function Entry({ e, live, steps }: { e: LogItem; live: LiveCase; steps: Record<s
   }
   const d = e.data as DnsCaptured
   return (
-    <li data-testid={`sbx-dns-${num(e.seq)}`}>
+    <li className="latch" data-testid={`sbx-dns-${num(e.seq)}`}>
       <DnsCard dns={d} evidence={evidenceIndex(live.detail)[d.evidence_id]} />
     </li>
   )
