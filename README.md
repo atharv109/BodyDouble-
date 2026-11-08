@@ -4,6 +4,12 @@ Body Double is an incident-response agent for small teams running Linux servers 
 
 Built during the event, Nov 3 to 8 2026.
 
+## Product demo
+
+[![Watch the Body Double product demo](https://img.youtube.com/vi/BKEYz_jjpGY/maxresdefault.jpg)](https://youtu.be/BKEYz_jjpGY)
+
+[Watch the product demo on YouTube](https://youtu.be/BKEYz_jjpGY)
+
 ## The use case
 
 A solo developer, agency operator, or small security team should not have to choose between experimenting on a live compromised server and taking the business offline. Body Double turns an alert into a preserved snapshot, a read-only investigation, evidence-backed findings, a proposed containment menu, and an exportable case bundle. The demo story investigates `shop-prod`, catches persistence and a harmless command-and-control beacon, flags an attacker-authored prompt-injection note, quarantines production with approval, and destroys the twin.
