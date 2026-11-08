@@ -195,6 +195,11 @@ html:active-view-transition .site-head::after { animation: seal-line 760ms var(-
 .analyst-boundary strong { color: var(--color-ink); }
 .analyst-workbench { display: grid; grid-template-columns: minmax(17rem, 22rem) minmax(0, 1fr); gap: 24px; margin-top: 16px; }
 .analyst-form { display: flex; flex-direction: column; gap: 8px; }
+.analyst-modes { display: grid; grid-template-columns: 1fr 1fr; border-bottom: 1px solid var(--color-line); margin-bottom: 4px; }
+.analyst-modes button { border: 0; border-bottom: 2px solid transparent; background: transparent; color: var(--color-muted); padding: 9px 8px; font: 600 13px/1.2 var(--font-sans); cursor: pointer; }
+.analyst-modes button:hover { color: var(--color-ink); }
+.analyst-modes button[aria-selected="true"] { color: var(--color-agent); border-bottom-color: var(--color-agent); }
+.analyst-modes button:focus-visible { outline: 2px solid color-mix(in srgb, var(--color-agent) 35%, transparent); outline-offset: 2px; }
 .analyst-form label { margin-top: 4px; font-size: 13px; font-weight: 600; }
 .analyst-form :is(select, input, textarea) { width: 100%; border: 1px solid var(--color-line); background: var(--color-ground); color: var(--color-ink); border-radius: 2px; padding: 9px 10px; outline: none; }
 .analyst-form :is(select, input, textarea):focus-visible { border-color: var(--color-agent); outline: 2px solid color-mix(in srgb, var(--color-agent) 35%, transparent); outline-offset: 1px; }

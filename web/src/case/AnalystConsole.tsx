@@ -7,6 +7,7 @@ const TOOLS: { value: ToolName; label: string }[] = [
   ['recent_files', 'Recent files'], ['binary_integrity', 'Binary integrity'], ['listener_config', 'Listener config'],
   ['extract', 'Extract file'], ['detonate', 'Detonate file'], ['custom_script', 'Custom Python'],
 ].map(([value, label]) => ({ value: value as ToolName, label }))
+const GUIDED_TOOLS = TOOLS.filter(({ value }) => value !== 'custom_script')
 const PATH_TOOLS = new Set<ToolName>(['extract', 'detonate'])
 const ALLOWED = new Set<CaseState>(['sealed', 'investigating', 'reported', 'contained'])
 
@@ -20,6 +21,12 @@ export function AnalystConsole({ caseId, state }: { caseId: string; state: CaseS
   const enabled = !!state && ALLOWED.has(state)
   const args = useMemo(() => tool === 'custom_script' ? { code } : PATH_TOOLS.has(tool) ? { path } : {}, [tool, code, path])
   const ready = enabled && !busy && (tool !== 'custom_script' || !!code.trim()) && (!PATH_TOOLS.has(tool) || !!path.trim())
+  const scripting = tool === 'custom_script'
+
+  function setMode(mode: 'guided' | 'python') {
+    setTool(mode === 'python' ? 'custom_script' : 'os_facts')
+    setError(null)
+  }
 
   async function run() {
     if (!ready) return
@@ -43,17 +50,21 @@ export function AnalystConsole({ caseId, state }: { caseId: string; state: CaseS
       </header>
       <div className="analyst-workbench">
         <form className="analyst-form" onSubmit={(e) => { e.preventDefault(); void run() }}>
-          <label htmlFor="analyst-tool">Forensic tool</label>
-          <select id="analyst-tool" value={tool} onChange={(e) => setTool(e.target.value as ToolName)}>{TOOLS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</select>
-          {PATH_TOOLS.has(tool) && <><label htmlFor="analyst-path">Path on cloned disk</label><input id="analyst-path" value={path} onChange={(e) => setPath(e.target.value)} /></>}
-          {tool === 'custom_script' && <><label htmlFor="analyst-code">Sandboxed Python</label><textarea id="analyst-code" value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={keyRun} spellCheck={false} rows={9} /><p className="text-muted text-xs">Ctrl/⌘ + Enter to run · standard library only · output limits enforced by the sandbox</p></>}
-          <button className="btn btn-agent analyst-run" type="submit" disabled={!ready}>{busy ? 'Running in sandbox…' : 'Run tool'}</button>
+          <div className="analyst-modes" role="tablist" aria-label="Analyst input mode">
+            <button type="button" role="tab" aria-selected={!scripting} onClick={() => setMode('guided')}>Guided tools</button>
+            <button type="button" role="tab" aria-selected={scripting} onClick={() => setMode('python')}>Write Python</button>
+          </div>
+          {!scripting && <><label htmlFor="analyst-tool">Forensic tool</label>
+            <select id="analyst-tool" value={tool} onChange={(e) => setTool(e.target.value as ToolName)}>{GUIDED_TOOLS.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}</select>
+            {PATH_TOOLS.has(tool) && <><label htmlFor="analyst-path">Path on cloned disk</label><input id="analyst-path" value={path} onChange={(e) => setPath(e.target.value)} /></>}</>}
+          {scripting && <><label htmlFor="analyst-code">Python sandbox</label><textarea id="analyst-code" value={code} onChange={(e) => setCode(e.target.value)} onKeyDown={keyRun} spellCheck={false} rows={11} autoFocus /><p className="text-muted text-xs">Write Python against the read-only clone. Ctrl/⌘ + Enter runs it · standard library only · no network.</p></>}
+          <button className="btn btn-agent analyst-run" type="submit" disabled={!ready}>{busy ? 'Running in sandbox…' : scripting ? 'Run Python' : 'Run tool'}</button>
           {!enabled && <p className="text-muted text-sm">Tools are unavailable while this case is {state ?? 'loading'}.</p>}
           {error && <p role="alert" className="analyst-error">{error}</p>}
         </form>
         <div className="analyst-history" aria-live="polite" aria-busy={busy}>
           <div className="analyst-history-head"><h3>Command history</h3><span className="font-mono text-xs text-muted">{runs.length} human {runs.length === 1 ? 'run' : 'runs'}</span></div>
-          {runs.length === 0 ? <p className="analyst-empty">Choose a forensic tool. Its real command and result will appear here.</p> : runs.map(({ step, result }) => (
+          {runs.length === 0 ? <p className="analyst-empty">Run a guided tool or write Python. The real command, output, and exit code will appear here.</p> : runs.map(({ step, result }) => (
             <article key={step.id} className="analyst-record" data-testid="analyst-run">
               <div className="analyst-record-meta"><strong>{step.tool}</strong><span>exit {result.exit_code} · {result.duration_ms} ms</span></div>
               <pre><code>$ {result.code}</code></pre>
