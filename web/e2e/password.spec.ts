@@ -14,7 +14,7 @@ test('password gate: field shown when required, wrong password inline, right one
   const sessions: unknown[] = []
   page.on('request', (r) => { if (r.url().endsWith('/api/auth/session') && r.method() === 'POST') sessions.push(r.postDataJSON()) })
 
-  await page.goto('/')
+  await page.goto('/console')
   await expect(page.getByRole('heading', { level: 1, name: 'Who is operating?' })).toBeVisible()
   const pw = page.getByLabel('Operator password')
   await expect(pw).toHaveAttribute('type', 'password')
@@ -39,7 +39,7 @@ test('password gate: field shown when required, wrong password inline, right one
 
 test('fake mode gate has no password field', async ({ page }) => {
   test.skip(live, 'mock only')
-  await page.goto('http://localhost:5179/')
+  await page.goto('http://localhost:5179/console')
   await expect(page.getByLabel('Operator name')).toBeVisible()
   await expect(page.getByLabel('Operator password')).toHaveCount(0)
 })

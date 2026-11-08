@@ -7,7 +7,7 @@ export function NotFound() {
       <div className="md:col-span-6">
         <h1 className="text-4xl md:text-5xl font-semibold tracking-[-0.02em]">Nothing was found here.</h1>
         <p className="mt-4 text-muted max-w-prose">Unlike a server, a missing page isn't a finding. Go back to your servers and pick one to investigate.</p>
-        <Link to="/" className="btn btn-primary mt-8">Back to servers</Link>
+        <Link to="/console" className="btn btn-primary mt-8">Back to servers</Link>
       </div>
     </section>
   )
