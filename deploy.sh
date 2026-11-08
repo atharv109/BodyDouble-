@@ -17,7 +17,7 @@ apt-get install -y ca-certificates curl gnupg openssl postgresql postgresql-cont
 
 install -d -m 0755 /etc/apt/keyrings
 curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/gpg.key \
-  | gpg --dearmor --yes -o /etc/apt/keyrings/caddy-stable-archive-keyring.gpg
+  | gpg --dearmor --yes -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
 curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt \
   > /etc/apt/sources.list.d/caddy-stable.list
 curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
