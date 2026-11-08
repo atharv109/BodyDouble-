@@ -31,6 +31,13 @@ derives from. Anything not in this list does not go in the film.
 - Footage records the real backend in FakeVultr mode (no real Vultr key; the
   README documents that mode). Instance ids like `inst-shop-prod` and
   `snap-0001` are the fixture's identifiers and appear on screen as recorded.
+- In local FakeVultr mode the investigation is a deterministic replay of the
+  recorded story (`backend/backend/investigator.py` — "Deterministic replay of
+  the recorded FakeVultr investigation story"); with `VULTR_INFERENCE_KEY`
+  set the same pipeline calls Vultr Serverless Inference for the planner,
+  analyst and reporter (`contracts/agent.py`, README "How the agent performs
+  real work"). The on-screen steps, evidence and findings the film shows are
+  what the product itself renders in either mode.
 - For legibility, capture raises `POLL_INTERVAL_S` so state changes are
   visible instead of flashing in ~50 ms (`backend/backend/config.py:91` —
   env override exists for this). Event order, payloads and end states are
@@ -39,3 +46,8 @@ derives from. Anything not in this list does not go in the film.
   (`backend/backend/fake_twin.py`) in capture mode; the real execution path is
   the forensics ISO (`iso/`) and `forensics/bd_forensics/sandbox.py`. The
   on-screen evidence shown in the film is what the product itself renders.
+- The UI-opened case (console footage, pass A) and the demo case
+  (`POST /dev/fake-case`, pass B) both read `case-0001` on screen: the dev
+  endpoint resets the database before opening its case. Pass B's approve and
+  close clicks are real UI interactions against the real endpoint
+  (`POST /cases/{id}/actions/{action_id}/approve` → 202).

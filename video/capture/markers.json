@@ -1,0 +1,72 @@
+{
+  "A": [
+    {
+      "name": "console loaded",
+      "t": 0.29
+    },
+    {
+      "name": "row hovered",
+      "t": 2.88
+    },
+    {
+      "name": "reason typed",
+      "t": 6.28
+    },
+    {
+      "name": "open case clicked",
+      "t": 7.04
+    }
+  ],
+  "B": [
+    {
+      "name": "case screen live",
+      "t": 0.93
+    },
+    {
+      "name": "sealed",
+      "t": 5.37
+    },
+    {
+      "name": "reported (cascade done)",
+      "t": 9.56
+    },
+    {
+      "name": "dns hold begins",
+      "t": 14.76
+    },
+    {
+      "name": "approve drawer open",
+      "t": 19.45
+    },
+    {
+      "name": "approve clicked",
+      "t": 21.84
+    },
+    {
+      "name": "api response shown",
+      "t": 22.93
+    },
+    {
+      "name": "close screen",
+      "t": 26.17
+    },
+    {
+      "name": "teardown confirmed",
+      "t": 29.14
+    },
+    {
+      "name": "closed",
+      "t": 29.23
+    }
+  ],
+  "C": [
+    {
+      "name": "console with alert",
+      "t": 0.18
+    },
+    {
+      "name": "auto case opened",
+      "t": 4.1
+    }
+  ]
+}
