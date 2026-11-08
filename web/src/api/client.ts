@@ -19,9 +19,21 @@ function setOperator(name: string | null) {
 
 export const AUTH_REQUIRED = 'bd:auth-required'
 
-async function startSession(operator: string) {
+// Real mode can require an operator password (GET /auth/config). The password is never stored, so in
+// that mode an expired session goes back to the gate instead of being re-minted silently.
+let passwordRequired = false
+async function authConfig(): Promise<{ password_required: boolean }> {
+  try {
+    const res = await fetch(`${API}/auth/config`)
+    passwordRequired = res.ok ? !!(await res.json()).password_required : false
+  } catch { passwordRequired = false }
+  return { password_required: passwordRequired }
+}
+
+async function startSession(operator: string, password?: string) {
   const res = await fetch(`${API}/auth/session`, {
-    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ operator }),
+    method: 'POST', headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(password === undefined ? { operator } : { operator, password }),
   })
   if (!res.ok) throw new ApiError(res.status, `POST /auth/session -> ${res.status}`)
   setOperator(operator)
@@ -36,7 +48,7 @@ async function call<T>(method: string, path: string, body?: unknown, retried = f
   if (res.status === 401) {
     // Session expired or backend restarted: re-mint once from the stored operator, else ask who is operating.
     const op = getOperator()
-    if (op && !retried) { await startSession(op); return call<T>(method, path, body, true) }
+    if (op && !retried && !passwordRequired) { await startSession(op); return call<T>(method, path, body, true) }
     window.dispatchEvent(new Event(AUTH_REQUIRED))
   }
   if (!res.ok) {
@@ -48,6 +60,7 @@ async function call<T>(method: string, path: string, body?: unknown, retried = f
 }
 
 export const api = {
+  authConfig,
   session: startSession,
   signOut: () => setOperator(null),
   instances: () => call<VultrInstance[]>('GET', '/instances'),

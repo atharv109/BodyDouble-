@@ -5,6 +5,7 @@ import { defineConfig, devices } from '@playwright/test'
 const live = process.env.API_TARGET
 const api = live ?? 'http://localhost:8011' // own port: never collides with a dev/QA mock on :8001
 const port = 5179
+export const pwPort = 5180
 
 export default defineConfig({
   testDir: './e2e',
@@ -19,5 +20,12 @@ export default defineConfig({
       env: { MOCK_DELAY: '60' }, reuseExistingServer: false }]),
     { command: `npx vite --port ${port} --strictPort`, url: `http://localhost:${port}`,
       env: { API_TARGET: api }, reuseExistingServer: false },
+    // Password-mode pair for e2e/password.spec.ts: a mock with MOCK_PASSWORD set, behind its own vite.
+    ...(live ? [] : [
+      { command: 'node mock/server.mjs 8012', url: 'http://localhost:8012/auth/config',
+        env: { MOCK_DELAY: '60', MOCK_PASSWORD: 'e2e-secret' }, reuseExistingServer: false },
+      { command: `npx vite --port ${pwPort} --strictPort`, url: `http://localhost:${pwPort}`,
+        env: { API_TARGET: 'http://localhost:8012' }, reuseExistingServer: false },
+    ]),
   ],
 })
