@@ -6,6 +6,7 @@ against the live Vultr API on day one (PRD: day-one tests T1-T4).
 from __future__ import annotations
 
 import itertools
+import re
 from typing import Any, Protocol
 
 import httpx
@@ -19,6 +20,26 @@ from .models import (
     VultrSnapshot,
     VultrVPC,
 )
+
+
+# The only raw calls request() will send: the PRD containment menu. Anything else is
+# refused before it leaves the process, so the API key can't go to another host.
+ALLOWED_RAW_CALLS: list[tuple[str, re.Pattern[str]]] = [
+    ("PATCH", re.compile(r"/v2/instances/[A-Za-z0-9-]{1,64}")),  # quarantine_firewall
+    ("POST", re.compile(r"/v2/instances/[A-Za-z0-9-]{1,64}/halt")),  # stop_instance
+]
+ALLOWED_PATCH_KEYS = {"firewall_group_id"}
+
+
+class DisallowedCall(Exception):
+    """request() refused a (method, path, body) outside ALLOWED_RAW_CALLS."""
+
+
+def check_raw_call(method: str, path: str, body: dict | None) -> None:
+    if not any(method == m and p.fullmatch(path) for m, p in ALLOWED_RAW_CALLS):
+        raise DisallowedCall(f"{method} {path}")
+    if method == "PATCH" and (not body or set(body) - ALLOWED_PATCH_KEYS):
+        raise DisallowedCall(f"PATCH body keys {sorted(body or {})}")
 
 
 class VultrNotFound(Exception):
@@ -47,8 +68,9 @@ class VultrClient(Protocol):
     async def delete_instance(self, instance_id: str) -> None: ...
 
     async def request(self, method: str, path: str, body: dict | None = None) -> ApiResponse:
-        """Raw call used to apply an approved Action verbatim (F10). Never raises on
-        HTTP errors; the status code is returned and logged."""
+        """Raw call used to apply an approved Action verbatim (F10). Raises
+        DisallowedCall unless (method, path, body) passes check_raw_call. Never
+        raises on HTTP errors; the status code is returned and logged."""
         ...
 
 
@@ -188,6 +210,7 @@ class FakeVultr:
 
     async def request(self, method: str, path: str, body: dict | None = None) -> ApiResponse:
         """Supports the two production-changing action calls from the PRD menu."""
+        check_raw_call(method, path, body)
         self._log(method, path, body)
         parts = path.strip("/").split("/")  # v2 instances {id} [halt]
         if len(parts) >= 3 and parts[:2] == ["v2", "instances"] and parts[2] in self.instances:
@@ -216,7 +239,7 @@ class RealVultr:
 
     def __init__(self, api_key: str, base_url: str = BASE, timeout: float = 30.0):
         self._http = httpx.AsyncClient(
-            base_url=base_url, timeout=timeout,
+            base_url=base_url, timeout=timeout, follow_redirects=False,
             headers={"Authorization": f"Bearer {api_key}"})
 
     async def aclose(self) -> None:
@@ -277,6 +300,7 @@ class RealVultr:
         await self._call("DELETE", f"/v2/instances/{instance_id}")
 
     async def request(self, method: str, path: str, body: dict | None = None) -> ApiResponse:
+        check_raw_call(method, path, body)
         r = await self._http.request(method, path, json=body)
         try:
             payload = r.json() if r.content else None

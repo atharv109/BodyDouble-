@@ -122,3 +122,18 @@ async def test_fake_vultr_t1_fallback_and_actions():
     assert r.status_code == 202 and v.instances[FakeVultr.SHOP_PROD].firewall_group_id == fw.id
     r = await v.request("POST", f"/v2/instances/{FakeVultr.SHOP_PROD}/halt")
     assert r.status_code == 204
+
+
+@pytest.mark.parametrize("method,path,body", [
+    ("GET", "https://evil.example/v2/instances/x", None),       # absolute URL -> key leak
+    ("POST", "//evil.example/v2/instances/x/halt", None),        # scheme-relative
+    ("DELETE", "/v2/instances/inst-shop-prod", None),            # not on the menu
+    ("PATCH", "/v2/instances/../account", {"firewall_group_id": "f"}),
+    ("PATCH", "/v2/instances/inst-shop-prod", {"os_id": 1}),     # body key not allowed
+    ("PATCH", "/v2/instances/inst-shop-prod", None),
+])
+async def test_raw_request_allowlist(method, path, body):
+    from contracts.vultr import DisallowedCall, RealVultr
+    for client in (FakeVultr(), RealVultr(api_key="test-not-a-key")):
+        with pytest.raises(DisallowedCall):
+            await client.request(method, path, body)
