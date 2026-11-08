@@ -189,6 +189,7 @@ class CaseService:
         cutoff = now - timedelta(seconds=HEARTBEAT_LOST_S)
         with self.state.sf() as s:
             sensors = list(s.execute(select(SensorRow).where(
+                SensorRow.is_demo.is_(False),
                 func.coalesce(SensorRow.last_seen, SensorRow.enrolled_at) < cutoff
             )).scalars())
             due = []

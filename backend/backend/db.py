@@ -244,6 +244,7 @@ class SensorRow(Base):
     token_sha256: Mapped[str] = mapped_column(String(64))
     enrolled_at: Mapped[datetime] = mapped_column(DateTime)
     last_seen: Mapped[datetime | None] = mapped_column(DateTime)
+    is_demo: Mapped[bool] = mapped_column(default=False)
 
 
 class AlertRow(Base):
@@ -293,6 +294,11 @@ def init_db(engine) -> None:
                             if engine.dialect.name == "postgresql"
                             else "BOOLEAN NOT NULL DEFAULT 0"),
             "created_by": "VARCHAR(16) NOT NULL DEFAULT 'agent'",
+        },
+        "sensors": {
+            "is_demo": ("BOOLEAN NOT NULL DEFAULT FALSE"
+                        if engine.dialect.name == "postgresql"
+                        else "BOOLEAN NOT NULL DEFAULT 0"),
         },
     }
     with engine.begin() as connection:

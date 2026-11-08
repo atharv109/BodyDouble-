@@ -102,3 +102,34 @@ async def test_startup_upgrades_pre_plug_and_play_schema_without_data_loss(tmp_p
             task.cancel()
         await asyncio.gather(*state.fake_twin_tasks.values(), return_exceptions=True)
         state.close()
+
+
+def test_upgrade_adds_demo_marker_to_existing_sensor_table(tmp_path):
+    url = f"sqlite:///{(tmp_path / 'sensor-upgrade.db').as_posix()}"
+    engine = create_engine(url)
+    with engine.begin() as connection:
+        connection.execute(text("""
+            CREATE TABLE sensors (
+                instance_id VARCHAR(64) PRIMARY KEY,
+                token_sha256 VARCHAR(64) NOT NULL,
+                enrolled_at DATETIME NOT NULL,
+                last_seen DATETIME
+            )
+        """))
+        connection.execute(text("""
+            INSERT INTO sensors (instance_id, token_sha256, enrolled_at)
+            VALUES ('inst-shop-prod', 'abc', '2026-11-08 12:00:00')
+        """))
+    engine.dispose()
+
+    state = build_state(make_test_settings(url))
+    try:
+        with state.sf() as session:
+            sensor = session.execute(text(
+                "SELECT instance_id, is_demo FROM sensors"
+            )).one()
+        assert sensor.instance_id == "inst-shop-prod"
+        assert sensor.is_demo in (False, 0)
+        init_db(state.engine)
+    finally:
+        state.close()
