@@ -754,8 +754,20 @@ class CaseService:
 
     def _next_id(self, row_class, case_id: str, prefix: str) -> str:
         with self.state.sf() as s:
-            n = s.scalar(select(func.count()).where(row_class.case_id == case_id)) or 0
-        return f"{case_id}-{prefix}-{n + 1:03d}"
+            existing = s.scalars(select(row_class.id).where(
+                row_class.case_id == case_id
+            )).all()
+        maximum = 0
+        for value in existing:
+            tail = str(value).rsplit("-", 1)[-1]
+            if tail.isdigit():
+                maximum = max(maximum, int(tail))
+        # Sequential requests start after the maximum persisted suffix, so
+        # sparse legacy IDs cannot collide. Retry on a concurrent insert.
+        candidate = maximum + 1
+        while f"{case_id}-{prefix}-{candidate:03d}" in existing:
+            candidate += 1
+        return f"{case_id}-{prefix}-{candidate:03d}"
 
     def _action_id(self, row: CaseRow, kind: ActionKind) -> str:
         if row.operator == "dev-infect":

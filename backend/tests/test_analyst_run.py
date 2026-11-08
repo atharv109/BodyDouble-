@@ -3,7 +3,7 @@ from __future__ import annotations
 import pytest
 
 from backend.db import CaseRow, StepRow
-from contracts.models import CaseState
+from contracts.models import CaseState, StepKind, ToolName
 
 
 async def _case(client, human):
@@ -53,3 +53,20 @@ async def test_analyst_run_rejects_terminal_cases(client, state, human):
     response = await client.post(f"/cases/{row}/analyst/run", headers=human,
                                  json={"tool": "os_facts", "args": {}})
     assert response.status_code == 409
+
+
+async def test_analyst_run_allocates_after_sparse_step_ids(client, state, human):
+    case = await _case(client, human)
+    with state.sf() as session:
+        for seq in (4, 5, 6):
+            session.add(StepRow(
+                id=f"{case['id']}-step-{seq:03d}", case_id=case["id"], seq=seq,
+                kind=StepKind.triage.value, tool=ToolName.os_facts.value,
+                args={}, code="", stdout="", stderr="", exit_code=0,
+                duration_ms=0,
+            ))
+        session.commit()
+    response = await client.post(f"/cases/{case['id']}/analyst/run", headers=human,
+                                 json={"tool": "os_facts", "args": {}})
+    assert response.status_code == 200, response.text
+    assert response.json()["step"]["id"] == f"{case['id']}-step-007"

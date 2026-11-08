@@ -133,3 +133,50 @@ def test_upgrade_adds_demo_marker_to_existing_sensor_table(tmp_path):
         init_db(state.engine)
     finally:
         state.close()
+
+
+def test_upgrade_relaxes_legacy_required_step_rationale_without_data_loss(tmp_path):
+    url = f"sqlite:///{(tmp_path / 'step-rationale.db').as_posix()}"
+    engine = create_engine(url)
+    with engine.begin() as connection:
+        connection.execute(text("""
+            CREATE TABLE steps (
+                id VARCHAR(64) PRIMARY KEY,
+                case_id VARCHAR(32) NOT NULL,
+                seq INTEGER NOT NULL,
+                kind VARCHAR(16) NOT NULL,
+                tool VARCHAR(32) NOT NULL,
+                args JSON NOT NULL,
+                rationale TEXT NOT NULL,
+                code TEXT NOT NULL,
+                stdout TEXT NOT NULL,
+                stderr TEXT NOT NULL,
+                exit_code INTEGER,
+                duration_ms INTEGER
+            )
+        """))
+        connection.execute(text("""
+            INSERT INTO steps
+                (id, case_id, seq, kind, tool, args, rationale, code,
+                 stdout, stderr, exit_code, duration_ms)
+            VALUES
+                ('old-step', 'case-old', 1, 'triage', 'os_facts', '{}',
+                 'preserve this rationale', 'print(1)', '1', '', 0, 1)
+        """))
+
+    init_db(engine)
+    init_db(engine)  # idempotent on repeated startup
+    with engine.begin() as connection:
+        assert connection.execute(text(
+            "SELECT rationale FROM steps WHERE id = 'old-step'"
+        )).scalar_one() == "preserve this rationale"
+        connection.execute(text("""
+            INSERT INTO steps
+                (id, case_id, seq, kind, tool, args, code, stdout, stderr)
+            VALUES
+                ('new-step', 'case-new', 1, 'triage', 'os_facts', '{}', '', '', '')
+        """))
+        assert connection.execute(text(
+            "SELECT rationale FROM steps WHERE id = 'new-step'"
+        )).scalar_one() == ""
+    engine.dispose()

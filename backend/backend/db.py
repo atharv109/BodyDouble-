@@ -285,6 +285,57 @@ def make_engine(database_url: str):
     return create_engine(database_url, future=True)
 
 
+def _relax_legacy_step_rationale(engine) -> None:
+    """Keep legacy rationale values without requiring them on new StepRow inserts."""
+    columns = {column["name"]: column for column in inspect(engine).get_columns("steps")}
+    rationale = columns.get("rationale")
+    if rationale is None:
+        return
+    if engine.dialect.name == "postgresql":
+        with engine.begin() as connection:
+            connection.execute(text(
+                'ALTER TABLE "steps" ALTER COLUMN "rationale" SET DEFAULT \'\''
+            ))
+            connection.execute(text(
+                'ALTER TABLE "steps" ALTER COLUMN "rationale" DROP NOT NULL'
+            ))
+        return
+    if engine.dialect.name != "sqlite" or rationale["nullable"]:
+        return
+
+    # SQLite cannot alter a column constraint. Rebuild this small table with
+    # the legacy column retained, nullable, and defaulted for omitted inserts.
+    with engine.begin() as connection:
+        connection.execute(text("""
+            CREATE TABLE steps_rationale_compat (
+                id VARCHAR(64) PRIMARY KEY,
+                case_id VARCHAR(32) NOT NULL,
+                seq INTEGER NOT NULL,
+                kind VARCHAR(16) NOT NULL,
+                tool VARCHAR(32) NOT NULL,
+                args JSON NOT NULL,
+                rationale TEXT DEFAULT '',
+                code TEXT NOT NULL,
+                stdout TEXT NOT NULL,
+                stderr TEXT NOT NULL,
+                exit_code INTEGER,
+                duration_ms INTEGER
+            )
+        """))
+        connection.execute(text("""
+            INSERT INTO steps_rationale_compat
+                (id, case_id, seq, kind, tool, args, rationale, code,
+                 stdout, stderr, exit_code, duration_ms)
+            SELECT id, case_id, seq, kind, tool, args, rationale, code,
+                   stdout, stderr, exit_code, duration_ms
+            FROM steps
+        """))
+        connection.execute(text("DROP TABLE steps"))
+        connection.execute(text(
+            "ALTER TABLE steps_rationale_compat RENAME TO steps"
+        ))
+
+
 def init_db(engine) -> None:
     """Create new tables and apply additive, data-preserving upgrades.
 
@@ -293,6 +344,7 @@ def init_db(engine) -> None:
     every operation is additive and safe to run on every startup.
     """
     Base.metadata.create_all(engine)
+    _relax_legacy_step_rationale(engine)
     inspector = inspect(engine)
     additions = {
         "cases": {
