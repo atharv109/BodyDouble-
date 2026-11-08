@@ -188,7 +188,7 @@ export function Story() {
       <footer className="story-foot wrap">
         <Link to="/" className="brand flex items-center gap-2.5 font-semibold min-h-11" aria-label="Body Double, home"><Emblem className="size-6" />Body Double</Link>
         <p className="text-muted text-sm">Built during Vultr Agent Rush, Nov 3 to 8 2026. MIT licence. Set in IBM Plex.</p>
-        <Link to="/console" viewTransition className="navlink text-muted text-sm">Console</Link>
+        <Link to="/console" viewTransition className="navlink text-muted text-sm -ml-2">Console</Link>
       </footer>
     </div>
   )
@@ -203,7 +203,7 @@ function ProdCard({ contained }: { contained: boolean }) {
         <div className="prod-addr"><dt className="sr-only">Address</dt><dd className="font-mono">{prod.ip} · {prod.region}</dd></div>
         <div className="prod-state"><dt>State</dt><dd>running</dd></div>
         <div className="prod-fw"><dt>Firewall</dt><dd className="font-mono">{contained ? `${prod.firewallAfter} (quarantine)` : prod.firewallBefore}</dd></div>
-        <div><dt>Writes before approval</dt><dd className="font-mono">0</dd></div>
+        <div className="prod-writes"><dt><span className="w-long">Writes before approval</span><span className="w-short">writes</span></dt><dd className="font-mono">0</dd></div>
       </dl>
       <p className="prod-note">{contained ? 'Changed once, by the approved action.' : 'Demo server. Nothing here changes until a human approves.'}</p>
     </div>

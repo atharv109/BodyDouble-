@@ -49,6 +49,7 @@
 .prod-card { position: sticky; top: calc(var(--head-h) + 24px); margin-top: clamp(5rem, 10vw, 9rem); padding: 20px;
   background: var(--color-panel); border: 1px solid var(--color-line); border-radius: 2px;
   transition: border-color 280ms var(--ease-latch); }
+.w-short { display: none; }
 .prod-name { margin-top: 6px; font-size: 1.375rem; letter-spacing: -0.01em; }
 .prod-facts { margin-top: 14px; display: grid; gap: 10px; font-size: 14px; }
 .prod-facts > div { display: flex; justify-content: space-between; gap: 12px; border-top: 1px solid var(--color-line); padding-top: 10px; }
@@ -68,7 +69,10 @@
   .prod-name { margin: 0; font-size: 15px; }
   .prod-facts { margin: 0; display: flex; flex-wrap: wrap; column-gap: 14px; row-gap: 2px; font-size: 13px; }
   .prod-facts > div { border: 0; padding: 0; gap: 6px; }
-  .prod-facts .prod-addr, .prod-facts .prod-state, .prod-note { display: none; }
+  .prod-facts .prod-addr, .prod-facts .prod-state, .prod-note, .prod-card .label, .prod-fw dt, .w-long { display: none; }
+  .w-short { display: inline; }
+  .prod-card { flex-wrap: nowrap; white-space: nowrap; overflow: hidden; box-shadow: 0 10px 14px -6px var(--color-ground); }
+  .prod-facts { flex-wrap: nowrap; }
 }
 @media (min-width: 768px) and (max-width: 1023px) { .lane-prod { margin-inline: -24px; } .prod-card { padding-inline: 24px; } }
 

@@ -22,6 +22,7 @@ function Shell() {
           {/* phone + case open: the wordmark stays; the breadcrumb scrolls sideways if it runs out of room */}
           <nav aria-label="Primary" className="flex items-center gap-1 text-sm whitespace-nowrap min-w-0 overflow-x-auto">
 
+            <Link to="/#how" viewTransition className="navlink text-muted hidden sm:inline-block">How it works</Link>
             <NavLink to="/console" end viewTransition className={({ isActive }) => `navlink ${isActive ? 'text-ink' : 'text-muted'}`}>
               Servers
             </NavLink>
