@@ -233,8 +233,10 @@ class CreateTwinRequest(BaseModel):
     attach_vpc: list[str] = Field(default_factory=list)
     firewall_group_id: str
     enable_ipv6: bool = False
-    # base64 JSON {"case_id", "token", "control_plane"}: the one-time registration token for the
-    # forensics ISO, read at boot from the metadata service (http://169.254.169.254/v1/user-data).
+    # base64 JSON {"case_id", "token", "control_plane", "vpc_subnet", "vpc_ip"}: the forensics ISO's
+    # ONLY deploy-time input, read at boot from the metadata service
+    # (http://169.254.169.254/v1/user-data). The ISO validates every value strictly and fails closed;
+    # it never reads config from any block device (the cloned disk is attacker-controlled).
     user_data: str | None = None
 
 
