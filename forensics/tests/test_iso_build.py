@@ -50,13 +50,17 @@ def valid_payload(**changes):
     return payload
 
 
-def test_valid_user_data_renders_expected_accept_line(tmp_path) -> None:
+def test_valid_user_data_allows_only_control_plane_ip_and_port(tmp_path) -> None:
     with metadata_server(valid_payload()) as url:
         got = fetch_bootstrap(url)
         nft, bootstrap = tmp_path / "egress.nft", tmp_path / "bootstrap.json"
         configure_boot(url, NFT_TEMPLATE, nft, bootstrap)
     assert got == valid_payload()
-    assert "ip daddr 10.20.0.0/24 accept" in nft.read_text()
+    rules = nft.read_text()
+    assert "ip daddr 10.20.0.2 tcp dport 8000 accept" in rules
+    assert "ip daddr 10.20.0.0/24" not in rules
+    assert "ip daddr 10.20.0.20" not in rules
+    assert "tcp dport 8001" not in rules
     assert json.loads(bootstrap.read_text()) == valid_payload()
 
 
@@ -84,7 +88,7 @@ def test_planted_block_device_config_has_no_effect(tmp_path) -> None:
     with metadata_server(valid_payload()) as url:
         nft, bootstrap = tmp_path / "egress.nft", tmp_path / "bootstrap.json"
         configure_boot(url, NFT_TEMPLATE, nft, bootstrap)
-    assert "10.20.0.0/24" in nft.read_text()
+    assert "ip daddr 10.20.0.2 tcp dport 8000 accept" in nft.read_text()
     init = (REPO / "iso/boot/init").read_text()
     boot = (REPO / "iso/rootfs/etc/bd/boot.sh").read_text()
     assert "bd-deploy.env" not in init
@@ -111,3 +115,6 @@ def test_alpine_stage_contains_default_drop_runsc_and_no_keys(tmp_path) -> None:
     ).casefold()
     assert "vultr_api_key=" not in image_text
     assert "inference_api_key=" not in image_text
+    live_rules = (stage / "etc/bd/egress.live.nft").read_text()
+    assert "ip daddr 192.0.2.10 tcp dport 8000 accept" in live_rules
+    assert "192.0.2.0/24" not in live_rules

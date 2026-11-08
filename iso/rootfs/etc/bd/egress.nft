@@ -2,7 +2,7 @@
 # Body Double forensics ISO - egress ruleset (PRD "Network walls", F5).
 #
 # Vultr Firewall filters only inbound traffic, so the ISO itself default-DROPs
-# all egress and allows only the case VPC subnet. This is trustworthy because
+# all egress and allows only the case control plane. This is trustworthy because
 # the attacker's OS never runs - this ISO boots instead of the cloned one
 # (PRD). nftables semantics make the drop robust: a packet is finally
 # accepted only when every base chain in every table accepts it, so rules
@@ -10,11 +10,12 @@
 # table can only tighten these drops, never loosen them.
 #
 # The placeholder is never loaded as-is. Python strictly validates the
-# user_data IPv4 CIDR, renders the rule, and writes a drop-only ruleset on
+# user_data IPv4 address and port, renders the rule, and writes a drop-only ruleset on
 # any error. Shell code never parses or substitutes metadata values.
 #
 # Allowed outbound, exhaustively: loopback, established/related replies, and
-# the case VPC subnet. Nothing else. Inbound allows nothing beyond
+# the control-plane IPv4 address and TCP port. Other twins and VPC hosts are
+# unreachable. Inbound allows nothing beyond
 # established/related and loopback: the twin long-polls the control plane
 # (contracts/endpoints.py), so it needs no inbound rule at all; the Vultr
 # firewall group denies inbound on the public interface too. Forward is
@@ -38,6 +39,6 @@ table inet bd_seal {
         type filter hook output priority 0; policy drop;
         oifname "lo" accept
         ct state established,related accept
-        ip daddr __BD_VPC_SUBNET__ accept
+        ip daddr __BD_CONTROL_PLANE_IP__ tcp dport __BD_CONTROL_PLANE_PORT__ accept
     }
 }
