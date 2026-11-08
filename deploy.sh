@@ -118,6 +118,9 @@ Requires=nftables.service
 After=nftables.service'
 fi
 
+# Vultr Ubuntu images ship ufw allowing only SSH: open HTTP/HTTPS for Caddy (ACME + site)
+if command -v ufw >/dev/null && ufw status | grep -q "Status: active"; then ufw allow 80/tcp; ufw allow 443/tcp; fi
+
 runuser -u bodydouble -- /usr/local/bin/uv sync --project "$APP_DIR/backend" --frozen
 runuser -u bodydouble -- npm --prefix "$APP_DIR/web" ci
 runuser -u bodydouble -- npm --prefix "$APP_DIR/web" run build
