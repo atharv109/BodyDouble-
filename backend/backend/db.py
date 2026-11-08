@@ -150,6 +150,8 @@ class ActionRow(Base):
     api_body: Mapped[dict[str, Any] | None] = mapped_column(JSON)
     description: Mapped[str] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(16), default=ActionStatus.proposed.value)
+    recommended: Mapped[bool] = mapped_column(default=False)
+    created_by: Mapped[str] = mapped_column(String(16), default=Actor.agent.value)
     approved_by: Mapped[str | None] = mapped_column(String(64))
     response: Mapped[dict[str, Any] | None] = mapped_column(JSON)
 
@@ -158,6 +160,7 @@ class ActionRow(Base):
             id=self.id, case_id=self.case_id, kind=ActionKind(self.kind), target=self.target,
             api_method=self.api_method, api_path=self.api_path, api_body=self.api_body,
             description=self.description, status=ActionStatus(self.status),
+            recommended=self.recommended, created_by=Actor(self.created_by),
             approved_by=self.approved_by, response=self.response,
         )
 
@@ -229,6 +232,14 @@ class WarmTwinRow(Base):
     iso_id: Mapped[str | None] = mapped_column(String(64))
     created_at: Mapped[datetime] = mapped_column(DateTime)
     adopted_at: Mapped[datetime | None] = mapped_column(DateTime)
+
+
+class SensorRow(Base):
+    __tablename__ = "sensors"
+    instance_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    token_sha256: Mapped[str] = mapped_column(String(64))
+    enrolled_at: Mapped[datetime] = mapped_column(DateTime)
+    last_seen: Mapped[datetime | None] = mapped_column(DateTime)
 
 
 def make_engine(database_url: str):

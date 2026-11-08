@@ -13,10 +13,13 @@ Endpoint shapes are owned here (TASK.md); every change is logged to
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import secrets
+from datetime import timedelta
+from pathlib import Path
 
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 
 from contracts.models import (
@@ -25,6 +28,9 @@ from contracts.models import (
     Case,
     CaseDetail,
     OpenCaseRequest,
+    SensorEnrollRequest,
+    SensorEnrollResponse,
+    SensorStatus,
     ToolCall,
     ToolResult,
     TwinRegisterRequest,
@@ -33,7 +39,7 @@ from contracts.models import (
 from contracts.vultr import FakeVultr, VultrError
 
 from .sessions import mint, verify
-from .db import CaseRow
+from .db import CaseRow, SensorRow, utcnow
 from .state import AppState, build_state
 from .service import ActionConflict, TransitionError
 from .twin import TwinChannelError, in_subnet
@@ -121,6 +127,57 @@ def create_app(state: AppState | None = None) -> FastAPI:
     @app.get("/instances", dependencies=[Depends(require_human)])
     async def list_instances():
         return await state.vultr.list_instances()
+
+    # ------------------------------------------------------------- sensors
+    @app.post("/sensors", response_model=SensorEnrollResponse)
+    async def enroll_sensor(body: SensorEnrollRequest,
+                            _: str = Depends(require_human)):
+        try:
+            await state.vultr.get_instance(body.instance_id)
+        except Exception as e:
+            from contracts.vultr import VultrNotFound
+            if isinstance(e, VultrNotFound):
+                raise HTTPException(404, f"unknown instance {body.instance_id}")
+            raise
+        token = secrets.token_hex(32)
+        now = utcnow()
+        with state.sf() as session:
+            row = session.get(SensorRow, body.instance_id)
+            if row is None:
+                row = SensorRow(instance_id=body.instance_id,
+                                token_sha256="", enrolled_at=now)
+                session.add(row)
+            row.token_sha256 = hashlib.sha256(token.encode()).hexdigest()
+            row.enrolled_at = now
+            row.last_seen = None
+            session.commit()
+        url = state.settings.public_url
+        command = (f"curl -fsSL {url}/api/sensors/install.sh | sudo sh -s -- "
+                   f"{url} {body.instance_id} {token}")
+        return SensorEnrollResponse(
+            instance_id=body.instance_id, token=token,
+            install_command=command,
+            startup_script=f"#!/bin/sh\n{command}\n",
+        )
+
+    @app.get("/sensors", response_model=list[SensorStatus])
+    async def list_sensors(_: str = Depends(require_human)):
+        now = utcnow()
+        with state.sf() as session:
+            rows = session.execute(select(SensorRow).order_by(SensorRow.instance_id)).scalars()
+            return [SensorStatus(
+                instance_id=row.instance_id, enrolled_at=row.enrolled_at,
+                last_seen=row.last_seen,
+                healthy=(row.last_seen is not None and
+                         row.last_seen >= now - timedelta(seconds=180)),
+            ) for row in rows]
+
+    @app.get("/sensors/install.sh", include_in_schema=True)
+    async def sensor_installer():
+        path = Path(__file__).resolve().parents[2] / "sensor" / "install.sh"
+        if not path.is_file():
+            raise HTTPException(404, "sensor installer is not available")
+        return FileResponse(path, media_type="text/x-shellscript")
 
     @app.post("/cases", response_model=Case, status_code=201,
               dependencies=[Depends(require_human)])
