@@ -14,40 +14,85 @@ from pathlib import Path
 from contracts.models import SealStatus
 
 MOUNTS_PATH = "/proc/mounts"
+MOUNTINFO_PATH = "/proc/self/mountinfo"  # encodes the mount hierarchy; preferred
 MOUNT_POINT = "/mnt/disk"  # where the forensics ISO mounts the cloned disk
-EGRESS_PROBE_TARGETS = [("1.1.1.1", 53), ("8.8.8.8", 53)]
+EGRESS_PROBE_TARGETS = [
+    ("1.1.1.1", 53),
+    ("8.8.8.8", 53),
+    ("1.1.1.1", 443),
+    ("9.9.9.9", 80),
+    ("208.67.222.222", 443),
+]
+
+
+def _read_mount_table() -> str:
+    """Prefer /proc/self/mountinfo; fall back to /proc/mounts. Fail closed
+    (raise, caught by callers) when neither is readable."""
+    for path in (MOUNTINFO_PATH, MOUNTS_PATH):
+        try:
+            return Path(path).read_text()
+        except OSError:
+            continue
+    raise OSError("no mount table readable")
+
+
+def _mount_cols(first_line: str) -> tuple[int, int]:
+    """Auto-detect format: mountinfo starts with a numeric mount ID."""
+    return (4, 5) if first_line.split()[0].isdigit() else (1, 3)
 
 
 def check_disk_read_only(mount_point: str, mounts_text: str | None = None) -> tuple[bool, str]:
-    """The cloned disk must be mounted read-only.
+    """The cloned disk and every mount under it must be read-only.
 
-    Returns (passed, raw_output); raw_output is the mount-table line (or the
-    failure reason) and is shown on screen via the seal_check SSE event.
+    Stacked or descendant mounts count too: any `rw` entry at or under the
+    mount point fails the check (fail closed when nothing matches).
+    Returns (passed, raw_output) for the seal_check SSE event.
     """
     if mounts_text is None:
-        mounts_text = Path(MOUNTS_PATH).read_text()
-    for line in mounts_text.splitlines():
+        mounts_text = _read_mount_table()
+    lines = mounts_text.splitlines()
+    mp_i, opt_i = _mount_cols(lines[0]) if lines else (1, 3)
+    prefix = mount_point.rstrip("/") + "/"
+    is_mountinfo = bool(lines) and lines[0].split()[0].isdigit()
+    relevant: list[tuple[str, str, str]] = []  # (mountpoint, options, device)
+    for line in lines:
         parts = line.split()
-        if len(parts) >= 4 and parts[1] == mount_point:
-            return ("ro" in parts[3].split(",")), line
-    return False, f"{mount_point} not found in {MOUNTS_PATH}"
+        if len(parts) <= max(mp_i, opt_i):
+            continue
+        mp = parts[mp_i].replace("\\040", " ")
+        if mp == mount_point or mp.startswith(prefix):
+            device = parts[-2] if is_mountinfo and len(parts) >= 3 else parts[0]
+            relevant.append((mp, parts[opt_i], device))
+    if not relevant:
+        return False, f"{mount_point} not found in the mount table"
+    raw = "; ".join(f"{device} on {mp}: {opts}" for mp, opts, device in relevant)
+    writable = [mp for mp, opts, _dev in relevant if "ro" not in opts.split(",")]
+    if writable:
+        return False, f"writable mounts under {mount_point}: {', '.join(writable)} | {raw}"
+    return True, raw
 
 
 def internet_egress_probe(
-    targets: list[tuple[str, int]] | None = None, timeout_s: float = 5.0
+    targets: list[tuple[str, int]] | None = None, timeout_s: float = 3.0
 ) -> tuple[bool, str]:
-    """Try real outbound TCP connections to public internet hosts.
+    """Try real outbound TCP connections to public internet hosts, run
+    concurrently so a sealed twin pays the timeout once, not per target.
 
     Returns (egress_blocked, raw_output). If any target is reachable, the
     twin has internet egress - which must never happen.
     """
-    outputs: list[str] = []
-    for host, port in (targets or EGRESS_PROBE_TARGETS):
+    from concurrent.futures import ThreadPoolExecutor
+
+    def probe(target: tuple[str, int]) -> str:
+        host, port = target
         try:
             with socket.create_connection((host, port), timeout=timeout_s):
-                outputs.append(f"tcp {host}:{port} CONNECTED - egress is open")
+                return f"tcp {host}:{port} CONNECTED - egress is open"
         except OSError as exc:
-            outputs.append(f"tcp {host}:{port} failed: {type(exc).__name__}: {exc}")
+            return f"tcp {host}:{port} failed: {type(exc).__name__}: {exc}"
+
+    with ThreadPoolExecutor(max_workers=8) as pool:
+        outputs = list(pool.map(probe, targets or EGRESS_PROBE_TARGETS))
     blocked = all("CONNECTED" not in o for o in outputs)
     return blocked, "; ".join(outputs)
 

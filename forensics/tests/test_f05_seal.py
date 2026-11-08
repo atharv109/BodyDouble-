@@ -21,12 +21,14 @@ RW_MOUNTS = "/dev/vdb /mnt/disk ext4 rw,relatime 0 0\n"
 
 
 class FakeControlPlane:
-    """Records calls; returns no jobs so the pull loop stops gracefully."""
+    """Records calls; serves queued jobs then no more, so the loop ends."""
 
-    def __init__(self) -> None:
+    def __init__(self, jobs: list[ToolCall] | None = None) -> None:
         self.registrations: list[TwinRegisterRequest] = []
         self.pulls = 0
+        self.heartbeats = 0
         self.results: list[ToolResult] = []
+        self.jobs = list(jobs or [])
 
     async def register(self, req: TwinRegisterRequest) -> TwinRegisterResponse:
         self.registrations.append(req)
@@ -34,22 +36,34 @@ class FakeControlPlane:
 
     async def next_job(self, session_key: str) -> ToolCall | None:
         self.pulls += 1
-        return None
+        return self.jobs.pop(0) if self.jobs else None
 
     async def post_result(self, job_id: str, result: ToolResult, session_key: str) -> None:
         self.results.append(result)
 
     async def heartbeat(self, session_key: str) -> None:
-        pass
+        self.heartbeats += 1
 
 
-def agent(cp: FakeControlPlane, seal) -> TwinAgent:
+def agent(cp: FakeControlPlane, seal, seal_calls: list[SealStatus] | None = None) -> TwinAgent:
+    """Build a TwinAgent whose seal_fn returns `seal`, or each entry of
+    seal_calls in turn (register check, then one per loop iteration;
+    the last entry repeats)."""
+    if seal_calls is None:
+        def seal_fn(mount_point):
+            return seal
+    else:
+        queue = list(seal_calls)
+
+        def seal_fn(mount_point):
+            return queue.pop(0) if queue else seal_calls[-1]
+
     return TwinAgent(
         control_plane=cp,
         case_id="case-1",
         token="one-time-token",
         vpc_ip="10.10.0.11",
-        seal_fn=lambda mount_point: seal,
+        seal_fn=seal_fn,
     )
 
 
@@ -67,6 +81,22 @@ def test_disk_read_only_fails_on_rw_mount() -> None:
 def test_disk_read_only_fails_when_mount_missing() -> None:
     ok, raw = check_disk_read_only("/mnt/disk", "")
     assert not ok and "not found" in raw
+
+
+def test_disk_read_only_fails_on_rw_submount() -> None:
+    """A stacked rw mount under the disk must fail the check (fail closed)."""
+    stacked = RO_MOUNTS + "/dev/vdb2 /mnt/disk/var ext4 rw,relatime 0 0\n"
+    ok, raw = check_disk_read_only("/mnt/disk", stacked)
+    assert not ok and "/mnt/disk/var" in raw
+
+
+def test_disk_read_only_parses_mountinfo_too() -> None:
+    mountinfo = (
+        "22 92 0:40 / /mnt/disk ro,relatime - ext4 /dev/vdb rw\n"
+        "23 22 0:41 / /mnt/disk/home ro,relatime - ext4 /dev/vdb2 rw\n"
+    )
+    ok, raw = check_disk_read_only("/mnt/disk", mountinfo)
+    assert ok and "/mnt/disk/home" in raw
 
 
 def test_egress_blocked_when_all_probes_fail() -> None:
@@ -132,3 +162,42 @@ def test_agent_refuses_jobs_when_egress_open() -> None:
     )
     asyncio.run(agent(cp, unsealed).run())
     assert cp.pulls == 0
+
+
+def _job(n: int) -> ToolCall:
+    return ToolCall(
+        job_id=f"job-{n}", case_id="case-1", tool=ToolName.os_facts, args={}
+    )
+
+
+def _tool(job: ToolCall) -> ToolResult:
+    return ToolResult(
+        job_id=job.job_id, code="print('x')", stdout="x", stderr="",
+        exit_code=0, duration_ms=1,
+    )
+
+
+def test_agent_stops_when_seal_breaks_mid_run() -> None:
+    """The seal is re-verified per job: a twin that loses isolation mid-run
+    refuses further work instead of failing open."""
+    cp = FakeControlPlane(jobs=[_job(1), _job(2)])
+    sealed = SealStatus(
+        disk_read_only=True, egress_blocked=True, detail={"d": "ro", "e": "blocked"}
+    )
+    broken = SealStatus(
+        disk_read_only=False, egress_blocked=True, detail={"d": "rw!", "e": "blocked"}
+    )
+    a = agent(cp, sealed, seal_calls=[sealed, sealed, broken])
+    a.tool_fn = _tool
+    asyncio.run(a.run())
+    assert cp.pulls == 1, "must not pull the next job once the seal breaks"
+    assert len(cp.results) == 1
+
+
+def test_agent_heartbeats_while_polling() -> None:
+    cp = FakeControlPlane()
+    sealed = SealStatus(
+        disk_read_only=True, egress_blocked=True, detail={"d": "ro", "e": "blocked"}
+    )
+    asyncio.run(agent(cp, sealed).run())
+    assert cp.heartbeats >= 1

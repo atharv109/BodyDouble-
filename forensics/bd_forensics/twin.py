@@ -52,7 +52,11 @@ class TwinAgent:
         self.session_key: str | None = None
 
     async def run(self) -> SealStatus:
-        """Register (reporting the seal either way), then pull jobs only if sealed."""
+        """Register (reporting the seal either way), then pull jobs only if sealed.
+
+        The seal is re-verified before accepting every job: a twin that
+        loses isolation mid-run refuses further work instead of failing open.
+        """
         s = self.seal_fn(self.mount_point)
         resp = await self.cp.register(
             TwinRegisterRequest(
@@ -64,7 +68,12 @@ class TwinAgent:
             log.error("seal failed; refusing to pull jobs: %s", s.detail)
             return s
         while True:
+            s = self.seal_fn(self.mount_point)
+            if not s.sealed:
+                log.error("seal broken mid-run; refusing further jobs: %s", s.detail)
+                return s
             job = await self.cp.next_job(self.session_key)
+            await self.cp.heartbeat(self.session_key)
             if job is None:
                 return s
             if self.tool_fn is None:
