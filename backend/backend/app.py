@@ -15,12 +15,14 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import hmac
+import ipaddress
+import logging
 import secrets
 from datetime import timedelta, timezone
 from pathlib import Path
 
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -60,6 +62,7 @@ from .service import ActionConflict, AlertRateLimit, TransitionError
 from .twin import TwinChannelError, in_subnet
 
 COOKIE_NAME = "bd_session"
+log = logging.getLogger("backend")
 
 
 def _client_ip(request: Request) -> str:
@@ -109,6 +112,23 @@ def create_app(state: AppState | None = None) -> FastAPI:
                     "propose containment a human approves.",
     )
     app.state.bd = state
+    vpc_network = (ipaddress.ip_network(state.settings.investigation_vpc_subnet,
+                                        strict=False)
+                   if state.settings.investigation_vpc_subnet else None)
+
+    @app.middleware("http")
+    async def restrict_investigation_vpc(request: Request, call_next):
+        """The investigation VPC can see only the twin pull channel."""
+        try:
+            from_vpc = (vpc_network is not None
+                        and ipaddress.ip_address(_client_ip(request)) in vpc_network)
+        except ValueError:
+            from_vpc = False
+        if from_vpc and not request.url.path.startswith("/twin/"):
+            log.warning("blocked non-twin request from investigation VPC: %s %s source=%s",
+                        request.method, request.url.path, _client_ip(request))
+            return JSONResponse({"detail": "Not Found"}, status_code=404)
+        return await call_next(request)
 
     async def heartbeat_watch_loop():
         while True:
