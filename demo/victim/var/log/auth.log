@@ -1,0 +1,5 @@
+Nov  5 01:46:58 shop-prod sshd[4110]: Failed password for root from 203.0.113.66 port 51022 ssh2
+Nov  5 01:47:04 shop-prod sshd[4111]: Failed password for root from 203.0.113.66 port 51024 ssh2
+Nov  5 01:47:15 shop-prod sshd[4118]: Accepted publickey for root from 203.0.113.66 port 51030 ssh2: ED25519 SHA256:kQ9demoFingerprint
+Nov  5 01:47:22 shop-prod sudo:   ubuntu : TTY=pts/0 ; PWD=/home/ubuntu ; COMMAND=/usr/bin/apt-get update
+Nov  5 01:52:01 shop-prod CRON[4310]: (root) CMD (/usr/local/bin/.bdrv)
