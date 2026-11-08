@@ -1,76 +1,34 @@
 #!/usr/bin/env python3
-"""Boot entrypoint for the Body Double twin agent (F4/F5).
-
-Runs as the last step of /etc/bd/boot.sh on the forensics ISO. The
-deploy-time parameters (case id, ONE-TIME registration token, control-plane
-URL, VPC address) come from the environment boot.sh assembled from the
-kernel cmdline bd.* args and/or the attached bd-deploy.env file - never from
-this image. Only the one-time token exists here: no Vultr API key, no
-inference key (those stay on the control plane; the twin's env dump in the
-demo proves it).
-
-Wires the real pieces together - HttpControlPlane over the VPC, the tool
-executor, the seal checks - and runs TwinAgent.run(): seal, register with
-the one-time token, then long-poll /twin/jobs/next and post ToolResults
-until the control plane has no more jobs.
-"""
+"""Trusted ISO entrypoint: Python-only bootstrap and twin agent."""
 from __future__ import annotations
 
-import asyncio
 import argparse
+import asyncio
 import os
 import sys
 
-# the agent and contracts packages are copied wholesale to /usr/lib/bd
 sys.path.insert(0, "/usr/lib/bd")
 
 from bd_forensics.control_plane import HttpControlPlane  # noqa: E402
-from bd_forensics.metadata import fetch_bootstrap, write_agent_env  # noqa: E402
+from bd_forensics.metadata import configure_boot, load_bootstrap  # noqa: E402
 from bd_forensics.tools import execute  # noqa: E402
 from bd_forensics.twin import TwinAgent  # noqa: E402
 from contracts.models import ToolResult  # noqa: E402
 
 
-def _vpc_ip() -> str:
-    """The VPC address this twin registers from: the deploy-time bd.vpc_ip=
-    param if given, else the source address the control-plane route would
-    use (UDP connect() picks the route without sending any packet)."""
-    if os.environ.get("BD_VPC_IP"):
-        return os.environ["BD_VPC_IP"]
-    import socket
-    from urllib.parse import urlsplit
-
-    host = urlsplit(os.environ["BD_CP"]).hostname or ""
-    try:
-        with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
-            s.connect((host, 1))
-            return s.getsockname()[0]
-    except OSError:
-        return "unknown"
-
-
 def _tool_fn(call):
-    """Run one ToolCall against the read-only mount. detonate/custom_script
-    route through the detonation sandbox (F7); if that is not wired on this
-    twin yet, refuse the job rather than crash the pull loop."""
-    mount = os.environ.get("BD_MOUNT", "/mnt/disk")
     try:
-        return execute(call, mount)
+        return execute(call, os.environ.get("BD_MOUNT", "/mnt/disk"))
     except ValueError as exc:
-        return ToolResult(
-            job_id=call.job_id, code="", stdout="", stderr=f"refused: {exc}",
-            exit_code=126, duration_ms=0,
-        )
+        return ToolResult(job_id=call.job_id, code="", stdout="",
+                          stderr=f"refused: {exc}", exit_code=126, duration_ms=0)
 
 
-async def main() -> int:
-    cp = HttpControlPlane(os.environ["BD_CP"])
+async def run_agent(bootstrap: dict[str, str]) -> int:
+    cp = HttpControlPlane(bootstrap["control_plane"])
     agent = TwinAgent(
-        cp,
-        case_id=os.environ["BD_CASE_ID"],
-        token=os.environ["BD_TOKEN"],  # one-time, per case, deploy-time only
-        vpc_ip=_vpc_ip(),
-        tool_fn=_tool_fn,
+        cp, case_id=bootstrap["case_id"], token=bootstrap["token"],
+        vpc_ip=bootstrap["vpc_ip"], tool_fn=_tool_fn,
     )
     seal = await agent.run()
     return 0 if seal.sealed else 1
@@ -78,11 +36,18 @@ async def main() -> int:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--fetch-metadata", metavar="URL")
-    parser.add_argument("--env-file", default="/run/bd/metadata.env")
+    parser.add_argument("--configure-boot", action="store_true")
+    parser.add_argument("--metadata-url")
+    parser.add_argument("--nft-template")
+    parser.add_argument("--nft-output")
+    parser.add_argument("--bootstrap-file", required=True)
     args = parser.parse_args()
-    if args.fetch_metadata:
-        write_agent_env(args.env_file, fetch_bootstrap(args.fetch_metadata))
-        os.chmod(args.env_file, 0o600)
+    if args.configure_boot:
+        try:
+            configure_boot(args.metadata_url, args.nft_template, args.nft_output,
+                           args.bootstrap_file)
+        except Exception as exc:
+            print(f"bootstrap refused: {exc}", file=sys.stderr)
+            sys.exit(2)
         sys.exit(0)
-    sys.exit(asyncio.run(main()))
+    sys.exit(asyncio.run(run_agent(load_bootstrap(args.bootstrap_file))))
