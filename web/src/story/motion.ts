@@ -16,8 +16,10 @@ const LATCH = 'power3.out' // close to cubic-bezier(.2,.8,.2,1): fast out, hard 
  * - Idle: a scan line passing over the twin only, while the hero is on screen.
  * - Reveals: [data-reveal] latch in from 8 px below, once.
  * - The crossing: [data-crossing] toggles onCrossing(true/false) as the approve stop passes mid-screen.
+ * - The rail index: onStep(k) names the stop crossing mid-screen (-1 above the case).
+ * - A /#how or /#try deep link (from the console) lands on its section once the page is laid out.
  */
-export function useStoryMotion(root: RefObject<HTMLElement | null>, onCrossing: (on: boolean) => void) {
+export function useStoryMotion(root: RefObject<HTMLElement | null>, onCrossing: (on: boolean) => void, onStep: (k: number) => void) {
   useLayoutEffect(() => {
     const el = root.current
     if (!el) return
@@ -39,7 +41,7 @@ export function useStoryMotion(root: RefObject<HTMLElement | null>, onCrossing: 
         tl.to(q('glass'), { attr: PEEL_END.glass, stroke: 'var(--color-frame)', duration: 1, ease: 'power3.inOut' }, 0)
         tl.to(q('original'), { ...PEEL_END.original, duration: 1, ease: 'power3.inOut' }, 0)
         tl.to(q('twin'), { ...PEEL_END.twin, duration: 1, ease: 'power3.inOut' }, 0)
-        tl.to(q('snapshot'), { opacity: 1, duration: 0.3, ease: 'none' }, 0.35)
+        tl.to([q('snapshot'), q('snapshot-label')], { opacity: 1, duration: 0.3, ease: 'none' }, 0.35)
         tl.set(q('seal'), { opacity: 1 }, 0.65)
         tl.to(q('seal'), { attr: { 'stroke-dashoffset': 0 }, duration: 0.35, ease: 'none' }, 0.65)
         tl.set(q('seal'), { attr: { 'stroke-dasharray': 'none' } }, 1) // drawn: drop the dash so no cap tick remains
@@ -73,6 +75,19 @@ export function useStoryMotion(root: RefObject<HTMLElement | null>, onCrossing: 
         ScrollTrigger.create({ trigger: cross, start: 'top 55%',
           onEnter: () => onCrossing(true), onLeaveBack: () => onCrossing(false) })
       }
+
+      gsap.utils.toArray<HTMLElement>('[data-stop]', el).forEach((n, k) => {
+        ScrollTrigger.create({ trigger: n, start: 'top 55%', end: 'bottom 55%',
+          onToggle: (s) => { if (s.isActive) onStep(k) },
+          ...(k === 0 ? { onLeaveBack: () => onStep(-1) } : {}) })
+      })
+
+      const target = location.hash.length > 1 ? el.querySelector<HTMLElement>(location.hash) : null
+      if (target) gsap.delayedCall(0.05, () => {
+        ScrollTrigger.refresh()
+        if (lenis) lenis.scrollTo(target, { immediate: true, offset: -72 })
+        else window.scrollTo(0, target.getBoundingClientRect().top + scrollY - 72)
+      })
     }, el)
 
     return () => {
@@ -80,7 +95,7 @@ export function useStoryMotion(root: RefObject<HTMLElement | null>, onCrossing: 
       if (raf) gsap.ticker.remove(raf)
       lenis?.destroy()
     }
-    // onCrossing is a stable setState wrapper
+    // onCrossing and onStep are stable setState wrappers
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 }

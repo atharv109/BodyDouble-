@@ -81,9 +81,25 @@ details[open] > summary .chev { rotate: 90deg; }
   scale: 0 1; transform-origin: left; transition: scale 160ms var(--ease-latch); }
 .navlink:hover::after, .navlink[aria-current="page"]::after { scale: 1 1; }
 
-/* route changes (story <-> console): latch, not a cut */
-@keyframes vt-out { to { opacity: 0; } }
-::view-transition-old(root) { animation: 220ms var(--ease-latch) both vt-out; }
-::view-transition-new(root) { animation: 420ms var(--ease-latch) 120ms both latch-in; }
+/* one header, one grid, everywhere */
+.wrap { width: 100%; max-width: 1600px; margin-inline: auto; padding-inline: 16px; }
+@media (min-width: 768px) { .wrap { padding-inline: 24px; } }
+.site-head { view-transition-name: site-head; position: relative; background: var(--color-ground); border-bottom: 1px solid var(--color-line); }
+/* the seal line: during a route change the header's bottom edge is drawn in brass, left to right, then lets go */
+.site-head::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 1px; background: var(--color-agent);
+  transform-origin: left; scale: 0 1; opacity: 0; pointer-events: none; }
+@keyframes seal-line { 0% { scale: 0 1; opacity: 1; } 60% { scale: 1 1; opacity: 1; } 100% { scale: 1 1; opacity: 0; } }
+html:active-view-transition .site-head::after { animation: seal-line 760ms var(--ease-latch) both; }
+
+/* route changes (story <-> console): the old room steps back, the new one is opened under the seal line, left to right */
+@keyframes vt-out { to { opacity: 0; translate: -16px 0; } }
+@keyframes vt-wipe { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+::view-transition-old(root) { animation: 300ms var(--ease-latch) both vt-out; }
+::view-transition-new(root) { animation: 560ms var(--ease-latch) 60ms both vt-wipe; }
 ::view-transition-group(site-head) { animation-duration: 420ms; animation-timing-function: var(--ease-latch); }
-@media (prefers-reduced-motion: reduce) { ::view-transition-old(root), ::view-transition-new(root) { animation: none; } }
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root), ::view-transition-new(root), ::view-transition-group(site-head) { animation: none; }
+}
+
+/* the logo is a primary target: its ring clears the emblem and the wordmark */
+.brand:focus-visible { outline-offset: 6px; }

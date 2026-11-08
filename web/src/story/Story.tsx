@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { Link } from 'react-router'
 import { Emblem } from '../ui/Emblem'
+import { SiteHeader } from '../ui/SiteHeader'
 import { useTitle } from '../ui/useTitle'
 import { Peel } from './Peel'
 import { useStoryMotion } from './motion'
@@ -13,25 +14,14 @@ export function Story() {
     'Body Double snapshots a suspect Vultr server, investigates an exact copy in a sealed room, and proposes containment a human approves. Production keeps running.')
   const root = useRef<HTMLDivElement>(null)
   const [contained, setContained] = useState(false)
+  const [step, setStep] = useState(-1)
   const onCrossing = useCallback((on: boolean) => setContained(on), [])
-  useStoryMotion(root, onCrossing)
+  useStoryMotion(root, onCrossing, setStep)
 
   return (
     <div ref={root} className="story" data-contained={contained || undefined}>
       <a href="#main" className="btn skip sr-only focus:not-sr-only focus:fixed focus:inset-x-0 focus:top-0 focus:h-14 focus:z-50 focus:justify-center">Skip to content</a>
-      <header className="story-head">
-        <div className="wrap h-16 flex items-center gap-4">
-          <Link to="/" className="brand min-h-11 flex items-center gap-2.5 font-semibold tracking-[-0.01em]" aria-label="Body Double, home">
-            <Emblem className="size-7" />
-            <span>Body Double</span>
-          </Link>
-          <nav aria-label="Primary" className="ml-auto flex items-center gap-1 text-sm">
-            <a className="navlink text-muted hidden sm:inline-block" href="#how">How it works</a>
-            <Link className="navlink text-muted" to="/console" viewTransition>Console</Link>
-            <a className="btn btn-primary ml-2" href="#try">Try it</a>
-          </nav>
-        </div>
-      </header>
+      <SiteHeader onStory />
 
       <main id="main" data-testid="story">
         {/* beat 1: what it is. The hero stage holds the peel while the hero scrolls. */}
@@ -54,7 +44,10 @@ export function Story() {
 
         <div className="lanes wrap">
           <aside className="lane-prod" aria-label="Production server">
-            <ProdCard contained={contained} />
+            <div className="rail">
+              <ProdCard contained={contained} />
+              <StepIndex step={step} />
+            </div>
           </aside>
 
           <div className="lane-twin">
@@ -100,13 +93,14 @@ export function Story() {
               <p className="lede" data-reveal>{how.lede}</p>
               <ol className="stops">
                 {how.stops.map((s, k) => (
-                  <li key={s.state} className="stop" data-reveal data-crossing={s.crossing || undefined}>
+                  <li key={s.state} id={`stop-${k + 1}`} className="stop" data-stop data-reveal data-crossing={s.crossing || undefined}>
                     <div className="stop-head">
                       <span className="stop-n">{k + 1}</span>
                       <span className="stop-state">{s.state}</span>
                     </div>
                     <div>
-                      <h3 className="t-m font-semibold">{s.title}</h3>
+                      {s.crossing && <p className="stop-kicker">The only write to production</p>}
+                      <h3 className={s.crossing ? 'stop-climax' : 't-m font-semibold'}>{s.title}</h3>
                       <p className="mt-1 text-muted max-w-[56ch]">{s.text}</p>
                       <div className="mt-3 grid gap-1.5">
                         {s.artifacts.map((a) => <code key={a.text} className={`artifact ${a.tone ? `artifact--${a.tone}` : ''}`}>{a.text}</code>)}
@@ -207,6 +201,26 @@ function ProdCard({ contained }: { contained: boolean }) {
       </dl>
       <p className="prod-note">{contained ? 'Changed once, by the approved action.' : 'Demo server. Nothing here changes until a human approves.'}</p>
     </div>
+  )
+}
+
+/** The left rail under the production card: the 8 states of the case, the one on screen marked. */
+function StepIndex({ step }: { step: number }) {
+  return (
+    <nav className="step-index" aria-label="The case, step by step">
+      <p className="label">The case</p>
+      <ol>
+        {how.stops.map((s, k) => (
+          <li key={s.state} data-done={k < step || undefined} data-approve={s.crossing || undefined}>
+            <a href={`#stop-${k + 1}`} aria-current={k === step ? 'step' : undefined}>
+              <span className="si-n" aria-hidden="true">{k + 1}</span>
+              <span className="si-t">{s.title}</span>
+              <span className="si-s">{s.state}</span>
+            </a>
+          </li>
+        ))}
+      </ol>
+    </nav>
   )
 }
 
