@@ -93,7 +93,8 @@ export function useCase(id: string | undefined) {
       es.addEventListener(name, (ev) => {
         const me = ev as MessageEvent
         dispatch({ t: 'event', name, seq: Number(me.lastEventId), data: JSON.parse(me.data) })
-        if (name === 'finding_added' || name === 'dns_captured' || name === 'teardown_done') refetch.current()
+        if (name === 'finding_added' || name === 'dns_captured' || name === 'teardown_done' || name === 'state_changed')
+          refetch.current()
       })
     }
     return () => { alive = false; es.close(); if (pending) clearTimeout(pending) }

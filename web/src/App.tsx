@@ -13,7 +13,7 @@ function Shell() {
       <a href="#main" className="sr-only focus:not-sr-only focus:fixed focus:inset-x-0 focus:top-0 focus:h-14 focus:z-50 focus:justify-center btn skip">Skip to content</a>
       <header className="border-b border-line">
         <div className="mx-auto max-w-[1600px] px-4 md:px-6 h-14 flex items-center gap-6">
-          <Link to="/" className="brand flex items-center gap-2.5 font-semibold tracking-[-0.01em]" aria-label="Body Double, servers">
+          <Link to="/" className="brand min-h-11 flex items-center gap-2.5 font-semibold tracking-[-0.01em]" aria-label="Body Double, servers">
             <svg width="25" height="16" viewBox="0 0 25 16" aria-hidden="true" overflow="visible">
               <rect x="1" y="1" width="9" height="14" rx="1" fill="none" stroke="currentColor" strokeWidth="1.5" />
               <rect className="twin-pane" x="12" y="1" width="9" height="14" rx="1" fill="none" stroke="var(--color-agent)" strokeWidth="1.5" />

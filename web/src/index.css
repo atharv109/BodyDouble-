@@ -51,7 +51,7 @@ body { font-family: var(--font-sans); font-size: 16px; line-height: 1.5; -webkit
 .btn-primary { background: var(--color-ink); color: var(--color-ground); border-color: var(--color-ink); }
 .btn-primary:hover:not(:disabled) { background: #fff; border-color: #fff; }
 .btn-agent { background: var(--color-agent); color: var(--color-ground); border-color: var(--color-agent); }
-.btn-agent:hover:not(:disabled) { background: #e6c674; border-color: #e6c674; }
+.btn-agent:hover:not(:disabled) { background: var(--color-ink); border-color: var(--color-ink); color: var(--color-ground); }
 
 details > summary { cursor: pointer; list-style: none; }
 details > summary::-webkit-details-marker { display: none; }

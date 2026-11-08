@@ -54,6 +54,14 @@ Servers         Case (live)                                      Close
                                   Approve: drawer from the right edge, over the findings column
 ```
 
+## QA log (/jury, blind critic per pass, estimate not affiliated with Awwwards)
+- Servers: 6.4 / 6.4 / 6.4 (critic overall). Fixed: dead lower band, h1 orphan, lifecycle as one rail,
+  hover treatments, phone status, skip link, og:image, contrast. Not fixed, by decision: SPA returns 200
+  for unknown URLs (needs a server-side 404 in deploy), no SSR, no route transition.
+- Case: 6.4. Fixed: CLS 0.46 -> 0.05 (hold columns until the replay burst settles), sticky production
+  column, phone order (findings before steps), stage readout on phone, severity tiers, rail labels,
+  accessible step names, primary hover. Critic misreads disputed: Investigate buttons do have unique names.
+
 ## Decisions
 - No loader, no smooth scroll, no WebGL: an ops tool doesn't earn the theatre (awwwards: scale to brief).
 - No /anatomy figure: the case screen itself is the live explanation of the mechanism; a drawing would compete with it.
