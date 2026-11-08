@@ -88,9 +88,13 @@ async def test_unexpected_failure_fails_case_and_keeps_twin_id(tmp_path):
         assert r.status_code == 201, r.text
         case = r.json()
         assert case["state"] == CaseState.failed.value
-        # the live twin's id was persisted before the failure, so teardown
-        # (F11) can find and destroy it — never orphan the instance
-        assert case["twin_instance_id"] in fake.instances
+        # the live twin's id was persisted before the failure, so F11 teardown
+        # found and destroyed it — never orphan the instance
+        assert case["twin_instance_id"] not in fake.instances
+        teardown = next(
+            e for e in st.log.entries(case["id"]) if e.event == "teardown_done"
+        )
+        assert teardown.payload["twin_status_code"] == 404
         with st.sf() as s:
             row = s.get(CaseRow, case["id"])
         assert row.twin_instance_id == case["twin_instance_id"]

@@ -28,7 +28,7 @@ from contracts.vultr import VultrError
 
 from .sessions import mint, verify
 from .state import AppState, build_state
-from .service import ActionConflict
+from .service import ActionConflict, TransitionError
 from .twin import TwinChannelError
 
 COOKIE_NAME = "bd_session"
@@ -155,6 +155,16 @@ def create_app(state: AppState | None = None) -> FastAPI:
         except LookupError as e:
             raise HTTPException(404, str(e))
         except ActionConflict as e:
+            raise HTTPException(409, str(e))
+
+    # ---------------------------------------------------------------- F11: teardown
+    @app.post("/cases/{case_id}/close", response_model=Case)
+    async def close_case(case_id: str, _: str = Depends(require_human)):
+        try:
+            return await state.service.close_case(case_id)
+        except LookupError as e:
+            raise HTTPException(404, str(e))
+        except TransitionError as e:
             raise HTTPException(409, str(e))
 
     return app

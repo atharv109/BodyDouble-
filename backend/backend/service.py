@@ -17,7 +17,13 @@ from datetime import timedelta
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from contracts.events import ActionApplied, ActionProposed, SealCheck, StateChanged
+from contracts.events import (
+    ActionApplied,
+    ActionProposed,
+    SealCheck,
+    StateChanged,
+    TeardownDone,
+)
 from contracts.models import (
     Action,
     ActionKind,
@@ -29,6 +35,7 @@ from contracts.models import (
     Evidence,
     FirewallRule,
     SealStatus,
+    BlastRadius,
     can_transition,
 )
 from contracts.vultr import VultrError, VultrNotFound
@@ -394,8 +401,94 @@ class CaseService:
             return
         # teardown runs in try/finally so the twin never outlives the case (F11)
         try:
-            pass  # teardown is added with F11
+            await self._teardown(row)
         finally:
+            row = self.row(case_id)
             if can_transition(CaseState(row.state), CaseState.failed):
                 self._move(row, CaseState.failed, reason)
             self.channel.cleanup_case(case_id)
+
+    # ------------------------------------------------------------- F11: teardown
+    async def close_case(self, case_id: str) -> Case:
+        row = self.row(case_id)
+        state = CaseState(row.state)
+        if state not in (CaseState.reported, CaseState.contained):
+            raise TransitionError(state, CaseState.closed)
+        try:
+            await self._teardown(row)
+        finally:
+            self.channel.cleanup_case(case_id)
+        row = self.row(case_id)
+        row.closed_at = utcnow()
+        self._touch(row)
+        self._move(row, CaseState.closed, "twin destroyed, evidence sealed")
+        return self.model(case_id)
+
+    async def _teardown(self, row: CaseRow) -> None:
+        """Best-effort deletion in dependency order.
+
+        Every resource gets a deletion attempt even if an earlier call fails. A live
+        twin is the security-critical failure, so surface that error after recording
+        all results; fail_case's finally block can still make the case terminal.
+        """
+        errors: list[Exception] = []
+        twin_status = 404 if not row.twin_instance_id else 0
+        vpc_deleted = row.vpc_id is None
+
+        if row.twin_instance_id:
+            try:
+                await self.vultr.delete_instance(row.twin_instance_id)
+            except VultrNotFound:
+                pass
+            except Exception as e:
+                errors.append(e)
+            try:
+                await self.vultr.get_instance(row.twin_instance_id)
+                twin_status = 200
+            except VultrNotFound:
+                twin_status = 404
+            except Exception as e:
+                errors.append(e)
+
+        if row.vpc_id:
+            try:
+                await self.vultr.delete_vpc(row.vpc_id)
+                vpc_deleted = True
+            except VultrNotFound:
+                vpc_deleted = True
+            except Exception as e:
+                errors.append(e)
+
+        if row.firewall_group_id:
+            try:
+                await self.vultr.delete_firewall_group(row.firewall_group_id)
+            except VultrNotFound:
+                pass
+            except Exception as e:
+                errors.append(e)
+
+        payload = {
+            "twin_instance_id": row.twin_instance_id,
+            "twin_status_code": twin_status,
+            "vpc_id": row.vpc_id,
+            "vpc_deleted": vpc_deleted,
+            "firewall_group_id": row.firewall_group_id,
+            "errors": [f"{type(e).__name__}: {e}" for e in errors],
+        }
+        self.log.append(row.id, "teardown", payload)
+        if row.twin_instance_id:
+            self.log.append(row.id, "teardown_done", TeardownDone(
+                case_id=row.id,
+                twin_instance_id=row.twin_instance_id,
+                twin_status_code=twin_status,
+                vpc_deleted=vpc_deleted,
+                blast_radius=BlastRadius(
+                    prod_writes_before_approval=0,
+                    packets_out=0,
+                    containers_left=0,
+                ),
+            ))
+        if twin_status != 404:
+            raise CaseFailure(f"twin {row.twin_instance_id} still exists after teardown")
+        if errors:
+            raise CaseFailure("teardown incomplete: " + "; ".join(str(e) for e in errors))
