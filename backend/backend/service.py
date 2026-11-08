@@ -51,6 +51,7 @@ from .db import (
     FindingRow,
     ReportRow,
     StepRow,
+    WarmTwinRow,
     utcnow,
 )
 from .fake_twin import fake_twin_loop
@@ -168,8 +169,9 @@ class CaseService:
         """Walk the case as far as the phases implemented so far allow."""
         row = self.row(case_id)
         try:
-            await self._snapshot_phase(row)
-            await self._twin_phase(row)
+            if not await self._adopt_warm_twin(row):
+                await self._snapshot_phase(row)
+                await self._twin_phase(row)
             if self.settings.full_pipeline or force_full:
                 await self._investigation_phase(self.row(case_id))
                 if auto_apply:
@@ -194,6 +196,74 @@ class CaseService:
             log.exception("unexpected error in case %s", case_id)
             await self.fail_case(case_id, f"unexpected {type(e).__name__}: {e}")
         return self.model(case_id)
+
+    async def _adopt_warm_twin(self, row: CaseRow) -> bool:
+        with self.state.sf() as s:
+            warm = s.execute(
+                select(WarmTwinRow)
+                .where(WarmTwinRow.instance_id == row.instance_id,
+                       WarmTwinRow.adopted_at.is_(None))
+                .order_by(WarmTwinRow.created_at)
+                .with_for_update()
+            ).scalars().first()
+            if warm is None:
+                return False
+            warm.adopted_at = utcnow()
+            values = {
+                "snapshot_id": warm.snapshot_id,
+                "twin_instance_id": warm.twin_instance_id,
+                "vpc_id": warm.vpc_id,
+                "firewall_group_id": warm.firewall_group_id,
+                "twin_internal_ip": warm.twin_internal_ip,
+                "vpc_subnet": warm.vpc_subnet,
+                "vpc_mask": warm.vpc_mask,
+            }
+            s.commit()
+
+        self._move(row, CaseState.snapshotting, "adopting prebuilt warm snapshot")
+        for name, value in values.items():
+            setattr(row, name, value)
+        self._touch(row)
+        self.log.append(row.id, "snapshot_created", {
+            "snapshot_id": row.snapshot_id,
+            "instance_id": row.instance_id,
+            "warm": True,
+        })
+        self._move(row, CaseState.restoring, "adopting pre-restored warm twin")
+        token = "twreg-" + secrets.token_urlsafe(24)
+        row.reg_token = token
+        self._touch(row)
+        self.channel.prepare_registration(row.id, token)
+        twin = await self.vultr.get_instance(row.twin_instance_id)
+        self.log.append(row.id, "twin_created", {
+            "twin_instance_id": row.twin_instance_id,
+            "vpc_id": row.vpc_id,
+            "firewall_group_id": row.firewall_group_id,
+            "iso_id": self.settings.iso_id,
+            "warm": True,
+        })
+        if self.state.is_fake and self.settings.spawn_fake_twin:
+            self.state.fake_twin_tasks[row.id] = asyncio.create_task(
+                fake_twin_loop(self.state, row.id, token, twin.internal_ip)
+            )
+        try:
+            ok, reason = await asyncio.wait_for(
+                self.channel.wait_registered(row.id),
+                timeout=self.settings.register_timeout_s,
+            )
+        except (TimeoutError, asyncio.TimeoutError):
+            raise CaseFailure(f"warm twin {row.twin_instance_id} did not register in time")
+        if not ok:
+            raise CaseFailure(f"warm twin did not seal: {reason}")
+        row = self.row(row.id)
+        seal = SealStatus.model_validate(row.seal)
+        for check, passed in (("disk_read_only", seal.disk_read_only),
+                              ("egress_blocked", seal.egress_blocked)):
+            self.log.append(row.id, "seal_check", SealCheck(
+                case_id=row.id, check=check, passed=passed,
+                output=seal.detail.get(check, "")))
+        self._move(row, CaseState.sealed, "warm twin adopted and sealed")
+        return True
 
     def detail(self, case_id: str) -> CaseDetail:
         row = self.row(case_id)
