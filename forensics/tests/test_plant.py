@@ -46,6 +46,7 @@ def test_plant_yields_the_same_five_indicators() -> None:
     out = subprocess.run(
         [
             "docker", "run", "--rm", "--name", name,
+            "-e", "BD_PLANT_DEMO=1",  # plant.sh consent guard
             "-v", f"{REPO.as_posix()}:/demo-src:ro",
             "debian:12-slim", "sh", "-c", INSPECT,
         ],
@@ -70,3 +71,18 @@ def test_plant_yields_the_same_five_indicators() -> None:
     top = dict(line.split("=", 1) for line in lines[j + 1 :])
     assert top["TOP_ON_DISK"] != top["TOP_RECORDED"], "planted top must not match the dpkg record"
     assert top["TOP_RECORDED"] not in ("", "missing"), "container had no dpkg record for procps top"
+
+
+@pytest.mark.skipif(not _docker_available(), reason="docker daemon not reachable")
+def test_plant_refuses_without_consent() -> None:
+    """No BD_PLANT_DEMO=1: the script must refuse and plant nothing."""
+    out = subprocess.run(
+        [
+            "docker", "run", "--rm",
+            "-v", f"{REPO.as_posix()}:/demo-src:ro",
+            "debian:12-slim", "sh", "/demo-src/demo/plant.sh",
+        ],
+        capture_output=True, text=True, timeout=300,
+    )
+    assert out.returncode == 99, "plant.sh must refuse without BD_PLANT_DEMO=1"
+    assert "BD_PLANT_DEMO" in out.stderr
