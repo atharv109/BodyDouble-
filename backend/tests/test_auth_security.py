@@ -28,7 +28,7 @@ def test_real_mode_refuses_missing_or_short_operator_password(tmp_path):
         )
         settings.vultr_api_key = "not-a-real-key"
         settings.operator_password = password
-        settings.app_secret = "secure-test-app-secret"
+        settings.app_secret = "a" * 64
         with pytest.raises(RuntimeError, match="BD_OPERATOR_PASSWORD"):
             build_state(settings, vultr=FakeVultr())
 
@@ -38,7 +38,7 @@ async def test_real_mode_requires_correct_password_and_disables_fake_case(tmp_pa
     settings = make_test_settings(f"sqlite:///{(tmp_path / 'real.db').as_posix()}")
     settings.vultr_api_key = "not-a-real-key"
     settings.operator_password = "correct-horse-battery"
-    settings.app_secret = "secure-test-app-secret"
+    settings.app_secret = "b" * 64
     state = build_state(settings, vultr=FakeVultr())
     try:
         async with httpx.AsyncClient(
@@ -65,6 +65,21 @@ async def test_real_mode_requires_correct_password_and_disables_fake_case(tmp_pa
             assert fake_case.status_code == 404
     finally:
         state.close()
+
+
+@pytest.mark.parametrize("secret", [
+    "",
+    "body-double-dev-secret",
+    "CHANGE_ME_WITH_A_LONG_RANDOM_VALUE",
+    "x" * 31,
+])
+def test_real_mode_refuses_weak_app_secret(tmp_path, secret):
+    settings = make_test_settings(f"sqlite:///{(tmp_path / 'secret.db').as_posix()}")
+    settings.vultr_api_key = "not-a-real-key"
+    settings.operator_password = "correct-horse-battery"
+    settings.app_secret = secret
+    with pytest.raises(RuntimeError, match="strong APP_SECRET"):
+        build_state(settings, vultr=FakeVultr())
 
 
 @pytest.mark.asyncio

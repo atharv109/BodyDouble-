@@ -13,7 +13,7 @@ from sqlalchemy.orm import sessionmaker
 
 from contracts.vultr import FakeVultr, RealVultr, VultrClient
 
-from .config import Settings, settings_from_env
+from .config import Settings, settings_from_env, validate_real_mode
 from .db import make_engine, init_db
 
 
@@ -51,6 +51,7 @@ def build_state(settings: Settings | None = None, vultr: VultrClient | None = No
     from .app import create_app  # local import: app.py imports this module
 
     settings = settings or settings_from_env()
+    validate_real_mode(settings)
     if settings.vultr_api_key and (
         settings.operator_password is None or len(settings.operator_password) < 12
     ):
@@ -58,10 +59,6 @@ def build_state(settings: Settings | None = None, vultr: VultrClient | None = No
             "refusing to start in real-Vultr mode without BD_OPERATOR_PASSWORD "
             "of at least 12 characters"
         )
-    if settings.vultr_api_key and settings.app_secret == "body-double-dev-secret":
-        raise RuntimeError(
-            "refusing to start in real-Vultr mode with the default APP_SECRET; "
-            "set APP_SECRET to a high-entropy value")
     engine = make_engine(settings.database_url)
     init_db(engine)
     state = AppState(
