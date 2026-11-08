@@ -29,8 +29,8 @@ export function SiteHeader({ onStory = false }: { onStory?: boolean }) {
             </>
           )}
           {!caseId && (onStory
-            ? <a className="btn btn-primary ml-2" href="#try">Try it</a>
-            : <Link className="btn btn-primary ml-2" to="/#try" viewTransition>Try it</Link>)}
+            ? <a className="btn btn-primary ml-2" href="#try"><span className="sm:hidden">Infect</span><span className="hidden sm:inline">Infect a server</span></a>
+            : <Link className="btn btn-primary ml-2" to="/#try" viewTransition><span className="sm:hidden">Infect</span><span className="hidden sm:inline">Infect a server</span></Link>)}
         </nav>
       </div>
     </header>

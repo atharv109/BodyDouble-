@@ -21,8 +21,8 @@
   grid-template-columns: repeat(12, minmax(0, 1fr)); grid-template-rows: auto minmax(0, 1fr); column-gap: 24px;
   padding-top: clamp(1.5rem, 5vh, 4rem); padding-bottom: clamp(1.5rem, 5vh, 3.5rem); }
 .hero-h1 { grid-column: 1 / -1; }
-.hero-h1 span { display: block; }
-.hero-h1 span + span { color: var(--color-muted); }
+.hero-h1 > .line { display: block; }
+.hero-h1 > .line + .line { color: var(--color-muted); }
 .hero-copy { grid-column: 1 / 5; grid-row: 2; align-self: center; max-width: 30rem; }
 .hero-peel { grid-column: 5 / -1; grid-row: 2; align-self: center; min-height: 0; height: 100%; display: flex; align-items: center; }
 .hero-peel { container-type: size; justify-content: center; }
@@ -98,7 +98,7 @@
   .prod-facts > div { border: 0; padding: 0; gap: 6px; }
   .prod-facts .prod-addr, .prod-facts .prod-state, .prod-note, .prod-card .label, .prod-fw dt, .w-long { display: none; }
   .w-short { display: inline; }
-  .prod-card { flex-wrap: nowrap; white-space: nowrap; overflow: hidden; box-shadow: 0 10px 14px -6px var(--color-ground); }
+  .prod-card { flex-wrap: nowrap; white-space: nowrap; overflow: hidden; }
   .prod-facts { flex-wrap: nowrap; }
 }
 @media (min-width: 768px) and (max-width: 1023px) { .lane-prod { margin-inline: -24px; } .prod-card { padding-inline: 24px; } }
@@ -212,3 +212,56 @@
 .attack-box { position: absolute; left: 16px; top: 17px; width: 16px; height: 16px; accent-color: var(--color-finding, #ff5a4e); }
 .attack-name { font-weight: 600; }
 .attack-path { font-size: 12px; color: var(--color-muted); overflow-wrap: anywhere; }
+
+/* ---------- round 3: told through scroll ---------- */
+/* masks: a line or word rises out of its own clip box (descenders and ascenders kept inside the box) */
+.line { display: inline-block; overflow: clip; vertical-align: top; padding: 0.06em 0.08em 0.12em; margin: -0.06em -0.08em -0.12em; }
+.line > span { display: inline-block; }
+
+/* the twin's thread: one brass line down the gutter, scrubbed by scroll (motion.ts). Full under reduced motion. */
+.lane-twin { position: relative; }
+.thread { position: absolute; left: -1px; top: 0; bottom: 0; width: 2px; background: linear-gradient(var(--color-agent), var(--color-agent) 92%, transparent); transform-origin: top center; pointer-events: none; }
+@media (max-width: 1023px) { .thread { display: none; } }
+
+/* the case: each stop takes the room while it is mid-screen; a ghost numeral marks the one playing */
+@media (min-width: 1024px) { .stop { min-height: 44vh; align-content: center; } }
+.stop-ghost { font-family: var(--font-sans); position: absolute; right: 0; top: 50%; translate: 0 -50%; z-index: -1; pointer-events: none; font-weight: 600; line-height: 1;
+  font-size: clamp(5rem, 2rem + 10vw, 13rem); letter-spacing: -0.06em; font-variant-numeric: tabular-nums; color: transparent;
+  -webkit-text-stroke: 1px var(--color-line); transition: -webkit-text-stroke-color 600ms var(--ease-latch), translate 600ms var(--ease-latch); }
+.stop[data-active] .stop-ghost { -webkit-text-stroke-color: var(--color-agent); translate: -16px -50%; }
+/* desktop: the numeral lives in the stop's own left column, under its state, clear of the evidence */
+@media (min-width: 641px) {
+  .stop-ghost { position: static; translate: 0 0; z-index: 0; margin: 0.15em 0 0 -0.05em; font-size: clamp(4.5rem, 2rem + 4vw, 7.5rem); }
+  .stop[data-active] .stop-ghost { translate: 6px 0; }
+  .stop-n { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+}
+.stop { isolation: isolate; }
+.stop h3 { transition: color 280ms var(--ease-latch); }
+.story[data-motion] .stop:not([data-active]):not([data-crossing]) h3 { color: var(--color-muted); }
+@media (max-width: 640px) { .stop-ghost { font-size: 5rem; top: 1.25rem; translate: 0 0; } .stop[data-active] .stop-ghost { translate: -8px 0; } }
+
+/* typing: evidence types itself in when its stop plays (motion.ts sets data-typed). Without motion it is simply there. */
+[data-type] { display: inline-block; max-width: 100%; }
+.artifact[data-type] { display: block; }
+.story[data-motion] [data-type] { transition: clip-path 900ms steps(28, end); }
+.story[data-motion] [data-type]:not([data-typed]) { clip-path: inset(0 100% 0 0); }
+
+/* the note: typed, then struck through, then the verdict latches in */
+.note-quote { text-decoration: none; }
+.note-quote [data-type] { text-decoration: line-through var(--color-finding) 2px; transition: clip-path 1400ms steps(42, end), text-decoration-color 280ms 1500ms; }
+.story[data-motion] .note-quote [data-type]:not([data-typed]) { text-decoration-color: transparent; }
+.note-verdict { transition: opacity 280ms var(--ease-latch) 1800ms, translate 280ms var(--ease-latch) 1800ms; }
+.story[data-motion] .note:not(:has([data-typed])) .note-verdict { opacity: 0; translate: 0 6px; }
+
+/* the walls close in, outermost first; the agent sits in the middle, breathing */
+.walls-core { animation: core 3.2s ease-in-out infinite; }
+@keyframes core { 50% { background: rgba(214, 178, 94, .08); } }
+@media (prefers-reduced-motion: reduce) { .walls-core { animation: none; } }
+
+/* the climax: a planted attack turns red, the readout says what the case will find */
+.attack[data-on] { box-shadow: inset 3px 0 0 var(--color-finding); }
+.attack[data-on] .attack-path { color: var(--color-finding); }
+.infect-readout { margin: 0 0 18px; font-family: var(--font-mono); font-size: 13px; color: var(--color-muted); min-height: 1.5em; }
+/* things that slide or scale in from the side never widen the page */
+.options, .walls { overflow-x: clip; overflow-clip-margin: 12px; }
+.option, .incidents, .incident { min-width: 0; overflow-wrap: anywhere; }

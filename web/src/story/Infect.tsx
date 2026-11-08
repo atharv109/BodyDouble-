@@ -61,6 +61,11 @@ export function Infect() {
         })}
       </fieldset>
 
+      <p className="infect-readout" aria-live="polite">
+        {n ? <><span className="text-finding">{n} planted</span> · its sensor is armed · expect {n === 1 ? 'that finding' : 'those findings'} and nothing else</>
+          : 'Nothing planted: a clean control. Expect zero findings.'}
+      </p>
+
       <button type="button" data-testid="infect" className="btn btn-agent btn-xl infect-go" disabled={phase === 'busy'} onClick={start}>
         {phase === 'busy' ? 'Planting...' : n ? `Infect a server with ${n} ${n === 1 ? 'attack' : 'attacks'}` : 'Run a clean server'}
       </button>

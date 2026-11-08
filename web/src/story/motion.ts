@@ -26,7 +26,8 @@ export function useStoryMotion(root: RefObject<HTMLElement | null>, onCrossing: 
     const rm = reducedMotion()
     let lenis: Lenis | null = null
     let raf: ((t: number) => void) | null = null
-    if (!rm) {
+    // smooth scroll on desktop only: phones keep native touch scrolling, which is smoother and cheaper there
+    if (!rm && matchMedia('(min-width: 1024px) and (pointer: fine)').matches) {
       lenis = new Lenis({ anchors: { offset: -72 }, lerp: 0.12 })
       lenis.on('scroll', ScrollTrigger.update)
       raf = (t: number) => lenis!.raf(t * 1000)
@@ -52,7 +53,7 @@ export function useStoryMotion(root: RefObject<HTMLElement | null>, onCrossing: 
         const tl = gsap.timeline({ paused: true }); end(tl); tl.progress(1)
       } else if (hero) {
         // The signature plays once on load (done well inside 2.5 s), so the first screen tells the idea.
-        const tl = gsap.timeline({ delay: 0.35 })
+        const tl = gsap.timeline({ delay: 0.6 })
         end(tl)
         tl.duration(1.7)
 
@@ -64,10 +65,67 @@ export function useStoryMotion(root: RefObject<HTMLElement | null>, onCrossing: 
       }
 
       if (!rm) {
-        gsap.utils.toArray<HTMLElement>('[data-reveal]', el).forEach((n) => {
-          gsap.from(n, { y: 8, opacity: 0, duration: 0.6, ease: LATCH,
-            scrollTrigger: { trigger: n, start: 'top 90%', once: true } })
+        el.dataset.motion = ''
+        const all = (s: string, scope: Element = el) => gsap.utils.toArray<HTMLElement>(s, scope)
+        const once = (trigger: Element, start = 'top 88%') => ({ trigger, start, once: true })
+
+        // intro: the h1 lines rise out of their masks, then the copy, then the peel (above)
+        gsap.from(all('[data-intro]'), { yPercent: 112, duration: 1.1, ease: 'power4.out', stagger: 0.09, delay: 0.05 })
+        gsap.from(all('[data-intro-copy]'), { y: 10, opacity: 0, duration: 0.6, ease: LATCH, delay: 0.45 })
+
+        all('[data-reveal]').forEach((n) => {
+          gsap.from(n, { y: 8, opacity: 0, duration: 0.6, ease: LATCH, scrollTrigger: once(n, 'top 90%') })
         })
+        // headings: word by word, in reading order
+        all('[data-words]').forEach((h) => {
+          gsap.from(all('.wi', h), { yPercent: 112, duration: 0.9, ease: 'power4.out', stagger: 0.035, scrollTrigger: once(h) })
+        })
+
+        // the twin's thread fills down the gutter with the reading
+        const lane = el.querySelector('.lane-twin')
+        const thread = el.querySelector('[data-thread]')
+        if (lane && thread) gsap.fromTo(thread, { scaleY: 0 }, { scaleY: 1, ease: 'none',
+          scrollTrigger: { trigger: lane, start: 'top 60%', end: 'bottom 60%', scrub: 0.4, invalidateOnRefresh: true } })
+
+        // the two bad options arrive from opposite sides (scrubbed on desktop; phones get a one-shot latch, cheaper per frame)
+        const wide = matchMedia('(min-width: 1024px)').matches
+        all('[data-side]').forEach((o) => {
+          const x = o.dataset.side === 'l' ? -56 : 56
+          if (wide) gsap.from(o, { x, opacity: 0, ease: 'none', scrollTrigger: { trigger: o, start: 'top 92%', end: 'top 55%', scrub: 0.5 } })
+          else gsap.from(o, { y: 16, opacity: 0, duration: 0.6, ease: LATCH, scrollTrigger: once(o, 'top 90%') })
+        })
+        // the three moves latch in one after another
+        const moves = all('[data-move]')
+        if (moves.length) gsap.from(moves, { y: 18, opacity: 0, duration: 0.6, ease: LATCH, stagger: 0.12, scrollTrigger: once(moves[0]) })
+
+        // evidence types itself in as its stop (or the note) reaches mid-screen
+        all('[data-type]').forEach((t) => {
+          ScrollTrigger.create({ trigger: t, start: 'top 85%', once: true, onEnter: () => { t.dataset.typed = '' } })
+        })
+
+        // the walls close in around the agent, outermost first, scrubbed
+        const walls = el.querySelector('[data-walls]')
+        if (walls) {
+          const tl = gsap.timeline({ scrollTrigger: { trigger: walls, start: 'top 95%', end: 'top 40%', scrub: 0.6 } })
+          all('.wall', walls).forEach((w, k) => tl.from(w, { scale: 1.06, opacity: 0, ease: 'power2.out', duration: 1 }, k * 0.4))
+          tl.from(walls.querySelector('.walls-core'), { opacity: 0, scale: 0.9, duration: 0.6 }, 0.9)
+        }
+
+        // zeros drop into place
+        const zeros = all('[data-zero]')
+        if (zeros.length) {
+          gsap.from(zeros.map((z) => z.querySelector('.line > span')), { yPercent: -110, duration: 0.9, ease: 'power4.out', stagger: 0.14, scrollTrigger: once(zeros[0]) })
+          gsap.from(zeros.map((z) => z.querySelector('dt')), { opacity: 0, y: 8, duration: 0.6, ease: LATCH, stagger: 0.14, delay: 0.3, scrollTrigger: once(zeros[0]) })
+        }
+
+        // the Vultr rows and the attacks draw in, row by row
+        for (const sel of ['[data-row]', '.attack']) {
+          const rows = all(sel)
+          if (!rows.length) continue
+          gsap.set(rows, { opacity: 0, x: -14 })
+          ScrollTrigger.batch(rows, { start: 'top 92%', once: true,
+            onEnter: (b) => gsap.to(b, { opacity: 1, x: 0, duration: 0.5, ease: LATCH, stagger: 0.05, overwrite: true }) })
+        }
       }
 
       const cross = el.querySelector<HTMLElement>('[data-crossing]')
@@ -92,6 +150,8 @@ export function useStoryMotion(root: RefObject<HTMLElement | null>, onCrossing: 
 
     return () => {
       ctx.revert()
+      delete el.dataset.motion
+      el.querySelectorAll<HTMLElement>('[data-typed]').forEach((t) => delete t.dataset.typed)
       if (raf) gsap.ticker.remove(raf)
       lenis?.destroy()
     }

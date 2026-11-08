@@ -28,9 +28,9 @@ export function Story() {
         <section data-testid="beat-1" aria-labelledby="b1" className="hero" data-hero>
           <div className="hero-stage wrap">
             <h1 className="display hero-h1">
-              <span>{hero.h1[0]}</span> <span>{hero.h1[1]}</span>
+              <span className="line"><span data-intro>{hero.h1[0]}</span></span> <span className="line"><span data-intro>{hero.h1[1]}</span></span>
             </h1>
-            <div className="hero-copy">
+            <div className="hero-copy" data-intro-copy>
               <h2 id="b1" className="t-m font-medium">{hero.h2}</h2>
               <p className="mt-3 text-muted">{hero.lede}</p>
               <div className="mt-6 flex flex-wrap gap-3">
@@ -51,13 +51,15 @@ export function Story() {
           </aside>
 
           <div className="lane-twin">
+            {/* the twin's thread: fills down the gutter as the story runs; only the approve stop crosses it */}
+            <span className="thread" data-thread aria-hidden="true" />
             {/* beat 2: the problem */}
             <section data-testid="beat-2" aria-labelledby="b2" className="beat">
-              <h2 id="b2" className="display-2" data-reveal>{problem.h2}</h2>
+              <h2 id="b2" className="display-2" data-words><Words text={problem.h2} /></h2>
               <p className="lede" data-reveal>{problem.lede}</p>
               <div className="options">
-                {problem.options.map((o) => (
-                  <article key={o.title} className="option" data-reveal>
+                {problem.options.map((o, k) => (
+                  <article key={o.title} className="option" data-side={k ? 'r' : 'l'}>
                     <h3 className="t-m font-semibold">{o.title}</h3>
                     <p className="mt-2 text-muted">{o.cost}</p>
                     <ul className="incidents">{o.incidents.map((i) => <IncidentRow key={i.name} i={i} />)}</ul>
@@ -69,7 +71,7 @@ export function Story() {
 
             {/* beat 3: why a copy, and why it never boots */}
             <section data-testid="beat-3" aria-labelledby="b3" className="beat">
-              <h2 id="b3" className="display-2" data-reveal>{whyCopy.h2}</h2>
+              <h2 id="b3" className="display-2" data-words><Words text={whyCopy.h2} /></h2>
               <p className="lede" data-reveal>{whyCopy.lede}</p>
               <figure className="evidence-quote" data-reveal>
                 <ul className="incidents"><IncidentRow i={whyCopy.incident} /></ul>
@@ -77,7 +79,7 @@ export function Story() {
               </figure>
               <ol className="moves">
                 {whyCopy.moves.map((m, k) => (
-                  <li key={m.title} data-reveal>
+                  <li key={m.title} data-move>
                     <span className="move-n" aria-hidden="true">{k + 1}</span>
                     <h3 className="font-semibold">{m.title}</h3>
                     <p className="text-muted mt-1">{m.text}</p>
@@ -89,21 +91,23 @@ export function Story() {
 
             {/* beat 4: how it works, the recorded case */}
             <section id="how" data-testid="beat-4" aria-labelledby="b4" className="beat">
-              <h2 id="b4" className="display-2" data-reveal>{how.h2}</h2>
+              <h2 id="b4" className="display-2" data-words><Words text={how.h2} /></h2>
               <p className="lede" data-reveal>{how.lede}</p>
               <ol className="stops">
                 {how.stops.map((s, k) => (
-                  <li key={s.state} id={`stop-${k + 1}`} className="stop" data-stop data-reveal data-crossing={s.crossing || undefined}>
+                  <li key={s.state} id={`stop-${k + 1}`} className="stop" data-stop data-crossing={s.crossing || undefined}
+                    data-active={k === step || undefined}>
                     <div className="stop-head">
                       <span className="stop-n">{k + 1}</span>
                       <span className="stop-state">{s.state}</span>
+                      <span className="stop-ghost" aria-hidden="true">{k + 1}</span>
                     </div>
                     <div>
                       {s.crossing && <p className="stop-kicker">The only write to production</p>}
                       <h3 className={s.crossing ? 'stop-climax' : 't-m font-semibold'}>{s.title}</h3>
                       <p className="mt-1 text-muted max-w-[56ch]">{s.text}</p>
                       <div className="mt-3 grid gap-1.5">
-                        {s.artifacts.map((a) => <code key={a.text} className={`artifact ${a.tone ? `artifact--${a.tone}` : ''}`}>{a.text}</code>)}
+                        {s.artifacts.map((a) => <code key={a.text} data-type className={`artifact ${a.tone ? `artifact--${a.tone}` : ''}`}>{a.text}</code>)}
                       </div>
                     </div>
                     {s.crossing && <span className="crossing" aria-hidden="true" />}
@@ -114,9 +118,9 @@ export function Story() {
 
             {/* beat 5: three walls, nested outermost to innermost */}
             <section data-testid="beat-5" aria-labelledby="b5" className="beat">
-              <h2 id="b5" className="display-2" data-reveal>{walls.h2}</h2>
+              <h2 id="b5" className="display-2" data-words><Words text={walls.h2} /></h2>
               <p className="lede" data-reveal>{walls.lede}</p>
-              <div className="walls" data-reveal>
+              <div className="walls" data-walls>
                 <Wall n={1} {...walls.items[0]}>
                   <Wall n={2} {...walls.items[1]}>
                     <Wall n={3} {...walls.items[2]}>
@@ -129,7 +133,7 @@ export function Story() {
 
             {/* beat 6: the attacker's note */}
             <section data-testid="beat-6" aria-labelledby="b6" className="beat">
-              <h2 id="b6" className="display-2" data-reveal>{note.h2}</h2>
+              <h2 id="b6" className="display-2" data-words><Words text={note.h2} /></h2>
               <figure className="note" data-reveal>
                 <div className="note-meta">
                   <span className="sev">high</span>
@@ -137,7 +141,7 @@ export function Story() {
                   <span className="note-path">{note.path}</span>
                   <span>sha256 {note.sha}</span>
                 </div>
-                <blockquote className="note-quote">“{note.quote}”</blockquote>
+                <blockquote className="note-quote"><span data-type>“{note.quote}”</span></blockquote>
                 <figcaption className="note-verdict">Reported as evidence. Not followed.</figcaption>
               </figure>
               <p className="lede" data-reveal>{note.text}</p>
@@ -145,10 +149,10 @@ export function Story() {
 
             {/* beat 7: blast radius zero */}
             <section data-testid="beat-7" aria-labelledby="b7" className="beat">
-              <h2 id="b7" className="display-2" data-reveal>{blast.h2}</h2>
+              <h2 id="b7" className="display-2" data-words><Words text={blast.h2} /></h2>
               <dl className="zeros">
                 {blast.zeros.map((z) => (
-                  <div key={z} data-reveal><dt>{z}</dt><dd>0</dd></div>
+                  <div key={z} data-zero><dt>{z}</dt><dd><span className="line"><span>0</span></span></dd></div>
                 ))}
               </dl>
               <p className="text-muted mt-6" data-reveal>{blast.lede}</p>
@@ -156,14 +160,14 @@ export function Story() {
 
             {/* beat 8: built on Vultr */}
             <section data-testid="beat-8" aria-labelledby="b8" className="beat">
-              <h2 id="b8" className="display-2" data-reveal>{vultr.h2}</h2>
+              <h2 id="b8" className="display-2" data-words><Words text={vultr.h2} /></h2>
               <p className="lede" data-reveal>{vultr.lede}</p>
               <table className="services" data-reveal>
                 <caption className="sr-only">Vultr services and their role in Body Double</caption>
                 <thead className="sr-only"><tr><th scope="col">Service</th><th scope="col">Role</th></tr></thead>
                 <tbody>
                   {vultr.services.map(([s, r]) => (
-                    <tr key={s}><th scope="row">{s}</th><td>{r}</td></tr>
+                    <tr key={s} data-row><th scope="row">{s}</th><td>{r}</td></tr>
                   ))}
                 </tbody>
               </table>
@@ -222,6 +226,12 @@ function StepIndex({ step }: { step: number }) {
       </ol>
     </nav>
   )
+}
+
+/** A heading split into words, each in its own mask, so motion.ts can raise them in reading order. Text stays text. */
+function Words({ text }: { text: string }) {
+  const words = text.split(' ')
+  return <>{words.map((w, k) => <span key={k}><span className="line"><span className="wi">{w}</span></span>{k < words.length - 1 ? ' ' : ''}</span>)}</>
 }
 
 function IncidentRow({ i }: { i: Incident }) {
