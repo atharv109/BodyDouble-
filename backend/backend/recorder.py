@@ -20,7 +20,7 @@ class DbCaseRecorder:
     # ------------------------------------------------------------- steps
     async def step_started(self, step: Step) -> None:
         with self._sf() as s:
-            s.add(StepRow(**step.model_dump()))
+            s.add(StepRow.from_model(step))
             s.commit()
         self._log.append(step.case_id, "step_started", StepStarted(step=step))
 

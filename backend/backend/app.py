@@ -13,6 +13,7 @@ Endpoint shapes are owned here (TASK.md); every change is logged to
 from __future__ import annotations
 
 import asyncio
+import json
 import hashlib
 import hmac
 import ipaddress
@@ -23,6 +24,7 @@ from pathlib import Path
 
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 
@@ -36,6 +38,12 @@ from contracts.models import (
     SensorEnrollRequest,
     SensorEnrollResponse,
     SensorStatus,
+    ToolName,
+    ToolCall,
+    Actor,
+    Step,
+    StepKind,
+    CaseState,
     SensorReport,
     SensorHeartbeat,
     Alert,
@@ -54,6 +62,8 @@ from contracts.models import (
 )
 from contracts.vultr import FakeVultr, VultrError, VultrNotFound
 from contracts.hashing import sensor_signature
+from contracts.events import StepFinished, StepStarted
+from .db import StepRow
 
 from .sessions import mint, verify
 from .db import AlertRow, CaseRow, SensorNonceRow, SensorRow, utcnow
@@ -63,6 +73,11 @@ from .twin import TwinChannelError, in_subnet
 
 COOKIE_NAME = "bd_session"
 log = logging.getLogger("backend")
+
+
+class AnalystRunRequest(BaseModel):
+    tool: ToolName
+    args: dict = Field(default_factory=dict)
 
 
 def _client_ip(request: Request) -> str:
@@ -424,6 +439,62 @@ def create_app(state: AppState | None = None) -> FastAPI:
             return state.service.detail(case_id)
         except LookupError as e:
             raise HTTPException(404, str(e))
+
+    @app.post("/cases/{case_id}/analyst/run")
+    async def analyst_run(case_id: str, body: AnalystRunRequest,
+                          operator: str = Depends(require_human)):
+        try:
+            row = state.service.row(case_id)
+        except LookupError as e:
+            raise HTTPException(404, str(e))
+        if CaseState(row.state) not in (CaseState.sealed, CaseState.investigating,
+                                        CaseState.reported, CaseState.contained):
+            raise HTTPException(409, "case must be sealed and live")
+        tool = body.tool
+        args = body.args
+        if (not isinstance(args, dict)
+                or len(json.dumps(args, separators=(",", ":")).encode()) > 16_384):
+            raise HTTPException(422, "args must be an object under 16 KiB")
+        from bd_forensics.tools import valid_args
+        if not valid_args(tool, args):
+            raise HTTPException(422, "invalid or unsafe tool arguments")
+        step_id = state.service._next_id(StepRow, case_id, "step")
+        call = ToolCall(job_id=f"{case_id}-{step_id}-job", case_id=case_id,
+                        tool=tool, args=args)
+        step = Step(id=step_id, case_id=case_id, seq=int(step_id.rsplit("-", 1)[1]),
+                    kind=StepKind.detonate if tool.value == "detonate" else StepKind.triage,
+                    tool=tool, args=args, rationale="human analyst request", code="")
+        with state.sf() as session:
+            session.add(StepRow.from_model(step))
+            session.commit()
+        state.log.append(case_id, "step_started", StepStarted(step=step), actor=Actor.human)
+        try:
+            result = await asyncio.wait_for(state.channel.enqueue(call),
+                                            timeout=state.settings.job_timeout_s)
+        except asyncio.TimeoutError:
+            raise HTTPException(504, "analyst tool timed out")
+        if (len(result.stdout.encode()) > 65_536
+                or len(result.stderr.encode()) > 16_384):
+            raise HTTPException(502, "tool output exceeds limits")
+        if (result.duration_ms < 0
+                or result.duration_ms > int(state.settings.job_timeout_s * 1000) + 1_000):
+            raise HTTPException(502, "tool duration exceeds limit")
+        step = step.model_copy(update={"code": result.code, "stdout": result.stdout,
+                                       "stderr": result.stderr,
+                                       "exit_code": result.exit_code,
+                                       "duration_ms": result.duration_ms})
+        with state.sf() as session:
+            persisted = session.get(StepRow, step.id)
+            persisted.code, persisted.stdout, persisted.stderr = step.code, step.stdout, step.stderr
+            persisted.exit_code, persisted.duration_ms = step.exit_code, step.duration_ms
+            session.commit()
+        state.log.append(case_id, "step_finished", StepFinished(step=step), actor=Actor.human)
+        state.log.append(case_id, "human_tool_run", {"operator": operator,
+                        "step_id": step.id, "tool": tool.value,
+                        "exit_code": result.exit_code}, actor=Actor.human)
+        if result.exit_code == 126 and result.stderr.startswith("sandbox unavailable"):
+            raise HTTPException(503, "sandbox unavailable for sandboxed tool")
+        return {"step": step, "result": result}
 
     @app.get("/cases/{case_id}/stream", dependencies=[Depends(require_human)])
     async def stream_case(case_id: str, request: Request,

@@ -1,16 +1,18 @@
 """In-process stand-in for the forensics ISO (FakeVultr mode only).
 
 The real ISO boots on the twin, checks in over the VPC with its one-time
-token, then long-polls for ToolCalls and posts ToolResults. Until forensics/
-is merged this loop plays that role so the control plane's full case flow can
-run on FakeVultr: it registers with passing seal checks, then answers every
-queued ToolCall with a canned ToolResult until the case is closed or failed
-(the channel then raises TwinChannelError and the loop exits)."""
+token, then long-polls for ToolCalls and posts ToolResults. This loop plays
+that role for FakeVultr: it registers with passing seal checks and executes
+the real fixed read-only tools against demo/victim. Sandboxed tools never
+fall back to host execution when the runtime is unavailable."""
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 
-from contracts.models import SealStatus, ToolResult
+from contracts.models import SealStatus, ToolName, ToolResult
+
+from bd_forensics.tools import execute
 
 from .db import CaseRow
 from .twin import TwinChannelError
@@ -40,10 +42,24 @@ async def fake_twin_loop(state, case_id: str, token: str, vpc_ip: str) -> None:
             job = await channel.next_job(sess, row, settings.twin_job_poll_s)
             if job is None:
                 continue
-            result = ToolResult(
-                job_id=job.job_id, code=f"# fake twin stand-in: {job.tool}",
-                stdout=f"[fake twin] {job.tool} ok", stderr="", exit_code=0,
-                duration_ms=0)
+            victim = Path(__file__).resolve().parents[2] / "demo" / "victim"
+            try:
+                result = await asyncio.to_thread(
+                    execute, job, str(victim), settings.job_timeout_s
+                )
+            except (FileNotFoundError, RuntimeError, OSError) as exc:
+                if job.tool not in (ToolName.custom_script, ToolName.detonate):
+                    raise
+                # Sandbox tools must never fall back to host execution.  A
+                # missing CLI, daemon, runtime, or image is an explicit result.
+                result = ToolResult(
+                    job_id=job.job_id, code="# sandbox unavailable",
+                    stdout="", stderr=f"sandbox unavailable: {exc}",
+                    exit_code=126, duration_ms=0,
+                )
+            result.job_id = job.job_id
+            if result.exit_code != 126:
+                result.stdout = "[fake twin] demo/victim\n" + result.stdout
             channel.submit_result(sess, job.job_id, result)
         except TwinChannelError:
             return  # case closed/failed (410) or the session is gone

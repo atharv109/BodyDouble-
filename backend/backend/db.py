@@ -85,7 +85,6 @@ class StepRow(Base):
     kind: Mapped[str] = mapped_column(String(16))
     tool: Mapped[str] = mapped_column(String(32))
     args: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
-    rationale: Mapped[str] = mapped_column(Text)
     code: Mapped[str] = mapped_column(Text)
     stdout: Mapped[str] = mapped_column(Text, default="")
     stderr: Mapped[str] = mapped_column(Text, default="")
@@ -95,9 +94,19 @@ class StepRow(Base):
     def to_model(self) -> Step:
         return Step(
             id=self.id, case_id=self.case_id, seq=self.seq, kind=StepKind(self.kind),
-            tool=ToolName(self.tool), args=self.args or {}, rationale=self.rationale,
+            tool=ToolName(self.tool), args=self.args or {}, rationale="",
             code=self.code, stdout=self.stdout or "", stderr=self.stderr or "",
             exit_code=self.exit_code, duration_ms=self.duration_ms,
+        )
+
+    @classmethod
+    def from_model(cls, step: Step) -> "StepRow":
+        """Persist the actual steps table shape; rationale is event-only metadata."""
+        return cls(
+            id=step.id, case_id=step.case_id, seq=step.seq,
+            kind=step.kind.value, tool=step.tool.value, args=step.args,
+            code=step.code, stdout=step.stdout, stderr=step.stderr,
+            exit_code=step.exit_code, duration_ms=step.duration_ms,
         )
 
     def apply_result(self, result: ToolResult) -> None:
