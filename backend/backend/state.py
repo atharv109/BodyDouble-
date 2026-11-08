@@ -51,6 +51,13 @@ def build_state(settings: Settings | None = None, vultr: VultrClient | None = No
     from .app import create_app  # local import: app.py imports this module
 
     settings = settings or settings_from_env()
+    if settings.vultr_api_key and (
+        settings.operator_password is None or len(settings.operator_password) < 12
+    ):
+        raise RuntimeError(
+            "refusing to start in real-Vultr mode without BD_OPERATOR_PASSWORD "
+            "of at least 12 characters"
+        )
     if settings.vultr_api_key and settings.app_secret == "body-double-dev-secret":
         raise RuntimeError(
             "refusing to start in real-Vultr mode with the default APP_SECRET; "

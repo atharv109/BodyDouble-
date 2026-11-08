@@ -36,6 +36,7 @@ def _f(name: str, default: float) -> float:
 class Settings:
     database_url: str = ""
     vultr_api_key: str | None = None  # never set by this code; read from env only
+    operator_password: str | None = None  # required when vultr_api_key enables real mode
     iso_id: str = "iso-bd-forensics"
     twin_plan: str = "vc2-1c-2gb"
     control_url: str = "http://10.0.0.1:8000"  # told to the twin via user_data (real mode)
@@ -64,6 +65,7 @@ def settings_from_env() -> Settings:
     return Settings(
         database_url=normalize_db_url(os.environ.get("DATABASE_URL") or default_database_url()),
         vultr_api_key=os.environ.get("VULTR_API_KEY") or None,
+        operator_password=os.environ.get("BD_OPERATOR_PASSWORD") or None,
         iso_id=os.environ.get("VULTR_ISO_ID", "iso-bd-forensics"),
         twin_plan=os.environ.get("TWIN_PLAN", "vc2-1c-2gb"),
         control_url=os.environ.get("CONTROL_URL", "http://10.0.0.1:8000"),

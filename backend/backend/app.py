@@ -13,9 +13,11 @@ Endpoint shapes are owned here (TASK.md); every change is logged to
 from __future__ import annotations
 
 import asyncio
+import secrets
 
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
+from sqlalchemy import select
 
 from contracts.models import (
     Action,
@@ -31,9 +33,10 @@ from contracts.models import (
 from contracts.vultr import FakeVultr, VultrError
 
 from .sessions import mint, verify
+from .db import CaseRow
 from .state import AppState, build_state
 from .service import ActionConflict, TransitionError
-from .twin import TwinChannelError
+from .twin import TwinChannelError, in_subnet
 
 COOKIE_NAME = "bd_session"
 
@@ -46,10 +49,23 @@ def _twin_channel_error(e: TwinChannelError) -> HTTPException:
     return HTTPException(e.status_code, e.detail)
 
 
+def _reject_case_vpc_source(request: Request) -> None:
+    ip = _client_ip(request)
+    state = request.app.state.bd
+    with state.sf() as session:
+        networks = session.execute(
+            select(CaseRow.vpc_subnet, CaseRow.vpc_mask)
+            .where(CaseRow.vpc_subnet.is_not(None), CaseRow.vpc_mask.is_not(None))
+        ).all()
+    if any(in_subnet(ip, subnet, mask) for subnet, mask in networks):
+        raise HTTPException(403, "human API is not accessible from a case VPC")
+
+
 async def get_operator(
     request: Request,
     bd_session: str | None = Cookie(default=None),
 ) -> str | None:
+    _reject_case_vpc_source(request)
     token = bd_session or request.headers.get("X-Human-Session")
     if not token:
         return None
@@ -78,14 +94,28 @@ def create_app(state: AppState | None = None) -> FastAPI:
         return {"ok": True, "vultr": "fake" if state.is_fake else "real"}
 
     # ---------------------------------------------------------------- auth
+    @app.get("/auth/config")
+    async def auth_config():
+        return {"password_required": bool(state.settings.vultr_api_key)}
+
     @app.post("/auth/session")
-    async def create_session(body: dict, response: Response):
+    async def create_session(body: dict, response: Response, request: Request):
+        _reject_case_vpc_source(request)
         operator = (body or {}).get("operator", "").strip()
         if not operator or len(operator) > 64:
             raise HTTPException(422, "operator name required (1-64 chars)")
+        password_required = bool(state.settings.vultr_api_key)
+        if password_required:
+            supplied = (body or {}).get("password")
+            expected = state.settings.operator_password
+            if not isinstance(supplied, str) or not secrets.compare_digest(
+                supplied, expected
+            ):
+                raise HTTPException(401, "invalid operator credentials")
         token = mint(operator, state.settings.app_secret, state.settings.session_ttl_s)
         response.set_cookie(COOKIE_NAME, token, httponly=True, samesite="lax")
-        return {"operator": operator, "session_token": token}
+        return {"operator": operator, "session_token": token,
+                "password_required": password_required}
 
     # ---------------------------------------------------------------- F1
     @app.get("/instances", dependencies=[Depends(require_human)])
@@ -108,7 +138,7 @@ def create_app(state: AppState | None = None) -> FastAPI:
     @app.post("/dev/fake-case", response_model=Case, status_code=201)
     async def dev_fake_case(body: dict | None = None,
                             _: str = Depends(require_human)):
-        if not state.is_fake:
+        if state.settings.vultr_api_key or not state.is_fake:
             raise HTTPException(404, "development fake case is unavailable")
         for task in state.fake_twin_tasks.values():
             task.cancel()
