@@ -161,6 +161,27 @@ def create_app(state: AppState | None = None) -> FastAPI:
     @app.on_event("startup")
     async def start_heartbeat_watcher():
         state.heartbeat_task = asyncio.create_task(heartbeat_watch_loop())
+        if state.is_fake and state.settings.spawn_fake_twin:
+            from .fake_twin import fake_twin_loop
+            from .db import CaseRow
+            live_states = {CaseState.sealed.value, CaseState.investigating.value,
+                           CaseState.reported.value, CaseState.contained.value}
+            with state.sf() as session:
+                live = session.execute(select(CaseRow).where(
+                    CaseRow.state.in_(live_states),
+                    CaseRow.twin_internal_ip.is_not(None),
+                    CaseRow.twin_instance_id.is_not(None),
+                )).scalars().all()
+                recoverable = [(row.id, row.twin_internal_ip) for row in live]
+                for row in live:
+                    row.reg_token = "twreg-" + secrets.token_urlsafe(24)
+                session.commit()
+            for case_id, vpc_ip in recoverable:
+                token = state.service.row(case_id).reg_token
+                state.channel.prepare_registration(case_id, token)
+                state.fake_twin_tasks[case_id] = asyncio.create_task(
+                    fake_twin_loop(state, case_id, token, vpc_ip)
+                )
 
     @app.on_event("shutdown")
     async def stop_heartbeat_watcher():
