@@ -144,7 +144,9 @@ class CaseService:
     async def create_alert(self, instance_id: str, signal: SensorSignal,
                            source: str, summary: str, detail: dict[str, str],
                            *, now: datetime | None = None,
-                           rate_limit: bool = True) -> Alert:
+                           rate_limit: bool = True,
+                           fixture_finding_ids: set[str] | None = None,
+                           case_operator: str = "sensor") -> Alert:
         now = now or self.now()
         with self.state.sf() as s:
             if rate_limit:
@@ -168,7 +170,7 @@ class CaseService:
             result = row.to_model()
         if live is None:
             case = await self.open_case(instance_id, f"Sensor: {summary}",
-                                        operator="sensor")
+                                        operator=case_operator)
             with self.state.sf() as s:
                 case_row = s.get(CaseRow, case.id)
                 case_row.alert_id = result.id
@@ -177,7 +179,8 @@ class CaseService:
                 s.commit()
                 result = alert_row.to_model()
             await self.run_case(case.id, force_full=True, auto_close=False,
-                                propose_actions=False)
+                                propose_actions=fixture_finding_ids is not None,
+                                fixture_finding_ids=fixture_finding_ids)
         return result
 
     async def check_heartbeat_losses(self) -> list[Alert]:
@@ -250,7 +253,8 @@ class CaseService:
 
     async def run_case(self, case_id: str, *, force_full: bool = False,
                        auto_apply: bool = False, auto_close: bool = True,
-                       propose_actions: bool = True) -> Case:
+                       propose_actions: bool = True,
+                       fixture_finding_ids: set[str] | None = None) -> Case:
         """Walk the case as far as the phases implemented so far allow."""
         row = self.row(case_id)
         try:
@@ -258,7 +262,8 @@ class CaseService:
                 await self._snapshot_phase(row)
                 await self._twin_phase(row)
             if self.settings.full_pipeline or force_full:
-                await self._investigation_phase(self.row(case_id), propose_actions)
+                await self._investigation_phase(self.row(case_id), propose_actions,
+                                                fixture_finding_ids)
                 if auto_apply:
                     actions = await self.build_action_menu(case_id)
                     for action in actions:
@@ -437,10 +442,18 @@ class CaseService:
         return evidence
 
     async def _investigation_phase(self, row: CaseRow,
-                                   propose_actions: bool = True) -> None:
+                                   propose_actions: bool = True,
+                                   fixture_finding_ids: set[str] | None = None) -> None:
         self._move(row, CaseState.investigating, "sealed investigation started")
+        fixture_ids = row.operator == "dev-demo"
+        if row.operator == "dev-infect":
+            with self.state.sf() as s:
+                fixture_ids = not bool(s.scalar(
+                    select(func.count()).select_from(StepRow)
+                    .where(StepRow.id.like("step-%"))))
         report = await ScriptedInvestigator(
-            fixture_ids=row.operator == "dev-demo"
+            fixture_ids=fixture_ids,
+            finding_ids=fixture_finding_ids,
         ).investigate(
             row.to_model(),
             TwinStepRunner(self.channel, self.settings),
@@ -603,7 +616,7 @@ class CaseService:
                 row.quarantine_group_id = group.id
                 self._touch(row)
             action = Action(
-                id=self._action_id(row), case_id=row.id, kind=kind,
+                id=self._action_id(row, kind), case_id=row.id, kind=kind,
                 target=target, api_method="PATCH", api_path=f"/v2/instances/{target}",
                 api_body={"firewall_group_id": row.quarantine_group_id},
                 description=description or
@@ -612,7 +625,7 @@ class CaseService:
                 recommended=created_by is Actor.agent, created_by=created_by)
         elif kind is ActionKind.stop_instance:
             action = Action(
-                id=self._action_id(row), case_id=row.id, kind=kind,
+                id=self._action_id(row, kind), case_id=row.id, kind=kind,
                 target=target, api_method="POST",
                 api_path=f"/v2/instances/{target}/halt",
                 description=description or f"Halt {row.instance_label}",
@@ -620,7 +633,7 @@ class CaseService:
         elif kind is ActionKind.revoke_ssh_key:
             keys = "; ".join(report.rogue_ssh_keys) if report else "specified keys"
             action = Action(
-                id=self._action_id(row), case_id=row.id, kind=kind,
+                id=self._action_id(row, kind), case_id=row.id, kind=kind,
                 target=target, api_method=None, api_path=None,
                 description=description or
                             f"On {row.instance_label}, remove the rogue "
@@ -628,14 +641,14 @@ class CaseService:
         elif kind is ActionKind.rotate_secrets:
             paths = ", ".join(report.secrets_found) if report else "specified secrets"
             action = Action(
-                id=self._action_id(row), case_id=row.id, kind=kind,
+                id=self._action_id(row, kind), case_id=row.id, kind=kind,
                 target=target, api_method=None, api_path=None,
                 description=description or
                             f"Rotate the secrets found on the disk: {paths}",
                 created_by=created_by)
         else:  # manual_plan: human-authored record, never executable
             action = Action(
-                id=self._action_id(row), case_id=row.id, kind=kind,
+                id=self._action_id(row, kind), case_id=row.id, kind=kind,
                 target=target, api_method=None, api_path=None, api_body=None,
                 description=description or "Manual remediation plan",
                 created_by=created_by)
@@ -663,7 +676,19 @@ class CaseService:
             n = s.scalar(select(func.count()).where(row_class.case_id == case_id)) or 0
         return f"{case_id}-{prefix}-{n + 1:03d}"
 
-    def _action_id(self, row: CaseRow) -> str:
+    def _action_id(self, row: CaseRow, kind: ActionKind) -> str:
+        if row.operator == "dev-infect":
+            candidate = {
+                ActionKind.quarantine_firewall: "act-1",
+                ActionKind.revoke_ssh_key: "act-2",
+                ActionKind.stop_instance: "act-3",
+                ActionKind.rotate_secrets: "act-4",
+                ActionKind.manual_plan: "act-5",
+            }[kind]
+            with self.state.sf() as s:
+                if s.get(ActionRow, candidate) is None:
+                    return candidate
+            return f"{row.id}-{candidate}"
         if row.operator == "dev-demo":
             with self.state.sf() as s:
                 n = s.scalar(select(func.count()).where(ActionRow.case_id == row.id)) or 0

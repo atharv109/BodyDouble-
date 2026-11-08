@@ -39,6 +39,11 @@ from contracts.models import (
     Alert,
     SensorSignal,
     WebhookAlert,
+    Attack,
+    ATTACK_FINDINGS,
+    InfectRequest,
+    InfectResponse,
+    VultrInstance,
     SENSOR_CLOCK_SKEW_S,
     ToolCall,
     ToolResult,
@@ -341,6 +346,55 @@ def create_app(state: AppState | None = None) -> FastAPI:
             raise HTTPException(404, str(e))
         except ValueError as e:
             raise HTTPException(422, str(e))
+
+    @app.post("/dev/infect", response_model=InfectResponse, status_code=201)
+    async def dev_infect(body: InfectRequest,
+                         _: str = Depends(require_human)):
+        if state.settings.vultr_api_key or not state.is_fake:
+            raise HTTPException(404, "development infection demo is unavailable")
+        chosen = set(body.attacks)
+        while True:
+            suffix = secrets.token_hex(2)
+            instance_id = f"inst-demo-{suffix}"
+            if instance_id not in state.vultr.instances:
+                break
+        label = f"demo-{suffix}"
+        state.vultr.instances[instance_id] = VultrInstance(
+            id=instance_id, label=label, region="ewr",
+            main_ip=f"192.0.2.{20 + len(state.vultr.instances)}",
+            status="active", plan="vc2-1c-2gb", os="Ubuntu 24.04 LTS x64",
+            firewall_group_id="fw-shop-web")
+        now = state.service.now()
+        token = secrets.token_hex(32)
+        with state.sf() as session:
+            session.add(SensorRow(
+                instance_id=instance_id,
+                token_sha256=hashlib.sha256(token.encode()).hexdigest(),
+                enrolled_at=now, last_seen=now))
+            session.commit()
+        state.sensor_tokens[instance_id] = token
+        finding_ids = {
+            finding_id for attack in chosen for finding_id in ATTACK_FINDINGS[attack]
+        }
+        if chosen:
+            names = ", ".join(sorted(attack.value for attack in chosen))
+            alert = await state.service.create_alert(
+                instance_id, SensorSignal.file_changed, "sensor",
+                f"Demo sensor detected planted attacks: {names}",
+                {"attacks": names}, now=now, rate_limit=False,
+                fixture_finding_ids=finding_ids, case_operator="dev-infect")
+            case_id = alert.case_id
+            alert_id = alert.id
+        else:
+            case = await state.service.open_case(
+                instance_id, "Clean control: no attacks planted",
+                operator="dev-infect")
+            await state.service.run_case(
+                case.id, force_full=True, auto_close=False,
+                fixture_finding_ids=set())
+            case_id, alert_id = case.id, None
+        return InfectResponse(instance_id=instance_id, alert_id=alert_id,
+                              case_id=case_id)
 
     @app.get("/cases/{case_id}", response_model=CaseDetail,
              dependencies=[Depends(require_human)])
