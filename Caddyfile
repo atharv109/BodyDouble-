@@ -12,7 +12,7 @@
 		}
 	}
 
-	@spa_routes path / /cases/*
+	@spa_routes path / /console /cases/*
 	handle @spa_routes {
 		root * /srv/body-double/web/dist
 		try_files {path} /index.html
