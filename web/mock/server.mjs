@@ -101,6 +101,8 @@ function close(c, id) {
   return c.detail;
 }
 
+const PASSWORD = process.env.MOCK_PASSWORD ?? "";
+
 const json = (res, code, body) => {
   res.writeHead(code, { "content-type": "application/json" });
   res.end(JSON.stringify(body));
@@ -113,9 +115,12 @@ createServer(async (req, res) => {
   const c = p[0] === "cases" && p[1] ? cases.get(p[1]) : null;
   try {
     // Operator session, as the backend does it (to-frontend.md 20:20): cookie bd_session or X-Human-Session.
+    // MOCK_PASSWORD set: real-mode gate (operator password required), else fake mode.
+    if (req.method === "GET" && url.pathname === "/auth/config") return json(res, 200, { password_required: !!PASSWORD });
     if (req.method === "POST" && url.pathname === "/auth/session") {
-      const { operator } = await body(req);
+      const { operator, password } = await body(req);
       if (!operator?.trim()) return json(res, 422, { detail: "operator required" });
+      if (PASSWORD && password !== PASSWORD) return json(res, 401, { detail: "wrong operator password" });
       const token = `${operator}.${Date.now()}.${Math.random().toString(16).slice(2)}`;
       sessions.add(token);
       res.setHeader("set-cookie", `bd_session=${token}; Path=/; HttpOnly; SameSite=Lax`);
