@@ -38,6 +38,7 @@ from contracts.models import (
     CaseDetail,
     CaseState,
     CreateTwinRequest,
+    CustomActionRequest,
     Evidence,
     FirewallRule,
     SealStatus,
@@ -579,6 +580,18 @@ class CaseService:
 
     async def _propose_action(self, row: CaseRow, kind: ActionKind,
                               report: ReportRow | None) -> None:
+        action = await self._build_action(row, kind, report=report)
+        with self.state.sf() as s:
+            s.add(ActionRow(**action.model_dump()))
+            s.commit()
+        self.log.append(row.id, "action_proposed", ActionProposed(action=action),
+                        actor=Actor.agent)
+
+    async def _build_action(self, row: CaseRow, kind: ActionKind,
+                            report: ReportRow | None = None,
+                            description: str | None = None,
+                            created_by: Actor = Actor.agent) -> Action:
+        """Build every action's trusted API fields in one backend-only place."""
         target = row.instance_id
         if kind is ActionKind.quarantine_firewall:
             if row.quarantine_group_id is None:
@@ -593,32 +606,57 @@ class CaseService:
                 id=self._action_id(row), case_id=row.id, kind=kind,
                 target=target, api_method="PATCH", api_path=f"/v2/instances/{target}",
                 api_body={"firewall_group_id": row.quarantine_group_id},
-                description=f"Move {row.instance_label} into the quarantine "
-                            f"group (admin SSH only)")
+                description=description or
+                            f"Move {row.instance_label} into the quarantine "
+                            f"group (admin SSH only)",
+                recommended=created_by is Actor.agent, created_by=created_by)
         elif kind is ActionKind.stop_instance:
             action = Action(
                 id=self._action_id(row), case_id=row.id, kind=kind,
                 target=target, api_method="POST",
                 api_path=f"/v2/instances/{target}/halt",
-                description=f"Halt {row.instance_label}")
+                description=description or f"Halt {row.instance_label}",
+                created_by=created_by)
         elif kind is ActionKind.revoke_ssh_key:
-            keys = "; ".join(report.rogue_ssh_keys)
+            keys = "; ".join(report.rogue_ssh_keys) if report else "specified keys"
             action = Action(
                 id=self._action_id(row), case_id=row.id, kind=kind,
                 target=target, api_method=None, api_path=None,
-                description=f"On {row.instance_label}, remove the rogue "
-                            f"authorized_keys lines: {keys}")
-        else:  # rotate_secrets
-            paths = ", ".join(report.secrets_found)
+                description=description or
+                            f"On {row.instance_label}, remove the rogue "
+                            f"authorized_keys lines: {keys}", created_by=created_by)
+        elif kind is ActionKind.rotate_secrets:
+            paths = ", ".join(report.secrets_found) if report else "specified secrets"
             action = Action(
                 id=self._action_id(row), case_id=row.id, kind=kind,
                 target=target, api_method=None, api_path=None,
-                description=f"Rotate the secrets found on the disk: {paths}")
+                description=description or
+                            f"Rotate the secrets found on the disk: {paths}",
+                created_by=created_by)
+        else:  # manual_plan: human-authored record, never executable
+            action = Action(
+                id=self._action_id(row), case_id=row.id, kind=kind,
+                target=target, api_method=None, api_path=None, api_body=None,
+                description=description or "Manual remediation plan",
+                created_by=created_by)
+        return action
+
+    async def add_custom_action(self, case_id: str,
+                                request: CustomActionRequest) -> Action:
+        row = self.row(case_id)
+        if CaseState(row.state) is not CaseState.reported:
+            raise TransitionError(CaseState(row.state), CaseState.reported)
+        with self.state.sf() as s:
+            report = s.get(ReportRow, case_id)
+        action = await self._build_action(
+            row, request.kind, report=report, description=request.description,
+            created_by=Actor.human)
         with self.state.sf() as s:
             s.add(ActionRow(**action.model_dump()))
             s.commit()
-        self.log.append(row.id, "action_proposed", ActionProposed(action=action),
-                        actor=Actor.agent)
+        self.log.append(case_id, "action_proposed", ActionProposed(action=action),
+                        actor=Actor.human)
+        return action
 
     def _next_id(self, row_class, case_id: str, prefix: str) -> str:
         with self.state.sf() as s:

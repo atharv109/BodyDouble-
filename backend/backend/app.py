@@ -29,6 +29,7 @@ from contracts.models import (
     ApproveRequest,
     Case,
     CaseDetail,
+    CustomActionRequest,
     OpenCaseRequest,
     SensorEnrollRequest,
     SensorEnrollResponse,
@@ -443,6 +444,16 @@ def create_app(state: AppState | None = None) -> FastAPI:
         except LookupError as e:
             raise HTTPException(404, str(e))
         except ActionConflict as e:
+            raise HTTPException(409, str(e))
+
+    @app.post("/cases/{case_id}/actions", response_model=Action, status_code=201)
+    async def add_custom_action(case_id: str, body: CustomActionRequest,
+                                _: str = Depends(require_human)):
+        try:
+            return await state.service.add_custom_action(case_id, body)
+        except LookupError as e:
+            raise HTTPException(404, str(e))
+        except TransitionError as e:
             raise HTTPException(409, str(e))
 
     # ---------------------------------------------------------------- F11: teardown
