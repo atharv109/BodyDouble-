@@ -36,6 +36,8 @@ from contracts.models import (
     SensorReport,
     SensorHeartbeat,
     Alert,
+    SensorSignal,
+    WebhookAlert,
     SENSOR_CLOCK_SKEW_S,
     ToolCall,
     ToolResult,
@@ -46,7 +48,7 @@ from contracts.vultr import FakeVultr, VultrError, VultrNotFound
 from contracts.hashing import sensor_signature
 
 from .sessions import mint, verify
-from .db import CaseRow, SensorNonceRow, SensorRow, utcnow
+from .db import AlertRow, CaseRow, SensorNonceRow, SensorRow, utcnow
 from .state import AppState, build_state
 from .service import ActionConflict, AlertRateLimit, TransitionError
 from .twin import TwinChannelError, in_subnet
@@ -255,6 +257,39 @@ def create_app(state: AppState | None = None) -> FastAPI:
             row.last_seen = now
             session.commit()
         return Response(status_code=204)
+
+    # ------------------------------------------------------------- alerts
+    @app.post("/alerts/webhook", response_model=Alert)
+    async def alert_webhook(request: Request):
+        secret = state.settings.webhook_secret
+        if not secret:
+            raise HTTPException(404, "webhook alert intake is disabled")
+        raw = await request.body()
+        signature = request.headers.get("X-BD-Signature")
+        if signature is None or not hmac.compare_digest(
+                signature, sensor_signature(secret, raw)):
+            raise HTTPException(401, "invalid webhook signature")
+        try:
+            body = WebhookAlert.model_validate_json(raw)
+        except Exception as e:
+            raise HTTPException(422, "invalid webhook payload") from e
+        try:
+            await state.vultr.get_instance(body.instance_id)
+        except VultrNotFound:
+            raise HTTPException(404, f"unknown instance {body.instance_id}")
+        try:
+            return await state.service.create_alert(
+                body.instance_id, SensorSignal.external, body.source,
+                body.summary, body.detail)
+        except AlertRateLimit:
+            raise HTTPException(429, "alert rate limit exceeded")
+
+    @app.get("/alerts", response_model=list[Alert])
+    async def list_alerts(_: str = Depends(require_human)):
+        with state.sf() as session:
+            rows = session.execute(select(AlertRow).order_by(
+                AlertRow.received_at.desc(), AlertRow.id.desc())).scalars()
+            return [row.to_model() for row in rows]
 
     @app.post("/cases", response_model=Case, status_code=201,
               dependencies=[Depends(require_human)])
