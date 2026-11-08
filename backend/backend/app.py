@@ -12,15 +12,31 @@ Endpoint shapes are owned here (TASK.md); every change is logged to
 """
 from __future__ import annotations
 
-from fastapi import Cookie, Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
 
-from contracts.models import Case, OpenCaseRequest
+from contracts.models import (
+    Case,
+    OpenCaseRequest,
+    ToolCall,
+    ToolResult,
+    TwinRegisterRequest,
+    TwinRegisterResponse,
+)
 from contracts.vultr import VultrError
 
 from .sessions import mint, verify
 from .state import AppState, build_state
+from .twin import TwinChannelError
 
 COOKIE_NAME = "bd_session"
+
+
+def _client_ip(request: Request) -> str:
+    return request.client.host if request.client else ""
+
+
+def _twin_channel_error(e: TwinChannelError) -> HTTPException:
+    return HTTPException(e.status_code, e.detail)
 
 
 async def get_operator(
@@ -81,6 +97,45 @@ def create_app(state: AppState | None = None) -> FastAPI:
         except VultrError:
             raise HTTPException(502, "Vultr API error while opening the case")
         return await state.service.run_case(case.id)
+
+    # ---------------------------------------------------------------- F4: twin channel
+    @app.post("/twin/register", response_model=TwinRegisterResponse)
+    async def twin_register(body: TwinRegisterRequest, request: Request):
+        try:
+            return state.channel.register(body.case_id, body.token, body.vpc_ip,
+                                          body.seal, _client_ip(request))
+        except TwinChannelError as e:
+            raise _twin_channel_error(e)
+
+    @app.post("/twin/heartbeat", status_code=204)
+    async def twin_heartbeat(request: Request,
+                             x_twin_session: str | None = Header(default=None)):
+        try:
+            sess, _ = state.channel.resolve_session(x_twin_session, _client_ip(request))
+            state.channel.heartbeat(sess)
+        except TwinChannelError as e:
+            raise _twin_channel_error(e)
+
+    @app.get("/twin/jobs/next", response_model=ToolCall)
+    async def twin_jobs_next(request: Request,
+                             x_twin_session: str | None = Header(default=None)):
+        try:
+            sess, row = state.channel.resolve_session(x_twin_session, _client_ip(request))
+            call = await state.channel.next_job(sess, row, state.settings.twin_job_poll_s)
+        except TwinChannelError as e:
+            raise _twin_channel_error(e)
+        if call is None:
+            return Response(status_code=204)
+        return call
+
+    @app.post("/twin/jobs/{job_id}/result", status_code=204)
+    async def twin_job_result(job_id: str, body: ToolResult, request: Request,
+                              x_twin_session: str | None = Header(default=None)):
+        try:
+            sess, _ = state.channel.resolve_session(x_twin_session, _client_ip(request))
+            state.channel.submit_result(sess, job_id, body)
+        except TwinChannelError as e:
+            raise _twin_channel_error(e)
 
     return app
 

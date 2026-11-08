@@ -4,29 +4,13 @@ ISO attached before the cloned OS boots (snapshot_id + iso_id in one create
 call; the T1 fallback behind settings.t1_fallback)."""
 from __future__ import annotations
 
-import httpx
-
 from contracts.models import CaseState
 from contracts.vultr import FakeVultr
 
-from backend.config import test_settings as make_test_settings
 from backend.db import CaseRow
-from backend.state import build_state
+from conftest import open_env
 
 ISO_ID = "iso-bd-forensics"
-
-
-async def _fake_env(tmp_path, fake: FakeVultr, **overrides):
-    """A state + client pair on a throwaway DB, with settings overrides."""
-    settings = make_test_settings(f"sqlite:///{(tmp_path / 't.db').as_posix()}")
-    for k, v in overrides.items():
-        setattr(settings, k, v)
-    st = build_state(settings, vultr=fake)
-    client = httpx.AsyncClient(transport=httpx.ASGITransport(app=st.app),
-                               base_url="http://t")
-    r = await client.post("/auth/session", json={"operator": "operator"})
-    client.headers["X-Human-Session"] = r.json()["session_token"]
-    return st, client
 
 
 async def test_twin_created_on_dedicated_vpc_with_inbound_deny(client, state, fake, human):
@@ -35,8 +19,8 @@ async def test_twin_created_on_dedicated_vpc_with_inbound_deny(client, state, fa
     case = r.json()
     twin_id, vpc_id, fw_id = case["twin_instance_id"], case["vpc_id"], case["firewall_group_id"]
     assert twin_id and vpc_id and fw_id
-    # twin built; the case now waits for the twin to register and seal (F4)
-    assert case["state"] == CaseState.restoring.value
+    # twin built and sealed (F4: the in-process twin registers on boot)
+    assert case["state"] == CaseState.sealed.value
 
     # dedicated VPC, in the same region as the source instance
     assert fake.vpcs[vpc_id].region == "ewr"
@@ -67,8 +51,7 @@ async def test_twin_created_on_dedicated_vpc_with_inbound_deny(client, state, fa
 
 async def test_t1_fallback_attaches_iso_before_the_cloned_os_boots(tmp_path):
     fake = FakeVultr()
-    st, client = await _fake_env(tmp_path, fake, t1_fallback=True)
-    try:
+    async with open_env(tmp_path, fake=fake, t1_fallback=True) as (st, client):
         r = await client.post("/cases", json={
             "instance_id": FakeVultr.SHOP_PROD, "reason": "cpu pegged"})
         case = r.json()
@@ -87,6 +70,3 @@ async def test_t1_fallback_attaches_iso_before_the_cloned_os_boots(tmp_path):
         assert attach_i < poll_i
         assert fake.isos[twin_id] == ISO_ID
         assert fake.instances[twin_id].status == "active"
-    finally:
-        await client.aclose()
-        st.close()

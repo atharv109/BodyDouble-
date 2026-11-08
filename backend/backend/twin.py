@@ -106,9 +106,12 @@ class TwinChannel:
             subnet, mask = row.vpc_subnet, row.vpc_mask
         key = "twinsess-" + secrets.token_urlsafe(24)
         self.sessions[key] = TwinSession(key, case_id, vpc_ip)
-        ev, _, _ = self._registered[case_id]
-        self._registered[case_id] = (ev, seal.sealed, "" if seal.sealed else "seal checks failed")
-        ev.set()
+        if case_id in self._registered:
+            # the service may already have stopped waiting (case failed, or a
+            # real ISO registering late); set the event only if it still cares
+            ev, _, _ = self._registered[case_id]
+            self._registered[case_id] = (ev, seal.sealed, "" if seal.sealed else "seal checks failed")
+            ev.set()
         return TwinRegisterResponse(session_key=key)
 
     # ------------------------------------------------------------- session
@@ -121,6 +124,19 @@ class TwinChannel:
         if not in_subnet(client_ip, case_row.vpc_subnet, case_row.vpc_mask):
             raise TwinChannelError(403, f"call not from the case VPC (source {client_ip})")
         return sess
+
+    def resolve_session(self, session_key: str | None, client_ip: str) -> tuple[TwinSession, CaseRow]:
+        """Session + case row for the /twin/* routes that carry no case id
+        (heartbeat, jobs): key lookup, then the full require_session checks."""
+        sess = self.sessions.get(session_key or "")
+        if sess is None:
+            raise TwinChannelError(401, "missing or unknown X-Twin-Session")
+        with self._sf() as s:
+            row = s.get(CaseRow, sess.case_id)
+        if row is None:
+            raise TwinChannelError(404, "unknown case")
+        self.require_session(session_key, client_ip, row)
+        return sess, row
 
     def heartbeat(self, sess: TwinSession) -> None:
         sess.last_seen = utcnow()
@@ -156,7 +172,7 @@ class TwinChannel:
     def submit_result(self, sess: TwinSession, job_id: str, result: ToolResult) -> None:
         with self._sf() as s:
             row = s.get(JobRow, job_id)
-            if row.case_id != sess.case_id:
+            if row is None or row.case_id != sess.case_id:
                 raise TwinChannelError(404, "job not found for this case")
             if row.result is not None:
                 raise TwinChannelError(409, "job already has a result")

@@ -11,23 +11,26 @@ import asyncio
 import hashlib
 import logging
 import re
+import secrets
 from datetime import timedelta
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 
-from contracts.events import StateChanged
+from contracts.events import SealCheck, StateChanged
 from contracts.models import (
     Actor,
     Case,
     CaseState,
     CreateTwinRequest,
     Evidence,
+    SealStatus,
     can_transition,
 )
 from contracts.vultr import VultrError, VultrNotFound
 
 from .db import CaseRow, EvidenceRow, utcnow
+from .fake_twin import fake_twin_loop
 
 log = logging.getLogger("backend")
 
@@ -212,6 +215,16 @@ class CaseService:
         self.log.append(row.id, "twin_created", {
             "twin_instance_id": twin.id, "vpc_id": vpc.id, "firewall_group_id": fw.id,
             "iso_id": self.settings.iso_id, "t1_fallback": self.settings.t1_fallback})
+        # F4: one-time registration token, consumed at first register. FakeVultr
+        # mode hands it to the in-process twin stand-in; real mode delivers it
+        # to the ISO (delivery mechanism is the orchestrator's day-one call).
+        token = "twreg-" + secrets.token_urlsafe(24)
+        row.reg_token = token
+        self._touch(row)
+        self.channel.prepare_registration(row.id, token)
+        if self.state.is_fake and self.settings.spawn_fake_twin:
+            self.state.fake_twin_tasks[row.id] = asyncio.create_task(
+                fake_twin_loop(self.state, row.id, token, twin.internal_ip))
         deadline = utcnow() + timedelta(seconds=self.settings.boot_timeout_s)
         while True:
             twin = await self.vultr.get_instance(twin.id)
@@ -220,6 +233,23 @@ class CaseService:
             if utcnow() > deadline:
                 raise CaseFailure(f"twin {twin.id} did not boot in time")
             await asyncio.sleep(self.settings.poll_interval_s)
+        # the twin checked in over the VPC and both seal checks passed (F4/F5)
+        try:
+            ok, reason = await asyncio.wait_for(
+                self.channel.wait_registered(row.id),
+                timeout=self.settings.register_timeout_s)
+        except (TimeoutError, asyncio.TimeoutError):
+            raise CaseFailure(f"twin {row.twin_instance_id} did not register in time")
+        if not ok:
+            raise CaseFailure(f"twin did not seal: {reason}")
+        row = self.row(row.id)  # register() wrote seal/token/ip in its own session
+        seal = SealStatus.model_validate(row.seal)
+        for check, passed in (("disk_read_only", seal.disk_read_only),
+                              ("egress_blocked", seal.egress_blocked)):
+            self.log.append(row.id, "seal_check", SealCheck(
+                case_id=row.id, check=check, passed=passed,
+                output=seal.detail.get(check, "")))
+        self._move(row, CaseState.sealed, "twin sealed: disk read-only, egress blocked")
 
     async def fail_case(self, case_id: str, reason: str) -> None:
         row = self.row(case_id)
@@ -231,3 +261,4 @@ class CaseService:
         finally:
             if can_transition(CaseState(row.state), CaseState.failed):
                 self._move(row, CaseState.failed, reason)
+            self.channel.cleanup_case(case_id)
