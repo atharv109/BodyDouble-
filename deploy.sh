@@ -88,6 +88,30 @@ if [[ -n "$vultr_key" && "$vultr_key" != "CHANGE_ME" ]] \
   exit 1
 fi
 
+# Real mode: twins reach the API directly over the investigation VPC (the backend checks the twin's
+# real source address, so no proxy). Port 8000 then listens on all interfaces, and this nft table
+# drops it from everywhere except loopback and the VPC subnet.
+vpc_subnet=$(sed -n 's/^BD_VPC_SUBNET=//p' "$ENV_FILE" | tail -n 1)
+bind_host=127.0.0.1
+if [[ -n "$vpc_subnet" ]]; then
+  bind_host=0.0.0.0
+  apt-get install -y nftables
+  cat > /etc/nftables.d-body-double.nft <<EOF
+table inet body_double {
+  chain input {
+    type filter hook input priority 0; policy accept;
+    tcp dport 8000 iif lo accept
+    tcp dport 8000 ip saddr $vpc_subnet accept
+    tcp dport 8000 drop
+  }
+}
+EOF
+  nft delete table inet body_double 2>/dev/null || true
+  nft -f /etc/nftables.d-body-double.nft
+  grep -q nftables.d-body-double /etc/nftables.conf || echo 'include "/etc/nftables.d-body-double.nft"' >> /etc/nftables.conf
+  systemctl enable nftables
+fi
+
 runuser -u bodydouble -- /usr/local/bin/uv sync --project "$APP_DIR/backend" --frozen
 runuser -u bodydouble -- npm --prefix "$APP_DIR/web" ci
 runuser -u bodydouble -- npm --prefix "$APP_DIR/web" run build
@@ -104,7 +128,7 @@ User=bodydouble
 Group=bodydouble
 WorkingDirectory=$APP_DIR
 EnvironmentFile=$ENV_FILE
-ExecStart=/usr/local/bin/uv run --project $APP_DIR/backend uvicorn backend.app:app --host 127.0.0.1 --port 8000
+ExecStart=/usr/local/bin/uv run --project $APP_DIR/backend uvicorn backend.app:app --host $bind_host --port 8000
 Restart=on-failure
 RestartSec=3
 PrivateTmp=true
