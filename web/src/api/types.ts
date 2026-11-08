@@ -1,6 +1,6 @@
 // Friendly names over the generated contract types (npm run types).
 export type {
-  Action, ApiResponse, BlastRadius, Case, CaseDetail, CaseState, Evidence, Finding, SealStatus, Severity, Step,
+  Action, ActionKind, Alert, Attack, ApiResponse, CustomActionRequest, InfectResponse, SensorEnrollResponse, SensorSignal, SensorStatus, BlastRadius, Case, CaseDetail, CaseState, Evidence, Finding, SealStatus, Severity, Step,
   VultrInstance, EventActionApplied as ActionApplied, EventActionProposed as ActionProposed,
   EventDnsCaptured as DnsCaptured, EventFindingAdded as FindingAdded, EventSealCheck as SealCheck,
   EventStateChanged as StateChanged, EventStepFinished as StepFinished, EventStepStarted as StepStarted,
@@ -14,3 +14,4 @@ export const EVENT_NAMES = [
 export type EventName = (typeof EVENT_NAMES)[number]
 
 export const SEVERITY_ORDER = { critical: 0, high: 1, medium: 2, info: 3 } as const
+

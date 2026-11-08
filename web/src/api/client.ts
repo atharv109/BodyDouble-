@@ -1,4 +1,6 @@
-import type { Action, Case, CaseDetail, VultrInstance } from './types'
+import type {
+  Action, Alert, Attack, Case, CaseDetail, CustomActionRequest, InfectResponse, SensorEnrollResponse, SensorStatus, VultrInstance,
+} from './types'
 
 export const API = '/api'
 const OPERATOR_KEY = 'bd.operator'
@@ -66,6 +68,11 @@ export const api = {
   instances: () => call<VultrInstance[]>('GET', '/instances'),
   openCase: (instance_id: string, reason: string) => call<Case>('POST', '/cases', { instance_id, reason }),
   fakeCase: () => call<Case>('POST', '/dev/fake-case', {}),
+  infect: (attacks: Attack[]) => call<InfectResponse>('POST', '/dev/infect', { attacks }),
+  sensors: () => call<SensorStatus[]>('GET', '/sensors'),
+  enroll: (instance_id: string) => call<SensorEnrollResponse>('POST', '/sensors', { instance_id }),
+  alerts: () => call<Alert[]>('GET', '/alerts'),
+  customAction: (id: string, body: CustomActionRequest) => call<Action>('POST', `/cases/${id}/actions`, body),
   caseDetail: (id: string) => call<CaseDetail>('GET', `/cases/${id}`),
   approve: (id: string, actionId: string, approved_by: string) =>
     call<Action>('POST', `/cases/${id}/actions/${actionId}/approve`, { approved_by }),

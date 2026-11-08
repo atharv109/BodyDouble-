@@ -1,28 +1,32 @@
 import { useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api, ApiError, getOperator } from '../api/client'
+import type { Attack } from '../api/types'
+import { attacks } from './content'
 
 type Phase = 'idle' | 'busy' | 'ask' | 'unavailable' | 'down'
 
 /**
- * Beat 9: open a live fake-mode case and land on it. The visitor passes the operator gate once
- * (approvals carry a name); with a stored name we re-mint the session and go straight through.
- * Real mode (operator password, /dev/fake-case off) and a dead API degrade to a message plus
- * a link to the console; the button stays usable.
+ * The climax: the visitor plants attacks on a fresh fake server (POST /dev/infect), its sensor fires,
+ * and they land on the case the alert opened. Same gate and same graceful failure as before: real mode
+ * (operator password, /dev/infect 404) and a dead API end in a message plus a console link.
  */
-export function TryIt({ label }: { label: string }) {
+export function Infect() {
   const navigate = useNavigate()
   const id = useId()
+  const [picked, setPicked] = useState<Attack[]>([])
   const [phase, setPhase] = useState<Phase>('idle')
   const [name, setName] = useState('')
   const input = useRef<HTMLInputElement>(null)
 
-  async function open(operator: string) {
+  const toggle = (a: Attack) => setPicked((p) => (p.includes(a) ? p.filter((x) => x !== a) : [...p, a]))
+
+  async function run(operator: string) {
     setPhase('busy')
     try {
       await api.session(operator)
-      const c = await api.fakeCase()
-      navigate(`/cases/${c.id}`, { viewTransition: true })
+      const r = await api.infect(picked)
+      navigate(`/cases/${r.case_id}`, { viewTransition: true })
     } catch (e) {
       setPhase(e instanceof ApiError && (e.status === 404 || e.status === 401 || e.status === 403) ? 'unavailable' : 'down')
     }
@@ -33,17 +37,37 @@ export function TryIt({ label }: { label: string }) {
     const { password_required } = await api.authConfig()
     if (password_required) return setPhase('unavailable') // real mode: no demo endpoint, no name-only sessions
     const op = getOperator()
-    if (op) return open(op)
+    if (op) return run(op)
     setPhase('ask')
     requestAnimationFrame(() => input.current?.focus())
   }
 
-  const submit = (e: FormEvent) => { e.preventDefault(); if (name.trim()) open(name.trim()) }
+  const submit = (e: FormEvent) => { e.preventDefault(); if (name.trim()) run(name.trim()) }
+  const n = picked.length
 
   return (
-    <div className="mt-8">
-      <button type="button" data-testid="try-it" className="btn btn-agent btn-xl" disabled={phase === 'busy'} onClick={start}>
-        {phase === 'busy' ? 'Opening the case...' : label}
+    <div className="infect">
+      <fieldset className="attacks">
+        <legend className="sr-only">Attacks to plant</legend>
+        {attacks.map((a) => {
+          const on = picked.includes(a.value)
+          return (
+            <label key={a.value} className="attack" data-on={on || undefined} data-testid={`attack-${a.value}`}>
+              <input type="checkbox" className="attack-box" checked={on} onChange={() => toggle(a.value)} />
+              <span className="attack-name">{a.name}</span>
+              <span className="attack-path font-mono">{a.path}</span>
+            </label>
+          )
+        })}
+      </fieldset>
+
+      <p className="infect-readout" aria-live="polite">
+        {n ? <><span className="text-finding">{n} planted</span> · its sensor is armed · expect {n === 1 ? 'that finding' : 'those findings'} and nothing else</>
+          : 'Nothing planted: a clean control. Expect zero findings.'}
+      </p>
+
+      <button type="button" data-testid="infect" className="btn btn-agent btn-xl infect-go" disabled={phase === 'busy'} onClick={start}>
+        {phase === 'busy' ? 'Planting...' : n ? `Infect a server with ${n} ${n === 1 ? 'attack' : 'attacks'}` : 'Run a clean server'}
       </button>
 
       {phase === 'ask' && (

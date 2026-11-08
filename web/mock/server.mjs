@@ -32,6 +32,46 @@ const cases = new Map(); // id -> { detail, log: [{event,data}], subs:Set<res> }
 let nextCase = 1;
 const sessions = new Set();
 const swapId = (o, id) => JSON.parse(JSON.stringify(o).replaceAll("case-0001", id));
+const swapInst = (o, inst) =>
+  inst.id === "inst-shop-prod" ? o
+    : JSON.parse(JSON.stringify(o).replaceAll("inst-shop-prod", inst.id).replaceAll("shop-prod", inst.label));
+
+// Plug and play (contracts/models.py bottom section). The mock keeps it all in memory.
+const sensors = new Map(); // instance_id -> SensorStatus
+const alerts = []; // newest first
+let nextAlert = 1, nextDemo = 1;
+const hex = (n) => Array.from({ length: n }, () => Math.floor(Math.random() * 16).toString(16)).join("");
+const PUBLIC_URL = "https://bodydouble.example";
+function enroll(instance_id) {
+  const token = hex(64);
+  const now = new Date().toISOString();
+  sensors.set(instance_id, { instance_id, enrolled_at: now, last_seen: null, healthy: false });
+  const install_command = `curl -fsSL ${PUBLIC_URL}/api/sensors/install.sh | sudo sh -s -- ${PUBLIC_URL} ${instance_id} ${token}`;
+  return { instance_id, token, install_command, startup_script: `#!/bin/sh\n${install_command}\n` };
+}
+
+// /dev/infect: which fixture findings/actions each planted attack produces.
+const ATTACK_FINDINGS = { cron_backdoor: ["fd-01"], rogue_ssh_key: ["fd-02"], replaced_top: ["fd-03"],
+  c2_beacon: ["fd-04", "fd-05"], ai_note: ["fd-06"] };
+const ATTACK_ACTIONS = { rogue_ssh_key: ["act-2"] };
+const ALWAYS_ACTIONS = ["act-1", "act-3", "act-4"];
+const ATTACK_SIGNAL = { cron_backdoor: ["file_changed", "/etc/cron.d/sysupdate"], rogue_ssh_key: ["file_changed", "/root/.ssh/authorized_keys"],
+  replaced_top: ["file_changed", "/usr/bin/top"], c2_beacon: ["new_outbound", "beacon.c2.example:443"], ai_note: ["file_changed", "/root/NOTE_FOR_AI_ANALYST.txt"] };
+
+/** Keep only the replay events the chosen attacks produce (none = clean control, zero findings). */
+function attackFilter(attacks) {
+  const fds = new Set(attacks.flatMap((a) => ATTACK_FINDINGS[a]));
+  const acts = new Set(fds.size ? [...ALWAYS_ACTIONS, ...attacks.flatMap((a) => ATTACK_ACTIONS[a] ?? [])] : []);
+  const evs = new Set(["ev-001", ...DETAIL.findings.filter((f) => fds.has(f.id)).flatMap((f) => f.evidence_ids)]);
+  return {
+    evidence: (e) => evs.has(e.id),
+    event: ({ event, data }) =>
+      event === "finding_added" ? fds.has(data.finding.id)
+        : event === "action_proposed" ? acts.has(data.action.id)
+        : event === "dns_captured" ? attacks.includes("c2_beacon")
+        : true,
+  };
+}
 
 function emit(c, event, data) {
   const seq = c.log.length;
@@ -54,22 +94,24 @@ function apply(c, event, d) {
   if (event === "teardown_done") det.blast_radius = d.blast_radius;
 }
 
-function openCase(instance_id, reason) {
+function openCase(instance_id, reason, { alert_id = null, filter = null } = {}) {
   const inst = INSTANCES.find((i) => i.id === instance_id);
   if (!inst) return null;
   const id = `case-${String(nextCase++).padStart(4, "0")}`;
-  const base = swapId(DETAIL, id);
+  const base = swapInst(swapId(DETAIL, id), inst);
   const detail = {
-    case: { ...base.case, instance_id, instance_label: inst.label, reason, state: "opened",
+    case: { ...base.case, instance_id, instance_label: inst.label, reason, state: "opened", alert_id,
             created_at: new Date().toISOString(), closed_at: null },
-    steps: [], evidence: base.evidence, findings: [], actions: [], seal: base.seal, blast_radius: null,
+    steps: [], evidence: filter ? base.evidence.filter(filter.evidence) : base.evidence,
+    findings: [], actions: [], seal: base.seal, blast_radius: null,
   };
-  const c = { detail, log: [], subs: new Set() };
+  const c = { detail, log: [], subs: new Set(), inst };
   cases.set(id, c);
+  const script = AUTO.filter((e) => !filter || filter.event(e));
   let i = 0;
   const tick = () => {
-    if (i >= AUTO.length) return;
-    emit(c, AUTO[i].event, swapId(AUTO[i].data, id));
+    if (i >= script.length) return;
+    emit(c, script[i].event, swapInst(swapId(script[i].data, id), inst));
     i++;
     setTimeout(tick, DELAY);
   };
@@ -94,11 +136,46 @@ function approve(c, actionId, approved_by) {
 
 function close(c, id) {
   if (c.detail.case.state !== "closed") {
-    emit(c, "teardown_done", swapId(TEARDOWN, id));
+    emit(c, "teardown_done", swapInst(swapId(TEARDOWN, id), c.inst));
     emit(c, "state_changed", { case_id: id, from_state: c.detail.case.state, to_state: "closed", detail: "twin destroyed; snapshot kept" });
     c.detail.case.closed_at = new Date().toISOString();
   }
   return c.detail;
+}
+
+/** POST /cases/{id}/actions: the operator's own fix. The API call is built here, never taken from the client. */
+let nextAction = 100;
+function customAction(c, { kind, description }) { // created_by is the operator; Action records the actor ("human")
+  const t = c.detail.case.instance_id;
+  const api = kind === "quarantine_firewall" ? { api_method: "PATCH", api_path: `/v2/instances/${t}`, api_body: { firewall_group_id: "fw-0005" } }
+    : kind === "stop_instance" ? { api_method: "POST", api_path: `/v2/instances/${t}/halt`, api_body: null }
+    : { api_method: null, api_path: null, api_body: null };
+  const action = { id: `act-${nextAction++}`, case_id: c.detail.case.id, kind, target: t, ...api, description, status: "proposed",
+    recommended: false, created_by: "human", approved_by: null, response: null };
+  emit(c, "action_proposed", { action });
+  return action;
+}
+
+function infect(attacks) {
+  const n = nextDemo++;
+  const inst = { ...INSTANCES[0], id: `inst-demo-${String(n).padStart(4, "0")}`, label: `demo-shop-${n}`, main_ip: `45.77.20.${n % 250}` };
+  INSTANCES.push(inst);
+  enroll(inst.id);
+  Object.assign(sensors.get(inst.id), { last_seen: new Date().toISOString(), healthy: true }); // its sensor has reported
+  let alert = null;
+  if (attacks.length) {
+    const [signal, what] = ATTACK_SIGNAL[attacks[0]];
+    const more = attacks.length > 1 ? ` (+${attacks.length - 1} more)` : "";
+    alert = { id: `al-${String(nextAlert++).padStart(4, "0")}`, instance_id: inst.id, signal, source: "sensor",
+      summary: signal === "new_outbound" ? `New outbound destination ${what} not in baseline${more}` : `${what} changed vs baseline${more}`,
+      detail: Object.fromEntries(attacks.map((a) => [ATTACK_SIGNAL[a][1], ATTACK_SIGNAL[a][0]])),
+      received_at: new Date().toISOString(), case_id: null };
+    alerts.unshift(alert);
+  }
+  const reason = alert ? alert.summary : "Clean control: no attacks planted.";
+  const c = openCase(inst.id, reason, { alert_id: alert?.id ?? null, filter: attackFilter(attacks) });
+  if (alert) alert.case_id = c.detail.case.id;
+  return { instance_id: inst.id, alert_id: alert?.id ?? null, case_id: c.detail.case.id };
 }
 
 const PASSWORD = process.env.MOCK_PASSWORD ?? "";
@@ -127,11 +204,25 @@ createServer(async (req, res) => {
       return json(res, 200, { operator, session_token: token });
     }
     // Real mode turns the demo endpoint off (backend: 404); MOCK_FAKE_CASE_OFF=1 reproduces that.
-    if (url.pathname === "/dev/fake-case" && process.env.MOCK_FAKE_CASE_OFF === "1") return json(res, 404, { detail: "Not Found" });
+    if ((url.pathname === "/dev/fake-case" || url.pathname === "/dev/infect") && process.env.MOCK_FAKE_CASE_OFF === "1")
+      return json(res, 404, { detail: "Not Found" });
     const cookie = /(?:^|;\s*)bd_session=([^;]+)/.exec(req.headers.cookie ?? "")?.[1];
     if (!sessions.has(cookie) && !sessions.has(req.headers["x-human-session"]))
       return json(res, 401, { detail: "operator session required" });
     if (req.method === "GET" && url.pathname === "/instances") return json(res, 200, INSTANCES);
+    if (req.method === "GET" && url.pathname === "/sensors") return json(res, 200, [...sensors.values()]);
+    if (req.method === "POST" && url.pathname === "/sensors") {
+      const { instance_id } = await body(req);
+      if (!INSTANCES.some((i) => i.id === instance_id)) return json(res, 404, { detail: "no such instance" });
+      return json(res, 200, enroll(instance_id));
+    }
+    if (req.method === "GET" && url.pathname === "/alerts") return json(res, 200, alerts);
+    if (req.method === "POST" && url.pathname === "/dev/infect") {
+      const { attacks = [] } = await body(req);
+      if (!Array.isArray(attacks) || attacks.length > 5 || attacks.some((a) => !ATTACK_FINDINGS[a]))
+        return json(res, 422, { detail: "attacks must be a list of Attack values" });
+      return json(res, 200, infect([...new Set(attacks)]));
+    }
     if (req.method === "POST" && (url.pathname === "/cases" || url.pathname === "/dev/fake-case")) {
       const b = await body(req);
       const instance_id = b.instance_id ?? "inst-shop-prod";
@@ -149,6 +240,14 @@ createServer(async (req, res) => {
       c.subs.add(res);
       req.on("close", () => c.subs.delete(res));
       return;
+    }
+    if (req.method === "POST" && p[2] === "actions" && p.length === 3) {
+      const b = await body(req);
+      const KINDS = ["quarantine_firewall", "revoke_ssh_key", "stop_instance", "rotate_secrets", "manual_plan"];
+      if (!KINDS.includes(b.kind) || !b.description?.trim() || !b.created_by?.trim())
+        return json(res, 422, { detail: "kind, description and created_by required" });
+      if (c.detail.case.state !== "reported") return json(res, 409, { detail: `case is ${c.detail.case.state}` });
+      return json(res, 200, customAction(c, b));
     }
     if (req.method === "POST" && p[2] === "actions" && p[4] === "approve") {
       const b = await body(req);

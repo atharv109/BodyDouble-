@@ -16,11 +16,14 @@ export function NotFound() {
         </div>
       </div>
       {/* the seal frame, drawn shut around nothing */}
-      <svg viewBox="0 0 64 64" className="order-first md:order-none md:col-span-4 md:col-start-9 w-28 md:w-full max-w-[22rem]" aria-hidden="true">
-        <rect x="8" y="8" width="48" height="48" rx="10" fill="none" stroke="var(--color-agent)" strokeWidth="1.6" />
-        <rect x="20" y="20" width="24" height="24" rx="4.5" fill="none" stroke="var(--color-line)" strokeWidth="1.2" strokeDasharray="2 2" />
-        <text x="32" y="61.5" textAnchor="middle" fontFamily="var(--font-mono)" fontSize="3.2" fill="var(--color-muted)">twin · empty</text>
-      </svg>
+      <div className="order-first md:order-none md:col-span-4 md:col-start-9 w-28 md:w-full max-w-[22rem]" aria-hidden="true">
+        <svg viewBox="0 0 64 60" className="w-full">
+          <rect x="8" y="8" width="48" height="48" rx="10" fill="none" stroke="var(--color-agent)" strokeWidth="1.6" />
+          <rect x="20" y="20" width="24" height="24" rx="4.5" fill="none" stroke="var(--color-line)" strokeWidth="1.2" strokeDasharray="2 2" />
+        </svg>
+        {/* HTML label, so it keeps a readable size when the drawing is small */}
+        <p className="mt-1 text-center font-mono text-xs md:text-sm text-muted">twin · empty</p>
+      </div>
     </section>
   )
 }

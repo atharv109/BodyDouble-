@@ -92,3 +92,22 @@ phone: lanes stack; PROD lane becomes a 44 px sticky strip under the header that
 - Approve is the climax: brass rules above and below, a warm ground, "The only write to production" kicker, display-size title, larger API call.
 - Phone h1 line-height 1.02 so descenders clear the next line's ascenders.
 - Peel labels are HTML over the drawing on a solid ground, so axe can measure their contrast (0 to review).
+
+## Round 3 (story told through scroll; Atharv: "remove unnecessary texts, more animations, storytelling")
+- Copy cut to what the story needs: ledes are one line, incidents one clause each, stop texts one sentence.
+  Every source link, beat testid and fact stays.
+- One clock, one driver per beat (all in `src/story/motion.ts`, reverted on unmount, none under reduced motion):
+  - intro: h1 lines rise out of masks, then the copy, then the peel plays.
+  - headings: word-by-word mask reveal (`<Words>`, text stays text).
+  - the twin's thread: a brass line fills down the lane gutter with the reading (scrubbed); only Approve crosses it.
+  - the two bad options arrive from opposite sides (scrubbed on desktop, a one-shot latch on phones).
+  - the case: the stop mid-screen is the one playing (brass outline numeral, ink title; the others step back to
+    muted), and its evidence types itself in (`[data-type]`, stepped clip-path).
+  - the walls close in around the agent outermost first (scrubbed); the agent breathes at rest.
+  - the attacker's note types out, is struck through, then the verdict latches in.
+  - the zeros drop into place; the Vultr rows and the five attacks draw in row by row.
+- Climax: "Infect a server" (P2). Planted attacks turn red, a readout says what the case will find.
+- Phones: native scroll (no Lenis), no scrubbed side slides, no shadow on the sticky strip: 27 to 60 fps.
+- Jury round 3 (blind): 6.8 raw (~7.9 adjusted), `web/.jury/round3-scorecard.md`. Fixed: phone fps, desktop
+  overflow (options/walls clip their slide-in), late reveals, header naming (Infect a server), 404 label size,
+  console phone layout + Investigate as the primary action. Not web's: the 404 HTTP status (Caddyfile).

@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { api, getOperator } from '../api/client'
-import type { Action, ApiResponse } from '../api/types'
+import type { Action, ActionKind, ApiResponse } from '../api/types'
 import type { LiveCase } from './useCase'
 
 const KIND: Record<string, string> = {
@@ -8,7 +8,10 @@ const KIND: Record<string, string> = {
   revoke_ssh_key: 'Revoke SSH key',
   stop_instance: 'Halt the server',
   rotate_secrets: 'Rotate secrets',
+  manual_plan: 'Your own plan',
 }
+
+const upsert = (xs: Action[], x: Action) => (xs.some((y) => y.id === x.id) ? xs.map((y) => (y.id === x.id ? x : y)) : [...xs, x])
 
 type Sent = { state: 'sending' } | { state: 'done'; action: Action } | { state: 'error'; message: string }
 
@@ -31,9 +34,15 @@ export function ApproveDrawer({ live, caseId, open, onClose }: { live: LiveCase;
     if (!open && d.open) d.close()
   }, [open])
 
-  const pending = live.actions.filter((a) => a.status === 'proposed')
+  // The operator's own fixes arrive over SSE too; the POST response is merged in so they show at once.
+  const [mine, setMine] = useState<Action[]>([])
+  const all = [...live.actions, ...mine.filter((m) => !live.actions.some((a) => a.id === m.id))] // the stream wins
+  const recommended = all.filter((a) => a.recommended && a.created_by !== 'human')
+  const alternatives = all.filter((a) => !a.recommended && a.created_by !== 'human')
+  const own = all.filter((a) => a.created_by === 'human')
+  const pending = all.filter((a) => a.status === 'proposed')
   const picked = pending.filter((a) => checked[a.id])
-  const appliedCount = live.actions.filter((a) => a.status === 'applied').length
+  const appliedCount = all.filter((a) => a.status === 'applied').length
 
   async function approve() {
     setBusy(true)
@@ -73,20 +82,32 @@ export function ApproveDrawer({ live, caseId, open, onClose }: { live: LiveCase;
           </p>
         </header>
 
-        <ol className="flex-1 overflow-y-auto px-5 sm:px-8 py-5 grid content-start gap-3">
-          {live.actions.map((a) => (
-            <ActionRow
-              key={a.id}
-              a={a}
-              checked={!!checked[a.id]}
-              disabled={busy || a.status !== 'proposed'}
-              onChange={(v) => setChecked((c) => ({ ...c, [a.id]: v }))}
-              sent={sent[a.id]}
-              response={(a.response as ApiResponse | null | undefined) ?? live.responses[a.id]}
-            />
-          ))}
-          {live.actions.length === 0 && <li className="text-muted text-sm">No actions proposed yet.</li>}
-        </ol>
+        <div className="flex-1 overflow-y-auto px-5 sm:px-8 py-5 grid content-start gap-6">
+          {all.length === 0 && <p className="text-muted text-sm">No actions proposed yet.</p>}
+          {([['Recommended fix', recommended, 'fix-recommended'], ['Alternatives', alternatives, 'fix-alternatives'], ['Your own', own, 'fix-own']] as const)
+            .filter(([, xs, t]) => xs.length > 0 || (t === 'fix-own' && live.state === 'reported'))
+            .map(([title, xs, t]) => (
+              <section key={t} aria-label={title} data-testid={t}>
+                <h3 className="label mb-2.5">{title}</h3>
+                <ol className="grid gap-3">
+                  {xs.map((a) => (
+                    <ActionRow
+                      key={a.id}
+                      a={a}
+                      checked={!!checked[a.id]}
+                      disabled={busy || a.status !== 'proposed'}
+                      onChange={(v) => setChecked((c) => ({ ...c, [a.id]: v }))}
+                      sent={sent[a.id]}
+                      response={(a.response as ApiResponse | null | undefined) ?? live.responses[a.id]}
+                    />
+                  ))}
+                </ol>
+                {t === 'fix-own' && live.state === 'reported' && (
+                  <CustomFix caseId={caseId} operator={operator} onAdded={(a) => setMine((m) => upsert(m, a))} />
+                )}
+              </section>
+            ))}
+        </div>
 
         <footer className="px-5 sm:px-8 py-4 border-t border-line flex flex-wrap items-center gap-4">
           <p className="text-sm text-muted mr-auto" aria-live="polite">
@@ -113,7 +134,8 @@ function ActionRow({ a, checked, disabled, onChange, sent, response }: {
   const applied = a.status === 'applied'
   const res = response ?? (sent?.state === 'done' ? (sent.action.response as ApiResponse | null) : null)
   return (
-    <li className={`border rounded-xs ${applied ? 'border-agent/60' : checked ? 'border-ink' : 'border-line'} bg-ground`} data-testid={`action-${a.id}`} data-status={a.status}>
+    <li className={`border rounded-xs ${applied ? 'border-agent/60' : checked ? 'border-ink' : a.recommended ? 'border-agent' : 'border-line'} ${a.recommended ? 'bg-agent/[.06]' : 'bg-ground'}`}
+      data-testid={`action-${a.id}`} data-status={a.status} data-recommended={a.recommended || undefined} data-created-by={a.created_by}>
       <div className="flex gap-3 p-4">
         {applied ? (
           <svg width="16" height="16" viewBox="0 0 16 16" className="mt-1 shrink-0 text-agent" role="img" aria-label="applied">
@@ -132,7 +154,9 @@ function ActionRow({ a, checked, disabled, onChange, sent, response }: {
         )}
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-            <label htmlFor={id} className="font-medium">{KIND[a.kind] ?? a.kind}</label>
+            <label htmlFor={id} className={a.recommended ? 'font-semibold text-lg' : 'font-medium'}>{KIND[a.kind] ?? a.kind}</label>
+            {a.recommended && <span className="font-mono text-[11px] uppercase tracking-[.06em] bg-agent text-ground px-1.5 rounded-xs">recommended</span>}
+            {a.created_by === 'human' && <span className="font-mono text-[11px] uppercase tracking-[.06em] border border-line px-1.5 rounded-xs">yours</span>}
             <span className={`font-mono text-xs ${applied ? 'text-agent' : 'text-muted'}`}>{a.status}{a.approved_by ? ` by ${a.approved_by}` : ''}</span>
             {a.kind === 'stop_instance' && !applied && (
               <span className="font-mono text-[11px] uppercase tracking-[.06em] border border-ink px-1.5 rounded-xs">takes the shop offline</span>
@@ -147,7 +171,9 @@ function ActionRow({ a, checked, disabled, onChange, sent, response }: {
             </pre>
           ) : (
             <p className="mt-3 font-mono text-xs text-muted border-l-2 border-line pl-3" data-testid={`call-${a.id}`}>
-              No API call. Manual step for you; approving records it in the case log.
+              {a.kind === 'manual_plan'
+                ? 'No API call. Your plan is recorded in the case log; Body Double never executes it.'
+                : 'No API call. Manual step for you; approving records it in the case log.'}
             </p>
           )}
 
@@ -169,5 +195,55 @@ function ActionRow({ a, checked, disabled, onChange, sent, response }: {
         </div>
       </div>
     </li>
+  )
+}
+
+const OWN_KINDS: ActionKind[] = ['manual_plan', 'quarantine_firewall', 'stop_instance', 'revoke_ssh_key', 'rotate_secrets']
+
+/**
+ * The operator's own fix: a menu kind or a written plan. POST /cases/{id}/actions sends only kind,
+ * description and the operator; the backend builds any API call. It lands in the list above, unticked,
+ * and goes through the same Approve as everything else.
+ */
+function CustomFix({ caseId, operator, onAdded }: { caseId: string; operator: string; onAdded: (a: Action) => void }) {
+  const id = useId()
+  const [kind, setKind] = useState<ActionKind>('manual_plan')
+  const [text, setText] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!text.trim()) return
+    setBusy(true)
+    setError(null)
+    try {
+      onAdded(await api.customAction(caseId, { kind, description: text.trim(), created_by: operator }))
+      setText('')
+    } catch (err) {
+      setError(String((err as Error).message ?? err))
+    }
+    setBusy(false)
+  }
+
+  return (
+    <form onSubmit={submit} className="mt-3 border border-dashed border-line rounded-xs p-4" data-testid="custom-fix">
+      <label htmlFor={`${id}-k`} className="block font-medium">Add your own fix</label>
+      <select id={`${id}-k`} value={kind} onChange={(e) => setKind(e.target.value as ActionKind)}
+        className="mt-2 w-full bg-ground border border-line rounded-xs px-3 h-11 text-base focus:border-muted outline-none">
+        {OWN_KINDS.map((k) => <option key={k} value={k}>{k === 'manual_plan' ? 'A written plan (never executed)' : KIND[k]}</option>)}
+      </select>
+      <label htmlFor={`${id}-d`} className="block mt-3 text-sm text-muted">{kind === 'manual_plan' ? 'Your plan' : 'Why, in your words'}</label>
+      <textarea id={`${id}-d`} value={text} onChange={(e) => setText(e.target.value)} required maxLength={2000} rows={3}
+        placeholder={kind === 'manual_plan' ? 'Rebuild the server from a clean image tonight, then restore the database.' : ''}
+        className="mt-1.5 w-full bg-ground border border-line rounded-xs p-3 text-base placeholder:text-muted/70 focus:border-muted outline-none" />
+      {error && <p role="alert" className="mt-2 font-mono text-xs border border-line p-2 wrap-anywhere">{error}</p>}
+      <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+        <p className="text-xs text-muted">Added unticked. Nothing is sent to Vultr until you approve it.</p>
+        <button type="submit" className="btn" disabled={busy || !text.trim()} data-testid="custom-submit">
+          {busy ? 'Adding...' : 'Add to the list'}
+        </button>
+      </div>
+    </form>
   )
 }

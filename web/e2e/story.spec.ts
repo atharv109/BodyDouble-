@@ -30,7 +30,7 @@ for (const vp of [{ width: 1440, height: 900 }, { width: 390, height: 844 }]) {
       expect(ids).toEqual(Array.from({ length: 9 }, (_, i) => `beat-${i + 1}`))
       for (let i = 1; i <= 9; i++) await expect(page.getByTestId(`beat-${i}`).locator('h2')).not.toHaveCount(0)
       for (const url of SOURCES) await expect(page.locator(`a[href="${url}"]`).first()).toBeAttached()
-      await expect(page.getByTestId('beat-9').getByTestId('try-it')).toBeAttached()
+      await expect(page.getByTestId('beat-9').getByTestId('infect')).toBeAttached()
       // walk the whole page, then check overflow (late layout included)
       await allBeatHeadingsVisible(page)
       const over = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth)
