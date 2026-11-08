@@ -1,0 +1,10 @@
+{"id":"sfx_001","type":"sfx","path":"assets/sfx/typing.mp3","source":"search","description":"typing","duration":4.7,"provenance":{"provider":"openverse.audio","prompt":"typing"}}
+{"id":"sfx_002","type":"sfx","path":"assets/sfx/whoosh-short.mp3","source":"search","description":"whoosh-short","duration":4.5,"provenance":{"provider":"openverse.audio","prompt":"whoosh-short"}}
+{"id":"sfx_003","type":"sfx","path":"assets/sfx/notification.mp3","source":"search","description":"notification","duration":0.7,"provenance":{"provider":"openverse.audio","prompt":"notification"}}
+{"id":"sfx_004","type":"sfx","path":"assets/sfx/click-soft.mp3","source":"search","description":"click-soft","duration":0.1,"provenance":{"provider":"openverse.audio","prompt":"click-soft"}}
+{"id":"sfx_005","type":"sfx","path":"assets/sfx/chime.mp3","source":"search","description":"chime","duration":0.3,"provenance":{"provider":"openverse.audio","prompt":"chime"}}
+{"id":"sfx_006","type":"sfx","path":"assets/sfx/ping.mp3","source":"search","description":"ping","duration":0.5,"provenance":{"provider":"openverse.audio","prompt":"ping"}}
+{"id":"sfx_007","type":"sfx","path":"assets/sfx/click.mp3","source":"search","description":"click","duration":2.3,"provenance":{"provider":"openverse.audio","prompt":"click"}}
+{"id":"sfx_008","type":"sfx","path":"assets/sfx/pop.mp3","source":"search","description":"pop","duration":0.5,"provenance":{"provider":"openverse.audio","prompt":"pop"}}
+{"id":"bgm_001","type":"bgm","path":"assets/bgm/track.wav","source":"generated","description":"understated dark electronic ambient seed","duration":30.0,"provenance":{"provider":"local-musicgen","prompt":"understated dark electronic ambient bed, slow steady pulse, deep sub bass, sparse and quiet, charcoal, technical night-shift mood, no drums, no melody"}}
+{"id":"bgm_002","type":"bgm","path":"assets/bgm/body-double-bed.wav","source":"derived","description":"102-second stereo film master with fades and peak limiter","duration":102.0,"provenance":{"provider":"ffmpeg-local","source_asset":"bgm_001","processing":"stream loop; 2s fade in; 3s fade out; -13.2 dB gain; -1 dB limiter; 48 kHz stereo"}}

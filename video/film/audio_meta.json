@@ -1,0 +1,110 @@
+{
+  "tts_provider": null,
+  "voice_id": null,
+  "bgm": {
+    "path": "assets/bgm/body-double-bed.wav",
+    "volume": 0.8,
+    "mode": "local-musicgen-seed-loop-master",
+    "duration_s": 102
+  },
+  "bgm_pending": false,
+  "bgm_provider": "musicgen",
+  "bgm_pid": 39888,
+  "bgm_log": "C:\\dev\\wt-video\\video\\film\\assets\\bgm\\bgm-1794174648453.log",
+  "bgm_mode": "detached-seed-loop",
+  "bgm_target_duration_s": 30,
+  "bgm_seed_duration_s": 28,
+  "bgm_loop_count": 2,
+  "voices": [],
+  "sfx": [
+    {
+      "id": "n01",
+      "name": "typing",
+      "file": "assets/sfx/typing.mp3",
+      "source": "openverse",
+      "duration_s": 4.675,
+      "license": "by",
+      "credit": "\"Transformers Type SFX 2\" by hykenfreak is licensed under CC BY 4.0. To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "n02",
+      "name": "whoosh-short",
+      "file": "assets/sfx/whoosh-short.mp3",
+      "source": "openverse",
+      "duration_s": 4.511,
+      "license": "by",
+      "credit": "\"Swoosh.wav\" by Brsjak is licensed under CC BY 4.0. To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "n02",
+      "name": "notification",
+      "file": "assets/sfx/notification.mp3",
+      "source": "openverse",
+      "duration_s": 0.689,
+      "license": "cc0",
+      "credit": "\"Notification Sound\" by yfjesse is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "n04",
+      "name": "click-soft",
+      "file": "assets/sfx/click-soft.mp3",
+      "source": "openverse",
+      "duration_s": 0.061,
+      "license": "cc0",
+      "credit": "\"Click_1.wav\" by JonnyRuss01 is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "n07",
+      "name": "chime",
+      "file": "assets/sfx/chime.mp3",
+      "source": "openverse",
+      "duration_s": 0.323,
+      "license": "cc0",
+      "credit": "\"Chime Notification\" by Jofae is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "n11",
+      "name": "ping",
+      "file": "assets/sfx/ping.mp3",
+      "source": "openverse",
+      "duration_s": 0.454,
+      "license": "cc0",
+      "credit": "\"Ping pong ball hit\" by michorvath is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "n14",
+      "name": "click",
+      "file": "assets/sfx/click.mp3",
+      "source": "openverse",
+      "duration_s": 2.31,
+      "license": "cc0",
+      "credit": "\"Mouse click sounds\" by Masgame is marked with CC0 1.0. To view the terms, visit https://creativecommons.org/publicdomain/zero/1.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    },
+    {
+      "id": "n16",
+      "name": "pop",
+      "file": "assets/sfx/pop.mp3",
+      "source": "openverse",
+      "duration_s": 0.489,
+      "license": "by",
+      "credit": "\"Pop, High, A (H1).wav\" by InspectorJ is licensed under CC BY 4.0. To view a copy of this license, visit https://creativecommons.org/licenses/by/4.0/.",
+      "offset_s": 0,
+      "volume": 0.35
+    }
+  ],
+  "total_duration_s": 102
+}

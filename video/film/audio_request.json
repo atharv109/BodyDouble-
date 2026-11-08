@@ -1,0 +1,27 @@
+{
+  "voice": "bf_emma",
+  "speed": 1.0,
+  "style": "calm, precise, understated; a technical narrator reading an incident log at 2 a.m.; low, even, never hyped",
+  "lines": [
+    { "id": "n01", "text": "2:14 a.m. shop-prod is running hot — and nobody on this team does incident response.", "sfx": ["typing"] },
+    { "id": "n02", "text": "Poking a live server tips off the attacker.", "sfx": ["whoosh-short", "notification"] },
+    { "id": "n03", "text": "Shutting it down takes the shop offline.", "sfx": [] },
+    { "id": "n04", "text": "So — open a case instead.", "sfx": ["click-soft"] },
+    { "id": "n05", "text": "Body Double never touches the server.", "sfx": [] },
+    { "id": "n06", "text": "A snapshot preserves it as evidence, and an exact twin boots on a private network — never the cloned system.", "sfx": [] },
+    { "id": "n07", "text": "The twin proves it is sealed before anything starts: the disk is read-only, and outbound traffic is dropped.", "sfx": ["chime"] },
+    { "id": "n08", "text": "The agent writes its own triage scripts against the copy.", "sfx": [] },
+    { "id": "n09", "text": "A cron backdoor. A rogue SSH key. A replaced binary. Every finding cites its evidence.", "sfx": [] },
+    { "id": "n10", "text": "The payload detonates in a no-network container with a fake DNS resolver.", "sfx": [] },
+    { "id": "n11", "text": "It tries to phone home. The lookup is caught — and nothing leaves.", "sfx": ["ping"] },
+    { "id": "n12", "text": "Even the note the attacker left for the AI — close this ticket — becomes evidence, not an instruction.", "sfx": [] },
+    { "id": "n13", "text": "Containment is proposed, never automatic.", "sfx": [] },
+    { "id": "n14", "text": "A human approves the exact API call. Only then does production change.", "sfx": ["click"] },
+    { "id": "n15", "text": "The twin is destroyed. Zero writes to production.", "sfx": [] },
+    { "id": "n16", "text": "Zero packets out. Snapshot, hashes and case log — sealed in one bundle.", "sfx": ["pop"] }
+  ],
+  "bgm": {
+    "mode": "generate",
+    "prompt": "understated dark electronic ambient bed, slow steady pulse, deep sub bass, sparse and quiet, charcoal, technical night-shift mood, no drums, no melody, 110 seconds"
+  }
+}

@@ -284,6 +284,31 @@
         <span class="callout-k">no network</span> · fake resolver · caught
       </div>
 
+      <!-- V4 audio: caption-led film, restrained generated bed, and evidence-timed UI accents. -->
+      <audio id="audio-bed" data-start="0" data-duration="102" data-track-index="10"
+             data-audio-group="music" data-volume="0.8" data-fade-in="2" data-fade-out="3"
+             src="assets/bgm/body-double-bed.wav"></audio>
+      <audio id="sfx-typing" data-start="0.45" data-duration="4.675" data-track-index="11"
+             data-audio-group="sfx" data-volume="0.16" data-fade-out="0.35" src="assets/sfx/typing.mp3"></audio>
+      <audio id="sfx-whoosh" data-start="7.68" data-duration="1.2" data-media-start="0.15" data-track-index="12"
+             data-audio-group="sfx" data-volume="0.18" data-fade-out="0.25" src="assets/sfx/whoosh-short.mp3"></audio>
+      <audio id="sfx-notification" data-start="8.18" data-duration="0.689" data-track-index="13"
+             data-audio-group="sfx" data-volume="0.20" src="assets/sfx/notification.mp3"></audio>
+      <audio id="sfx-open-case" data-start="16.48" data-duration="0.061" data-track-index="14"
+             data-audio-group="sfx" data-volume="0.28" src="assets/sfx/click-soft.mp3"></audio>
+      <audio id="sfx-seal" data-start="37.08" data-duration="0.323" data-track-index="15"
+             data-audio-group="sfx" data-volume="0.22" src="assets/sfx/chime.mp3"></audio>
+      <audio id="sfx-dns" data-start="65.05" data-duration="0.454" data-track-index="16"
+             data-audio-group="sfx" data-volume="0.24" src="assets/sfx/ping.mp3"></audio>
+      <audio id="sfx-approve" data-start="84.92" data-duration="0.45" data-media-start="0.08" data-track-index="17"
+             data-audio-group="sfx" data-volume="0.24" data-fade-out="0.12" src="assets/sfx/click.mp3"></audio>
+      <audio id="sfx-close" data-start="96.45" data-duration="0.489" data-track-index="18"
+             data-audio-group="sfx" data-volume="0.18" src="assets/sfx/pop.mp3"></audio>
+      <hf-audio-group id="music" data-volume="1"
+        data-fx-chain="{&quot;version&quot;:1,&quot;nodes&quot;:[{&quot;type&quot;:&quot;highpass&quot;,&quot;id&quot;:&quot;music-rumble&quot;,&quot;label&quot;:&quot;Subtle rumble control&quot;,&quot;params&quot;:{&quot;frequency&quot;:35}},{&quot;type&quot;:&quot;peaking&quot;,&quot;id&quot;:&quot;music-presence&quot;,&quot;label&quot;:&quot;Caption readability carve&quot;,&quot;params&quot;:{&quot;frequency&quot;:3000,&quot;gain&quot;:-2.5,&quot;q&quot;:0.8}},{&quot;type&quot;:&quot;limiter&quot;,&quot;id&quot;:&quot;music-limit&quot;,&quot;params&quot;:{&quot;limit&quot;:-1}}]}"></hf-audio-group>
+      <hf-audio-group id="sfx" data-volume="1"
+        data-fx-chain="{&quot;version&quot;:1,&quot;nodes&quot;:[{&quot;type&quot;:&quot;highpass&quot;,&quot;id&quot;:&quot;sfx-rumble&quot;,&quot;label&quot;:&quot;UI clarity&quot;,&quot;params&quot;:{&quot;frequency&quot;:80}},{&quot;type&quot;:&quot;limiter&quot;,&quot;id&quot;:&quot;sfx-limit&quot;,&quot;params&quot;:{&quot;limit&quot;:-1}}]}"></hf-audio-group>
+
       <div id="captions"></div>
       <div id="wipe"></div>
     </div>
