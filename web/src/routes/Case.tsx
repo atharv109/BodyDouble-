@@ -3,6 +3,7 @@ import { Link, useParams } from 'react-router'
 import { api } from '../api/client'
 import type { VultrInstance } from '../api/types'
 import { EVENT_NAMES } from '../api/types'
+import { ApproveDrawer } from '../case/Approve'
 import { Findings } from '../case/Findings'
 import { Production } from '../case/Production'
 import { Twin } from '../case/Twin'
@@ -33,6 +34,7 @@ export function CaseScreen() {
     return () => clearTimeout(t)
   }, [ready, live.detail, live.connected, events])
 
+  const [drawer, setDrawer] = useState(false)
   const proposed = live.actions.filter((a) => a.status === 'proposed').length
   const canClose = live.state === 'reported' || live.state === 'contained' || live.state === 'closed'
 
@@ -49,12 +51,13 @@ export function CaseScreen() {
           <span aria-hidden="true" className={`size-1.5 rounded-full ${live.connected ? 'bg-ink' : 'bg-muted/50'}`} />
           {live.connected ? 'live' : live.state === 'closed' ? 'closed' : 'reconnecting'} · {events} events
         </p>
-        <div className="ml-auto flex flex-wrap gap-3">
+        {/* Phone: primary first and full width (column-reverse puts the approve button on top). */}
+        <div className="w-full sm:w-auto sm:ml-auto flex flex-col-reverse sm:flex-row flex-wrap gap-3 [&>*]:justify-center">
           {canClose && (
             <Link to={`/cases/${id}/evidence`} className="btn">Close and evidence</Link>
           )}
           <button type="button" className="btn btn-agent" disabled={!proposed} data-testid="open-approve"
-            onClick={() => window.dispatchEvent(new CustomEvent('bd:approve'))}>
+            onClick={() => setDrawer(true)}>
             {proposed ? `Review ${proposed} proposed ${proposed === 1 ? 'action' : 'actions'}` : 'No actions proposed yet'}
           </button>
         </div>
@@ -75,12 +78,14 @@ export function CaseScreen() {
         <div className="order-2 lg:order-3 lg:col-span-4 lg:pl-6"><Findings live={live} /></div>
       </div>
 
+      {id && <ApproveDrawer live={live} caseId={id} open={drawer} onClose={() => setDrawer(false)} />}
+
       <footer className="mt-12 pt-4 border-t border-line">
         <h2 className="label mb-2">Event log, from the case stream</h2>
         <ul className="flex flex-wrap gap-x-5 gap-y-1 font-mono text-xs text-muted" data-testid="event-ledger">
           {EVENT_NAMES.map((n) => (
-            <li key={n} data-event={n} data-count={live.seen[n] ?? 0} className={live.seen[n] ? 'text-ink/80' : ''}>
-              {n} <span className="text-muted">{live.seen[n] ?? 0}</span>
+            <li key={n} data-event={n} data-count={live.seen[n] ?? 0} className={live.seen[n] ? 'text-ink' : 'text-muted'}>
+              {n} <span className={live.seen[n] ? 'text-agent' : 'text-muted'}>{live.seen[n] ?? 0}</span>
             </li>
           ))}
         </ul>

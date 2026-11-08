@@ -190,7 +190,7 @@ const LIFECYCLE: [string, string, boolean][] = [
   ['closed', 'Twin destroyed, snapshot kept, case log sealed into a downloadable bundle.', false],
 ]
 
-function Lifecycle() {
+export function Lifecycle() {
   return (
     <section aria-labelledby="lifecycle-t" className="mt-8 md:mt-14">
       <h2 id="lifecycle-t" className="label">After you open a case</h2>
