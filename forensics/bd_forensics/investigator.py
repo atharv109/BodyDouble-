@@ -31,6 +31,7 @@ from contracts.models import (
 )
 
 from .injection import wrap_excerpt
+from .analyst import analyze, report
 from .model import Model
 from .planner import plan_next_step
 from .tools import valid_args
@@ -133,4 +134,7 @@ class InvestigatorImpl:
                 evidence.append(ev)
                 await recorder.dns_captured(step.id, query, SINKHOLE_IP, ev.id)
 
-        return Report(summary="", timeline=[], ranked_actions=[])
+        findings, timeline = await analyze(self.model, case.id, evidence)
+        for finding in findings:
+            await recorder.add_finding(finding)
+        return await report(self.model, evidence, timeline)
