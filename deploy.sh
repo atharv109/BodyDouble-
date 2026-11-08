@@ -93,6 +93,7 @@ fi
 # drops it from everywhere except loopback and the VPC subnet.
 vpc_subnet=$(sed -n 's/^BD_VPC_SUBNET=//p' "$ENV_FILE" | tail -n 1)
 bind_host=127.0.0.1
+fw_deps=""
 if [[ -n "$vpc_subnet" ]]; then
   bind_host=0.0.0.0
   apt-get install -y nftables
@@ -110,6 +111,10 @@ EOF
   nft -f /etc/nftables.d-body-double.nft
   grep -q nftables.d-body-double /etc/nftables.conf || echo 'include "/etc/nftables.d-body-double.nft"' >> /etc/nftables.conf
   systemctl enable nftables
+  nft list table inet body_double >/dev/null || { echo "Refusing deployment: nft table not loaded" >&2; exit 1; }
+  fw_deps=$'
+Requires=nftables.service
+After=nftables.service'
 fi
 
 runuser -u bodydouble -- /usr/local/bin/uv sync --project "$APP_DIR/backend" --frozen
@@ -120,7 +125,7 @@ cat > "$SERVICE_FILE" <<EOF
 [Unit]
 Description=Body Double control plane
 After=network-online.target postgresql.service
-Wants=network-online.target
+Wants=network-online.target$fw_deps
 
 [Service]
 Type=simple
