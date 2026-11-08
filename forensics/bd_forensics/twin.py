@@ -76,6 +76,12 @@ class TwinAgent:
             await self.cp.heartbeat(self.session_key)
             if job is None:
                 return s
+            # re-verify after the (up to 25 s) long-poll: a job pulled while
+            # sealed must still be refused if the seal broke during the poll
+            s = self.seal_fn(self.mount_point)
+            if not s.sealed:
+                log.error("seal broken during job fetch; refusing to run it: %s", s.detail)
+                return s
             if self.tool_fn is None:
                 raise RuntimeError(f"no tool handler wired for {job.tool}")
             result = self.tool_fn(job)  # toolkit dispatch lands in F6

@@ -178,8 +178,9 @@ def _tool(job: ToolCall) -> ToolResult:
 
 
 def test_agent_stops_when_seal_breaks_mid_run() -> None:
-    """The seal is re-verified per job: a twin that loses isolation mid-run
-    refuses further work instead of failing open."""
+    """The seal is re-verified before pulling AND after the long-poll, before
+    running a job: a twin that loses isolation mid-run refuses further work
+    instead of failing open."""
     cp = FakeControlPlane(jobs=[_job(1), _job(2)])
     sealed = SealStatus(
         disk_read_only=True, egress_blocked=True, detail={"d": "ro", "e": "blocked"}
@@ -187,11 +188,21 @@ def test_agent_stops_when_seal_breaks_mid_run() -> None:
     broken = SealStatus(
         disk_read_only=False, egress_blocked=True, detail={"d": "rw!", "e": "blocked"}
     )
+    # register check sealed; pre-poll sealed; post-poll check broken -> job1
+    # was pulled but must NOT be executed or posted
     a = agent(cp, sealed, seal_calls=[sealed, sealed, broken])
     a.tool_fn = _tool
     asyncio.run(a.run())
-    assert cp.pulls == 1, "must not pull the next job once the seal breaks"
-    assert len(cp.results) == 1
+    assert cp.pulls == 1
+    assert cp.results == [], "a job fetched while the seal breaks must never run"
+
+    # and a twin that stays sealed runs every job it pulls
+    cp2 = FakeControlPlane(jobs=[_job(1), _job(2)])
+    a2 = agent(cp2, sealed, seal_calls=[sealed] * 8)
+    a2.tool_fn = _tool
+    asyncio.run(a2.run())
+    assert cp2.pulls == 3  # two jobs + one empty poll
+    assert len(cp2.results) == 2
 
 
 def test_agent_heartbeats_while_polling() -> None:

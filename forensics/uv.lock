@@ -51,6 +51,7 @@ version = "0.1.0"
 source = { editable = "." }
 dependencies = [
     { name = "body-double-contracts" },
+    { name = "httpx" },
     { name = "openai" },
 ]
 
@@ -63,6 +64,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "body-double-contracts", editable = "../" },
+    { name = "httpx", specifier = ">=0.27" },
     { name = "openai", specifier = ">=1.40" },
 ]
 
