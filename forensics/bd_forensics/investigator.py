@@ -23,6 +23,8 @@ from contracts.agent import Report
 from contracts.models import (
     Case,
     Evidence,
+    Finding,
+    Severity,
     Step,
     StepKind,
     ToolCall,
@@ -30,7 +32,7 @@ from contracts.models import (
     ToolResult,
 )
 
-from .injection import wrap_excerpt
+from .injection import prepare_excerpt, wrap_excerpt
 from .analyst import analyze, report
 from .model import Model
 from .planner import plan_next_step
@@ -111,24 +113,43 @@ class InvestigatorImpl:
             history.append(wrap_excerpt(f"{proposal.tool} output", result.stdout))
 
             for artifact in result.artifacts:
+                excerpt, injection_flag = prepare_excerpt(artifact.path, artifact.excerpt)
                 ev = Evidence(
                     id=f"ev-{len(evidence) + 1:03d}",
                     case_id=case.id,
                     step_id=step.id,
                     path=artifact.path,
                     sha256=artifact.sha256,
-                    excerpt=artifact.excerpt,
+                    excerpt=excerpt,
+                    injection_flag=injection_flag,
                 )
                 await recorder.add_evidence(ev)
                 evidence.append(ev)
+                if injection_flag:
+                    await recorder.add_finding(Finding(
+                        id=f"injection-{ev.id}", case_id=case.id,
+                        title="Prompt injection text found on cloned disk",
+                        severity=Severity.high,
+                        summary=(
+                            f"{artifact.path} contains text addressing an AI analyst. "
+                            "It was reported as evidence and was not followed."
+                        ),
+                        evidence_ids=[ev.id],
+                    ))
             for query in result.dns_queries:
+                dns_text = (
+                    f"DNS lookup of {query} attempted from inside the detonation "
+                    "sandbox; answered by the sinkhole."
+                )
+                excerpt, injection_flag = prepare_excerpt(f"dns:{query}", dns_text)
                 ev = Evidence(
                     id=f"ev-{len(evidence) + 1:03d}",
                     case_id=case.id,
                     step_id=step.id,
                     path=f"dns:{query}",
                     sha256=hashlib.sha256(query.encode()).hexdigest(),
-                    excerpt=f"DNS lookup of {query} attempted from inside the detonation sandbox; answered by the sinkhole.",
+                    excerpt=excerpt,
+                    injection_flag=injection_flag,
                 )
                 await recorder.add_evidence(ev)
                 evidence.append(ev)

@@ -51,11 +51,12 @@ async def test_victim_run_yields_five_evidence_linked_findings_and_timeline() ->
         make_case(), LocalRunner(VICTIM), recorder
     )
 
-    assert len(recorder.findings) == 5
+    analyst_findings = [f for f in recorder.findings if f.id.startswith("finding-")]
+    assert len(analyst_findings) == 5
     known = {ev.id for ev in recorder.evidence}
     assert all(f.evidence_ids and set(f.evidence_ids) <= known for f in recorder.findings)
     assert "hallucinated" not in {f.title for f in recorder.findings}
-    by_path = {f.summary: f for f in recorder.findings}
+    by_path = {f.summary: f for f in analyst_findings}
     assert by_path["/etc/cron.d/bdrv"].severity.value == "critical"
     assert by_path["/root/.ssh/authorized_keys"].severity.value == "critical"
     assert len(report.timeline) == 5

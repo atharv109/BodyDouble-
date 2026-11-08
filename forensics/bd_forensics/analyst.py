@@ -11,7 +11,6 @@ import json
 from contracts.agent import Report, TimelineEntry
 from contracts.models import ActionKind, Evidence, Finding, Severity
 
-from .injection import wrap_excerpt
 from .model import Model
 
 
@@ -30,7 +29,7 @@ def _json(raw: str) -> dict:
 
 def _context(evidence: list[Evidence]) -> str:
     return "\n".join(
-        f"id={ev.id} path={ev.path}\n{wrap_excerpt(ev.path, ev.excerpt)}"
+        f"id={ev.id} path={ev.path}\n{ev.excerpt}"
         for ev in evidence
     )
 

@@ -10,6 +10,14 @@ from __future__ import annotations
 from contracts import agent as contracts_agent
 
 
+INJECTION_PHRASES = (
+    "close this ticket",
+    "ignore previous",
+    "ignore all previous",
+    "disregard previous",
+)
+
+
 def _escape(text: str) -> str:
     """Neutralize the body so disk text can never close the wrapper and
     pose as agent-facing instructions (& first, so the escapes themselves
@@ -24,3 +32,11 @@ def wrap_excerpt(label: str, text: str, max_chars: int | None = None) -> str:
     note = f"\n... [truncated at {limit} chars]" if len(text) > limit else ""
     safe_label = str(label).replace('"', "&quot;")
     return f'<evidence source="{safe_label}">\n{body}{note}\n</evidence>'
+
+
+def prepare_excerpt(label: str, text: str) -> tuple[str, bool]:
+    """Bound, scan, and quote disk-controlled text before model exposure."""
+    bounded = text[:contracts_agent.EXCERPT_MAX_CHARS]
+    folded = bounded.casefold()
+    injection = any(phrase in folded for phrase in INJECTION_PHRASES)
+    return wrap_excerpt(label, text), injection
