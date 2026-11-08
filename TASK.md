@@ -2,7 +2,7 @@
 
 You own: backend/ only. Never edit anything outside it. Never edit contracts/.
 Ignore Claude.md in this folder: it is the orchestrator's file, not yours. This TASK.md is your spec;
-the PRD ("Body Double — PRD.pdf" in the repo root) is the reference behind it.
+the PRD (PRD.md in the repo root, plain text; NEVER open the PDF, it costs ~450k tokens) is the reference behind it.
 
 ## Before every item
 - Read your inbox ~/bd-bridge/to-backend.md and act on anything new first.
