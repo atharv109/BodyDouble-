@@ -1,8 +1,9 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { api } from '../api/client'
-import type { VultrInstance } from '../api/types'
+import type { Alert, SensorStatus, VultrInstance } from '../api/types'
 import { useTitle } from '../ui/useTitle'
+import { AlertsInbox, SensorCell, WatchDialog } from './Watch'
 
 const REGIONS: Record<string, string> = {
   ewr: 'New Jersey', ord: 'Chicago', dfw: 'Dallas', lax: 'Los Angeles', sjc: 'Silicon Valley', atl: 'Atlanta',
@@ -15,10 +16,19 @@ export function Servers() {
   const [list, setList] = useState<VultrInstance[] | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [target, setTarget] = useState<VultrInstance | null>(null)
+  const [watching, setWatching] = useState<VultrInstance | null>(null)
+  const [sensors, setSensors] = useState<Record<string, SensorStatus>>({})
+  const [alerts, setAlerts] = useState<Alert[] | null>(null)
 
+  const loadWatch = () => {
+    api.sensors().then((xs) => setSensors(Object.fromEntries(xs.map((s) => [s.instance_id, s])))).catch(() => {})
+    api.alerts().then(setAlerts).catch(() => setAlerts([]))
+  }
   useEffect(() => {
     api.instances().then(setList).catch((e) => setError(String(e.message ?? e)))
+    loadWatch()
   }, [])
+  const labels = Object.fromEntries((list ?? []).map((s) => [s.id, s.label]))
 
   return (
     <section className="mx-auto max-w-[1600px] w-full px-4 md:px-6 pt-12 md:pt-16 pb-16 grid grid-cols-1 lg:grid-cols-12 gap-x-6 gap-y-10">
@@ -87,10 +97,13 @@ export function Servers() {
                       {s.status}{s.power_status ? `, ${s.power_status}` : ''}
                     </span>
                   </td>
-                  <td className="py-3 align-top text-right">
-                    <button type="button" className="btn" onClick={() => setTarget(s)} aria-label={`Investigate ${s.label}`}>
-                      Investigate
-                    </button>
+                  <td className="py-3 align-top">
+                    <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+                      <SensorCell server={s} status={sensors[s.id]} onWatch={() => setWatching(s)} />
+                      <button type="button" className="btn" onClick={() => setTarget(s)} aria-label={`Investigate ${s.label}`}>
+                        Investigate
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -98,10 +111,12 @@ export function Servers() {
           </table>
         )}
         {import.meta.env.DEV && <FakeCase />}
+        <AlertsInbox alerts={alerts} labels={labels} />
       </div>
       <div className="lg:col-span-12"><Lifecycle /></div>
 
       <InvestigateDialog server={target} onClose={() => setTarget(null)} />
+      <WatchDialog server={watching} onClose={() => { setWatching(null); loadWatch() }} />
     </section>
   )
 }
