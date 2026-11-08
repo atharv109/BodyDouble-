@@ -49,8 +49,17 @@ MAX_CONTEXT_STEPS = 12  # how much recent output the planner sees next turn
 
 
 class InvestigatorImpl:
-    def __init__(self, model: Model, clock: Callable[[], float] = time.monotonic) -> None:
-        self.model = model
+    def __init__(
+        self,
+        planner_model: Model,
+        solver_model: Model | None = None,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        # One-model construction remains the default for callers that do not
+        # need role-specific routing.
+        self.model = planner_model
+        self.planner_model = planner_model
+        self.solver_model = solver_model or planner_model
         self._clock = clock
 
     async def investigate(self, case: Case, runner, recorder) -> Report:
@@ -63,7 +72,9 @@ class InvestigatorImpl:
             elapsed = self._clock() - t0
             if elapsed >= CASE_TIME_BUDGET_S:
                 break
-            proposal = await plan_next_step(self.model, "\n\n".join(history[-(2 * MAX_CONTEXT_STEPS):]))
+            proposal = await plan_next_step(
+                self.planner_model, "\n\n".join(history[-(2 * MAX_CONTEXT_STEPS):])
+            )
             if proposal is None:
                 invalid += 1
                 if invalid >= MAX_INVALID_PROPOSALS:
@@ -155,7 +166,7 @@ class InvestigatorImpl:
                 evidence.append(ev)
                 await recorder.dns_captured(step.id, query, SINKHOLE_IP, ev.id)
 
-        findings, timeline = await analyze(self.model, case.id, evidence)
+        findings, timeline = await analyze(self.solver_model, case.id, evidence)
         for finding in findings:
             await recorder.add_finding(finding)
-        return await report(self.model, evidence, timeline)
+        return await report(self.solver_model, evidence, timeline)

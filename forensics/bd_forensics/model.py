@@ -26,11 +26,14 @@ class OpenAIModel:
         self._client = AsyncOpenAI(
             base_url=contracts_agent.INFERENCE_BASE_URL, api_key=api_key
         )
+        self.total_tokens = 0
 
     async def chat(self, messages: list[dict[str, str]]) -> str:
         resp = await self._client.chat.completions.create(
             model=self._model, messages=messages
         )
+        usage = getattr(resp, "usage", None)
+        self.total_tokens += int(getattr(usage, "total_tokens", 0) or 0)
         content = resp.choices[0].message.content
         assert isinstance(content, str)
         return content
