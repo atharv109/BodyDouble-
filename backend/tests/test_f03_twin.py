@@ -8,7 +8,7 @@ import base64
 import json
 
 from contracts.models import CaseState
-from contracts.vultr import FakeVultr
+from contracts.vultr import FakeVultr, VultrError
 
 from backend.db import CaseRow
 from conftest import open_env
@@ -82,6 +82,56 @@ async def test_t1_fallback_restores_snapshot_while_iso_stays_attached(tmp_path):
         assert restore_i < poll_i
         assert fake.isos[twin_id] == ISO_ID
         assert fake.instances[twin_id].status == "active"
+
+
+class _RestoreInitiallyNotReady(FakeVultr):
+    def __init__(self):
+        super().__init__(instance_polls=2)
+        self.restore_attempts = 0
+        self.readiness_sequence = []
+
+    async def restore_snapshot(self, instance_id: str, snapshot_id: str) -> None:
+        self.restore_attempts += 1
+        self.readiness_sequence.append("restore")
+        if self.restore_attempts == 1:
+            raise VultrError(409, {"error": "Invalid subscription status"})
+        await super().restore_snapshot(instance_id, snapshot_id)
+
+    async def get_instance(self, instance_id: str):
+        if instance_id not in {self.SHOP_PROD, self.CLEAN_CONTROL}:
+            self.readiness_sequence.append("poll")
+        return await super().get_instance(instance_id)
+
+
+async def test_t1_restore_waits_and_retries_transient_subscription_409(tmp_path):
+    fake = _RestoreInitiallyNotReady()
+    async with open_env(tmp_path, fake=fake, t1_fallback=True) as (_st, client):
+        response = await client.post("/cases", json={
+            "instance_id": FakeVultr.SHOP_PROD, "reason": "live T1 regression"})
+        assert response.status_code == 201, response.text
+        assert response.json()["state"] == CaseState.sealed.value
+        assert fake.restore_attempts == 2
+        assert fake.readiness_sequence[:4] == ["restore", "poll", "poll", "restore"]
+
+
+class _RestoreNonTransientConflict(FakeVultr):
+    def __init__(self):
+        super().__init__()
+        self.restore_attempts = 0
+
+    async def restore_snapshot(self, instance_id: str, snapshot_id: str) -> None:
+        self.restore_attempts += 1
+        raise VultrError(409, {"error": "unrelated quota conflict"})
+
+
+async def test_t1_restore_does_not_retry_other_409_conflicts(tmp_path):
+    fake = _RestoreNonTransientConflict()
+    async with open_env(tmp_path, fake=fake, t1_fallback=True) as (_st, client):
+        response = await client.post("/cases", json={
+            "instance_id": FakeVultr.SHOP_PROD, "reason": "not transient"})
+        assert response.status_code == 201
+        assert response.json()["state"] == CaseState.failed.value
+        assert fake.restore_attempts == 1
 
 
 class _RestoreExplodes(FakeVultr):

@@ -570,7 +570,7 @@ class CaseService:
             # attach right after create, before any boot polling. On real
             # Vultr the instance may already be booting in this window — see
             # the day-one T1 decision (halt/attach/boot needs a contracts call).
-            await self.vultr.restore_snapshot(twin.id, row.snapshot_id)
+            await self._restore_snapshot_when_ready(twin.id, row.snapshot_id)
         self.log.append(row.id, "twin_created", {
             "twin_instance_id": twin.id, "vpc_id": vpc_id, "firewall_group_id": fw.id,
             "iso_id": self.settings.iso_id, "iso_attached_in_create": True,
@@ -609,6 +609,38 @@ class CaseService:
                 case_id=row.id, check=check, passed=passed,
                 output=seal.detail.get(check, "")))
         self._move(row, CaseState.sealed, "twin sealed: disk read-only, egress blocked")
+
+    async def _restore_snapshot_when_ready(self, twin_id: str,
+                                           snapshot_id: str) -> None:
+        """Retry only Vultr's transient post-create subscription-state 409."""
+        deadline = utcnow() + timedelta(seconds=self.settings.boot_timeout_s)
+        while True:
+            try:
+                await self.vultr.restore_snapshot(twin_id, snapshot_id)
+                return
+            except VultrError as error:
+                transient = (error.status_code == 409
+                             and "invalid subscription status" in
+                             str(error.body).lower())
+                if not transient:
+                    raise
+                if utcnow() >= deadline:
+                    raise CaseFailure(
+                        f"twin {twin_id} never became ready for snapshot restore"
+                    ) from error
+                log.warning("twin %s not ready for snapshot restore; polling", twin_id)
+            # The trusted ISO remains attached while the subscription becomes
+            # active, so the cloned OS cannot boot during this readiness wait.
+            while True:
+                instance = await self.vultr.get_instance(twin_id)
+                if instance.status == "active":
+                    break
+                if utcnow() >= deadline:
+                    raise CaseFailure(
+                        f"twin {twin_id} never became ready for snapshot restore"
+                    )
+                await asyncio.sleep(self.settings.poll_interval_s)
+            await asyncio.sleep(self.settings.poll_interval_s)
 
     # ------------------------------------------------------------- F9: actions
     async def build_action_menu(self, case_id: str) -> list[Action]:
