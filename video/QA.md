@@ -20,5 +20,5 @@ Reviewed 2026-11-08 against the 102-second composition and full draft.
 - Architecture scene distinguishes production, snapshot and twin and makes containment legible.
 - The repeated gold-edge wipe is consistent and restrained; holds are intentional reading time, not dead air.
 - Every technical claim remains traceable to the V1 claims ledger and captured product behavior.
-- Draft-quality extraction downscales live-footage frames inside the 1920x1080 canvas; this is a draft renderer artifact. Motion-graphic frames are full resolution. Final delivery is rendered with `--quality high` and verified separately.
+- Renderer verification exposed V2 capture files whose real 960x540 browser capture occupied the upper-left quadrant of a gray 1920x1080 canvas. Every source clip was normalized by cropping that real quadrant and upscaling it to 1920x1080; the final delivery is frame-checked after rendering.
 - Initial mix measured -35.6 LUFS and was materially too quiet. The music master was corrected to -22.9 LUFS integrated with -3.9 dBFS true peak before the composition bus, retaining conservative SFX levels and final limiters.
