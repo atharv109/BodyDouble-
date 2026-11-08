@@ -4,9 +4,8 @@ import { api } from '../api/client'
 import type { VultrInstance } from '../api/types'
 import { EVENT_NAMES } from '../api/types'
 import { ApproveDrawer } from '../case/Approve'
-import { Findings } from '../case/Findings'
 import { Production } from '../case/Production'
-import { Twin } from '../case/Twin'
+import { Terminal } from '../case/Terminal'
 import { useCase } from '../case/useCase'
 import { useTitle } from '../ui/useTitle'
 
@@ -73,9 +72,8 @@ export function CaseScreen() {
       <div className={`mt-8 grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-0 ${ready ? '' : 'invisible'}`} aria-busy={!ready}>
         {/* Production stays pinned beside the twin while you scroll: the original never leaves the room. */}
         <div className="order-1 lg:col-span-3 lg:pr-6 lg:sticky lg:top-6 lg:self-start"><Production live={live} server={server} /></div>
-        {/* Phone: twin progress and seal checks come before findings, so the findings have their context. */}
-        <div className="order-2 lg:col-span-5 lg:px-6 lg:border-l lg:border-r border-line"><Twin live={live} /></div>
-        <div className="order-3 lg:col-span-4 lg:pl-6"><Findings live={live} /></div>
+        {/* The twin is a terminal: commands, AI reasoning, sandbox, seal + log. */}
+        <div className="order-2 lg:col-span-9 min-w-0"><Terminal live={live} /></div>
       </div>
 
       {id && <ApproveDrawer live={live} caseId={id} open={drawer} onClose={() => setDrawer(false)} />}

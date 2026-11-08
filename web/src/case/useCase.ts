@@ -6,6 +6,9 @@ import type {
 } from '../api/types'
 import { EVENT_NAMES } from '../api/types'
 
+/** Every stream event in seq order, so each terminal pane can replay its slice in the order it happened. */
+export type LogItem = { seq: number; name: EventName; data: any }
+
 export type Transition = { from: CaseState | null; to: CaseState; detail: string }
 
 export type LiveCase = {
@@ -22,12 +25,13 @@ export type LiveCase = {
   responses: Record<string, ApiResponse | null> // action_id -> api response, from action_applied
   teardown: TeardownDone | null
   seen: Partial<Record<EventName, number>> // count per event type, for the UI and tests
+  log: LogItem[]
   lastSeq: number
 }
 
 const initial: LiveCase = {
   connected: false, error: null, detail: null, state: null, transitions: [], seals: {}, steps: [], dns: [],
-  findings: [], actions: [], responses: {}, teardown: null, seen: {}, lastSeq: -1,
+  findings: [], actions: [], responses: {}, teardown: null, seen: {}, log: [], lastSeq: -1,
 }
 
 type Msg =
@@ -48,7 +52,8 @@ function reduce(s: LiveCase, m: Msg): LiveCase {
     case 'detail': return { ...s, detail: m.detail, state: s.state ?? m.detail.case.state ?? null }
     case 'event': {
       if (m.seq <= s.lastSeq) return s // replay after reconnect
-      const n = { ...s, lastSeq: m.seq, seen: { ...s.seen, [m.name]: (s.seen[m.name] ?? 0) + 1 } }
+      const n = { ...s, lastSeq: m.seq, seen: { ...s.seen, [m.name]: (s.seen[m.name] ?? 0) + 1 },
+        log: [...s.log, { seq: m.seq, name: m.name, data: m.data }] }
       const d = m.data
       switch (m.name) {
         case 'state_changed': {

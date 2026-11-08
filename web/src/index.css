@@ -103,3 +103,39 @@ html:active-view-transition .site-head::after { animation: seal-line 760ms var(-
 
 /* the logo is a primary target: its ring clears the emblem and the wordmark */
 .brand:focus-visible { outline-offset: 6px; }
+
+/* the twin as a terminal: four panes on one hairline grid, one mono voice */
+.term-grid { display: grid; gap: 1px; background: var(--color-line); grid-template-columns: minmax(0, 1fr); }
+.pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--color-panel); }
+.pane-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 10px 16px;
+  border-bottom: 1px solid var(--color-line); background: var(--color-raise); font-family: var(--font-mono); font-size: 12px; }
+.pane-head h3 { font-weight: 500; letter-spacing: .02em; white-space: nowrap; }
+.pane-head h3::before { content: "▍"; color: var(--color-agent); margin-right: 6px; }
+.pane-body { flex: 1; min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 14px 16px 18px;
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6; color: var(--color-ink); scrollbar-width: thin;
+  scrollbar-color: var(--color-line) transparent; }
+.pane-body:focus-visible { outline: 2px solid var(--color-ink); outline-offset: -2px; }
+.term-code, .term-out { white-space: pre-wrap; overflow-wrap: anywhere; font: inherit; }
+.term-code { color: var(--color-ink); }
+.term-out { color: color-mix(in srgb, var(--color-ink) 88%, transparent); }
+.prompt { color: var(--color-agent); }
+.cursor { display: inline-block; width: .6em; height: 1.1em; vertical-align: -.2em; background: var(--color-agent); animation: pulse-dot 1s steps(2, jump-none) infinite; }
+.term-btn { font: inherit; color: var(--color-muted); padding: 2px 6px; border: 1px solid var(--color-line); border-radius: 2px; min-height: 24px;
+  transition: translate 160ms var(--ease-latch), color 160ms, border-color 160ms; cursor: pointer; }
+.term-btn:hover { color: var(--color-ink); border-color: var(--color-muted); translate: 0 -2px; }
+.term-btn:active { translate: 0 0; }
+.ai-line, .log-line { display: grid; grid-template-columns: 8ch minmax(0, 1fr); gap: 0 1ch; }
+.log-line { grid-template-columns: 3ch minmax(0, 1fr); }
+.role { white-space: nowrap; }
+.sbx-meters { border-top: 1px solid var(--color-line); padding-top: 12px; }
+.sbx-meters dl { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.sbx-meters dt { color: var(--color-muted); }
+.sbx-meters dd { font-size: 28px; line-height: 1.1; font-variant-numeric: tabular-nums; color: var(--color-ink); }
+@media (min-width: 1024px) {
+  .term-grid { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "cmd ai" "sbx log"; grid-template-rows: 36rem 26rem; }
+  .pane-commands { grid-area: cmd; } .pane-ai { grid-area: ai; } .pane-sandbox { grid-area: sbx; } .pane-log { grid-area: log; }
+}
+@media (max-width: 1023px) { .pane-body { overflow: visible; } }
+@media (max-width: 480px) { .pane-body { padding-inline: 12px; font-size: 12px; } .pane-head { padding-inline: 12px; } }
+.term-gutter { border-left: 1px solid var(--color-line); padding-left: 1ch; margin-block: 2px; }
