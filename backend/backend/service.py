@@ -18,6 +18,7 @@ import re
 import secrets
 import zipfile
 from datetime import datetime, timedelta, timezone
+from urllib.parse import urlsplit
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -272,7 +273,8 @@ class CaseService:
         """Walk the case as far as the phases implemented so far allow."""
         row = self.row(case_id)
         try:
-            if not await self._adopt_warm_twin(row):
+            if (self.settings.vultr_api_key and self.settings.investigation_vpc_id
+                    or not await self._adopt_warm_twin(row)):
                 await self._snapshot_phase(row)
                 await self._twin_phase(row)
             if self.settings.full_pipeline or force_full:
@@ -499,14 +501,44 @@ class CaseService:
         T1, settings.t1_fallback; on by default in real mode)."""
         self._move(row, CaseState.restoring, f"building twin from snapshot {row.snapshot_id}")
         source = await self.vultr.get_instance(row.instance_id)
-        vpc = await self.vultr.create_vpc(source.region, f"body-double twin {row.id}")
+        if self.settings.vultr_api_key and self.settings.investigation_vpc_id:
+            network = ipaddress.ip_network(
+                self.settings.investigation_vpc_subnet, strict=False)
+            control_ip = ipaddress.ip_address(
+                urlsplit(self.settings.control_url).hostname)
+            with self.state.sf() as s:
+                used = set(s.execute(select(CaseRow.twin_internal_ip).where(
+                    CaseRow.vpc_id == self.settings.investigation_vpc_id,
+                    CaseRow.twin_internal_ip.is_not(None),
+                    CaseRow.state.not_in([CaseState.closed.value,
+                                          CaseState.failed.value]),
+                )).scalars())
+            vpc_ip = next((str(candidate) for candidate in network.hosts()
+                           if candidate != control_ip and str(candidate) not in used), None)
+            if vpc_ip is None:
+                raise CaseFailure("investigation VPC has no free twin addresses")
+            row.vpc_id = self.settings.investigation_vpc_id
+            row.vpc_subnet = str(network.network_address)
+            row.vpc_mask = network.prefixlen
+            row.twin_internal_ip = vpc_ip
+            # Reserve before the first await so concurrent cases cannot choose it.
+            self._touch(row)
+            vpc_id = row.vpc_id
+            vpc_subnet = str(network)
+        else:
+            vpc = await self.vultr.create_vpc(source.region, f"body-double twin {row.id}")
+            row.vpc_id = vpc.id
+            row.vpc_subnet, row.vpc_mask = vpc.v4_subnet, vpc.v4_subnet_mask
+            vpc_id = vpc.id
+            vpc_subnet = f"{vpc.v4_subnet}/{vpc.v4_subnet_mask}"
+            vpc_ip = str(ipaddress.ip_network(
+                vpc_subnet, strict=False).network_address + 3)
+            row.twin_internal_ip = vpc_ip
+            self._touch(row)
         fw = await self.vultr.create_firewall_group(f"bd twin {row.id} inbound deny")
-        row.vpc_id, row.firewall_group_id = vpc.id, fw.id
-        row.vpc_subnet, row.vpc_mask = vpc.v4_subnet, vpc.v4_subnet_mask
+        row.firewall_group_id = fw.id
         self._touch(row)
         token = "twreg-" + secrets.token_urlsafe(24)
-        vpc_subnet = f"{vpc.v4_subnet}/{vpc.v4_subnet_mask}"
-        vpc_ip = str(ipaddress.ip_network(vpc_subnet, strict=False).network_address + 3)
         user_data = base64.b64encode(json.dumps({
             "case_id": row.id, "token": token,
             "control_plane": self.settings.control_url,
@@ -516,7 +548,7 @@ class CaseService:
         req = CreateTwinRequest(
             region=source.region, plan=self.settings.twin_plan, label=f"bd-twin-{row.id}",
             snapshot_id=row.snapshot_id, iso_id=self.settings.iso_id,
-            user_data=user_data, attach_vpc=[vpc.id], firewall_group_id=fw.id)
+            user_data=user_data, attach_vpc=[vpc_id], firewall_group_id=fw.id)
         fallback = self.settings.t1_fallback
         if fallback:
             twin = await self.vultr.create_instance(
@@ -540,7 +572,7 @@ class CaseService:
             # the day-one T1 decision (halt/attach/boot needs a contracts call).
             await self.vultr.restore_snapshot(twin.id, row.snapshot_id)
         self.log.append(row.id, "twin_created", {
-            "twin_instance_id": twin.id, "vpc_id": vpc.id, "firewall_group_id": fw.id,
+            "twin_instance_id": twin.id, "vpc_id": vpc_id, "firewall_group_id": fw.id,
             "iso_id": self.settings.iso_id, "iso_attached_in_create": True,
             "snapshot_restored_after_create": fallback})
         # F4: one-time registration token, consumed at first register. FakeVultr
@@ -551,7 +583,7 @@ class CaseService:
         self.channel.prepare_registration(row.id, token)
         if self.state.is_fake and self.settings.spawn_fake_twin:
             self.state.fake_twin_tasks[row.id] = asyncio.create_task(
-                fake_twin_loop(self.state, row.id, token, twin.internal_ip))
+                fake_twin_loop(self.state, row.id, token, vpc_ip))
         deadline = utcnow() + timedelta(seconds=self.settings.boot_timeout_s)
         while True:
             twin = await self.vultr.get_instance(twin.id)
@@ -790,6 +822,9 @@ class CaseService:
         """
         errors: list[Exception] = []
         twin_status = 404 if not row.twin_instance_id else 0
+        shared_vpc = bool(self.settings.vultr_api_key
+                          and self.settings.investigation_vpc_id
+                          and row.vpc_id == self.settings.investigation_vpc_id)
         vpc_deleted = row.vpc_id is None
 
         if row.twin_instance_id:
@@ -807,7 +842,7 @@ class CaseService:
             except Exception as e:
                 errors.append(e)
 
-        if row.vpc_id:
+        if row.vpc_id and not shared_vpc:
             try:
                 await self.vultr.delete_vpc(row.vpc_id)
                 vpc_deleted = True

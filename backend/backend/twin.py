@@ -99,6 +99,10 @@ class TwinChannel:
                 raise TwinChannelError(403, f"registration not from the case VPC (source {client_ip})")
             if vpc_ip != client_ip:
                 raise TwinChannelError(403, f"claimed vpc_ip {vpc_ip} != source {client_ip}")
+            if row.twin_internal_ip is not None and vpc_ip != row.twin_internal_ip:
+                raise TwinChannelError(
+                    403, f"registration source {vpc_ip} is not the case's assigned VPC IP"
+                )
             row.reg_token = None  # one-time: consumed
             row.twin_internal_ip = vpc_ip
             row.seal = seal.model_dump(mode="json")

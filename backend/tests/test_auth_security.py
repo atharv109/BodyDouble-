@@ -39,6 +39,9 @@ async def test_real_mode_requires_correct_password_and_disables_fake_case(tmp_pa
     settings.vultr_api_key = "not-a-real-key"
     settings.operator_password = "correct-horse-battery"
     settings.app_secret = "b" * 64
+    settings.investigation_vpc_id = "vpc-shared"
+    settings.investigation_vpc_subnet = "10.77.0.0/24"
+    settings.control_url = "http://10.77.0.1:8000"
     state = build_state(settings, vultr=FakeVultr())
     try:
         async with httpx.AsyncClient(

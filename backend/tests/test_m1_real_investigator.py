@@ -37,6 +37,9 @@ async def test_inference_key_selects_real_two_model_investigator(
     settings.vultr_api_key = "fake-vultr-key"
     settings.operator_password = "correct-horse-battery"
     settings.app_secret = "m" * 64
+    settings.investigation_vpc_id = "vpc-shared"
+    settings.investigation_vpc_subnet = "10.77.0.0/24"
+    settings.control_url = "http://10.77.0.1:8000"
     calls = []
     monkeypatch.setattr("backend.service.build_real_investigator",
                         lambda configured: FakeInvestigator(calls, "real"))
