@@ -9,7 +9,8 @@ import { blast, hero, how, note, problem, prod, tryIt, vultr, walls, whyCopy, ty
 import './story.css'
 
 export function Story() {
-  useTitle('')
+  useTitle('Body Double: investigate a hacked Vultr server on its sealed twin',
+    'Body Double snapshots a suspect Vultr server, investigates an exact copy in a sealed room, and proposes containment a human approves. Production keeps running.')
   const root = useRef<HTMLDivElement>(null)
   const [contained, setContained] = useState(false)
   const onCrossing = useCallback((on: boolean) => setContained(on), [])
