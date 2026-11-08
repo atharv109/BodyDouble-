@@ -45,7 +45,7 @@ const PUBLIC_URL = "https://bodydouble.example";
 function enroll(instance_id) {
   const token = hex(64);
   const now = new Date().toISOString();
-  sensors.set(instance_id, { instance_id, enrolled_at: now, last_seen: now, healthy: true });
+  sensors.set(instance_id, { instance_id, enrolled_at: now, last_seen: null, healthy: false });
   const install_command = `curl -fsSL ${PUBLIC_URL}/api/sensors/install.sh | sudo sh -s -- ${PUBLIC_URL} ${instance_id} ${token}`;
   return { instance_id, token, install_command, startup_script: `#!/bin/sh\n${install_command}\n` };
 }
@@ -145,7 +145,7 @@ function close(c, id) {
 
 /** POST /cases/{id}/actions: the operator's own fix. The API call is built here, never taken from the client. */
 let nextAction = 100;
-function customAction(c, { kind, description, created_by }) {
+function customAction(c, { kind, description }) { // created_by is the operator; Action records the actor ("human")
   const t = c.detail.case.instance_id;
   const api = kind === "quarantine_firewall" ? { api_method: "PATCH", api_path: `/v2/instances/${t}`, api_body: { firewall_group_id: "fw-0005" } }
     : kind === "stop_instance" ? { api_method: "POST", api_path: `/v2/instances/${t}/halt`, api_body: null }
@@ -161,6 +161,7 @@ function infect(attacks) {
   const inst = { ...INSTANCES[0], id: `inst-demo-${String(n).padStart(4, "0")}`, label: `demo-shop-${n}`, main_ip: `45.77.20.${n % 250}` };
   INSTANCES.push(inst);
   enroll(inst.id);
+  Object.assign(sensors.get(inst.id), { last_seen: new Date().toISOString(), healthy: true }); // its sensor has reported
   let alert = null;
   if (attacks.length) {
     const [signal, what] = ATTACK_SIGNAL[attacks[0]];

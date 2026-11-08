@@ -5,19 +5,22 @@ test.use({ permissions: ['clipboard-read', 'clipboard-write'] })
 
 test('watch a server: install command and startup script with copy, token shown once', async ({ page, request }) => {
   await signIn(page, request)
-  const sensors = await (await request.get('/api/sensors')).json()
-  test.skip(sensors.some((s: { instance_id: string }) => s.instance_id === 'inst-shop-prod'), 'shop-prod already watched')
+  // Any server nobody watches yet (a live backend keeps enrolments between runs).
+  const watched = new Set((await (await request.get('/api/sensors')).json()).map((s: { instance_id: string }) => s.instance_id))
+  const server = (await (await request.get('/api/instances')).json()).find((i: { id: string }) => !watched.has(i.id))
+  test.skip(!server, 'every server is already watched')
+  const { id, label } = server
 
   await page.goto('/console')
-  const row = page.getByTestId('server-inst-shop-prod')
-  await row.getByTestId('watch-inst-shop-prod').click()
+  const row = page.getByTestId(`server-${id}`)
+  await row.getByTestId(`watch-${id}`).click()
 
   const dialog = page.getByTestId('watch-dialog')
-  await expect(dialog.getByRole('heading', { name: 'Watch shop-prod' })).toBeVisible()
+  await expect(dialog.getByRole('heading', { name: `Watch ${label}` })).toBeVisible()
   await expect(dialog.getByTestId('token-once')).toContainText('shown once')
   const install = (await dialog.getByTestId('install-command').textContent())!
   expect(install).toMatch(/install\.sh/)
-  expect(install).toContain('inst-shop-prod')
+  expect(install).toContain(id)
   const token = /\b[0-9a-f]{64}\b/.exec(install)?.[0]
   expect(token).toBeTruthy()
   await expect(dialog.getByTestId('startup-script')).toContainText('#!/bin/sh')
@@ -30,8 +33,8 @@ test('watch a server: install command and startup script with copy, token shown 
   await dialog.getByRole('button', { name: 'Done' }).click()
   await expect(dialog).toBeHidden()
   // Watched now, and the token is gone from the page for good.
-  await expect(row.getByTestId('sensor-inst-shop-prod')).toHaveText('watched')
-  await expect(row.getByTestId('watch-inst-shop-prod')).toHaveCount(0)
+  await expect(row.getByTestId(`sensor-${id}`)).toHaveText(/^watched/)
+  await expect(row.getByTestId(`watch-${id}`)).toHaveCount(0)
   expect(await page.content()).not.toContain(token!)
 })
 

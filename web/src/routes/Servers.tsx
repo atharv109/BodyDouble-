@@ -62,7 +62,7 @@ export function Servers() {
               <tr className="border-b border-line">
                 <th scope="col" className="label font-normal py-3 pr-4">Server</th>
                 <th scope="col" className="label font-normal py-3 pr-4 hidden md:table-cell">Region</th>
-                <th scope="col" className="label font-normal py-3 pr-4">Public IP</th>
+                <th scope="col" className="label font-normal py-3 pr-4 hidden sm:table-cell">Public IP</th>
                 <th scope="col" className="label font-normal py-3 pr-4 hidden xl:table-cell">Plan</th>
                 <th scope="col" className="label font-normal py-3 pr-4 hidden sm:table-cell">Status</th>
                 <th scope="col" className="py-3"><span className="sr-only">Action</span></th>
@@ -78,15 +78,15 @@ export function Servers() {
               {list?.map((s) => (
                 <tr key={s.id} className="group border-b border-line hover:bg-panel transition-colors" data-testid={`server-${s.id}`}>
                   <td className="py-4 pr-4 align-top">
-                    <div className="font-medium">{s.label}</div>
+                    <div className="font-medium whitespace-nowrap">{s.label}</div>
                     <div className="font-mono text-xs text-muted mt-0.5">{s.id}</div>
-                    <div className="sm:hidden text-xs text-muted mt-1">{s.region} · {s.status}, {s.power_status}</div>
+                    <div className="sm:hidden text-xs text-muted mt-1"><span className="font-mono">{s.main_ip}</span> · {s.region} · {s.status}, {s.power_status}</div>
                   </td>
                   <td className="py-4 pr-4 align-top hidden md:table-cell">
                     <span className="font-mono text-sm">{s.region}</span>
                     <span className="text-muted text-sm"> · {REGIONS[s.region] ?? 'region'}</span>
                   </td>
-                  <td className="py-4 pr-4 align-top font-mono text-sm">{s.main_ip}</td>
+                  <td className="py-4 pr-4 align-top font-mono text-sm hidden sm:table-cell">{s.main_ip}</td>
                   <td className="py-4 pr-4 align-top hidden xl:table-cell">
                     <div className="font-mono text-sm">{s.plan}</div>
                     <div className="text-xs text-muted mt-0.5">{s.os}</div>
@@ -100,7 +100,7 @@ export function Servers() {
                   <td className="py-3 align-top">
                     <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
                       <SensorCell server={s} status={sensors[s.id]} onWatch={() => setWatching(s)} />
-                      <button type="button" className="btn" onClick={() => setTarget(s)} aria-label={`Investigate ${s.label}`}>
+                      <button type="button" className="btn btn-agent" onClick={() => setTarget(s)} aria-label={`Investigate ${s.label}`}>
                         Investigate
                       </button>
                     </div>

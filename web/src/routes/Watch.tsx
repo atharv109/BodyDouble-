@@ -5,13 +5,15 @@ import type { Alert, SensorEnrollResponse, SensorStatus, VultrInstance } from '.
 
 /** Sensor column of the servers table: watched (healthy or silent) or not, and the watch action. */
 export function SensorCell({ server, status, onWatch }: { server: VultrInstance; status?: SensorStatus; onWatch: () => void }) {
-  if (status)
+  if (status) {
+    const waiting = !status.last_seen // enrolled, but the sensor has not reported yet (not installed, or just now)
     return (
       <span className="inline-flex items-center gap-2 text-sm" data-testid={`sensor-${server.id}`} data-healthy={status.healthy}>
-        <span aria-hidden="true" className={`size-1.5 rounded-full ${status.healthy ? 'bg-agent' : 'bg-finding'}`} />
-        {status.healthy ? 'watched' : 'watched, silent'}
+        <span aria-hidden="true" className={`size-1.5 rounded-full ${status.healthy ? 'bg-agent' : waiting ? 'bg-muted' : 'bg-finding'}`} />
+        {status.healthy ? 'watched' : waiting ? 'watched, waiting for first report' : 'watched, silent'}
       </span>
     )
+  }
   return (
     <button type="button" className="btn" onClick={onWatch} aria-label={`Watch ${server.label}`} data-testid={`watch-${server.id}`}>
       Watch
