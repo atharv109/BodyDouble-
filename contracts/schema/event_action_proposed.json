@@ -1,0 +1,138 @@
+{
+  "$defs": {
+    "Action": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "api_method": {
+          "anyOf": [
+            {
+              "enum": [
+                "GET",
+                "POST",
+                "PATCH",
+                "DELETE"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Method"
+        },
+        "api_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Path"
+        },
+        "api_body": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Body"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ActionStatus",
+          "default": "proposed"
+        },
+        "approved_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approved By"
+        },
+        "response": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response"
+        }
+      },
+      "required": [
+        "id",
+        "case_id",
+        "kind",
+        "target",
+        "description"
+      ],
+      "title": "Action",
+      "type": "object"
+    },
+    "ActionKind": {
+      "enum": [
+        "quarantine_firewall",
+        "revoke_ssh_key",
+        "stop_instance",
+        "rotate_secrets"
+      ],
+      "title": "ActionKind",
+      "type": "string"
+    },
+    "ActionStatus": {
+      "enum": [
+        "proposed",
+        "approved",
+        "applied",
+        "rejected"
+      ],
+      "title": "ActionStatus",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "action": {
+      "$ref": "#/$defs/Action"
+    }
+  },
+  "required": [
+    "action"
+  ],
+  "title": "ActionProposed",
+  "type": "object"
+}

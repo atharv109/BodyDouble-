@@ -1,0 +1,58 @@
+{
+  "$defs": {
+    "BlastRadius": {
+      "description": "F16 / close screen. All should be 0.",
+      "properties": {
+        "prod_writes_before_approval": {
+          "title": "Prod Writes Before Approval",
+          "type": "integer"
+        },
+        "packets_out": {
+          "title": "Packets Out",
+          "type": "integer"
+        },
+        "containers_left": {
+          "title": "Containers Left",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "prod_writes_before_approval",
+        "packets_out",
+        "containers_left"
+      ],
+      "title": "BlastRadius",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "case_id": {
+      "title": "Case Id",
+      "type": "string"
+    },
+    "twin_instance_id": {
+      "title": "Twin Instance Id",
+      "type": "string"
+    },
+    "twin_status_code": {
+      "title": "Twin Status Code",
+      "type": "integer"
+    },
+    "vpc_deleted": {
+      "title": "Vpc Deleted",
+      "type": "boolean"
+    },
+    "blast_radius": {
+      "$ref": "#/$defs/BlastRadius"
+    }
+  },
+  "required": [
+    "case_id",
+    "twin_instance_id",
+    "twin_status_code",
+    "vpc_deleted",
+    "blast_radius"
+  ],
+  "title": "TeardownDone",
+  "type": "object"
+}

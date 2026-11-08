@@ -1,0 +1,118 @@
+{
+  "$defs": {
+    "Step": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "kind": {
+          "$ref": "#/$defs/StepKind"
+        },
+        "tool": {
+          "$ref": "#/$defs/ToolName"
+        },
+        "args": {
+          "additionalProperties": true,
+          "title": "Args",
+          "type": "object"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "stdout": {
+          "default": "",
+          "title": "Stdout",
+          "type": "string"
+        },
+        "stderr": {
+          "default": "",
+          "title": "Stderr",
+          "type": "string"
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exit Code"
+        },
+        "duration_ms": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Ms"
+        }
+      },
+      "required": [
+        "id",
+        "case_id",
+        "seq",
+        "kind",
+        "tool",
+        "rationale",
+        "code"
+      ],
+      "title": "Step",
+      "type": "object"
+    },
+    "StepKind": {
+      "enum": [
+        "triage",
+        "detonate"
+      ],
+      "title": "StepKind",
+      "type": "string"
+    },
+    "ToolName": {
+      "description": "The planner's only choices (PRD: \"Tool list\").",
+      "enum": [
+        "os_facts",
+        "persistence_scan",
+        "auth_scan",
+        "recent_files",
+        "binary_integrity",
+        "listener_config",
+        "extract",
+        "detonate",
+        "custom_script"
+      ],
+      "title": "ToolName",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "step": {
+      "$ref": "#/$defs/Step"
+    }
+  },
+  "required": [
+    "step"
+  ],
+  "title": "StepStarted",
+  "type": "object"
+}

@@ -1,0 +1,33 @@
+{
+  "properties": {
+    "case_id": {
+      "title": "Case Id",
+      "type": "string"
+    },
+    "step_id": {
+      "title": "Step Id",
+      "type": "string"
+    },
+    "query": {
+      "title": "Query",
+      "type": "string"
+    },
+    "answered_with": {
+      "title": "Answered With",
+      "type": "string"
+    },
+    "evidence_id": {
+      "title": "Evidence Id",
+      "type": "string"
+    }
+  },
+  "required": [
+    "case_id",
+    "step_id",
+    "query",
+    "answered_with",
+    "evidence_id"
+  ],
+  "title": "DnsCaptured",
+  "type": "object"
+}

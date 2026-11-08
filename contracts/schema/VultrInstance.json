@@ -1,0 +1,70 @@
+{
+  "properties": {
+    "id": {
+      "title": "Id",
+      "type": "string"
+    },
+    "label": {
+      "title": "Label",
+      "type": "string"
+    },
+    "region": {
+      "title": "Region",
+      "type": "string"
+    },
+    "main_ip": {
+      "title": "Main Ip",
+      "type": "string"
+    },
+    "internal_ip": {
+      "default": "",
+      "title": "Internal Ip",
+      "type": "string"
+    },
+    "status": {
+      "title": "Status",
+      "type": "string"
+    },
+    "power_status": {
+      "default": "running",
+      "title": "Power Status",
+      "type": "string"
+    },
+    "server_status": {
+      "default": "ok",
+      "title": "Server Status",
+      "type": "string"
+    },
+    "plan": {
+      "default": "",
+      "title": "Plan",
+      "type": "string"
+    },
+    "os": {
+      "default": "",
+      "title": "Os",
+      "type": "string"
+    },
+    "firewall_group_id": {
+      "default": "",
+      "title": "Firewall Group Id",
+      "type": "string"
+    },
+    "vpc_ids": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Vpc Ids",
+      "type": "array"
+    }
+  },
+  "required": [
+    "id",
+    "label",
+    "region",
+    "main_ip",
+    "status"
+  ],
+  "title": "VultrInstance",
+  "type": "object"
+}

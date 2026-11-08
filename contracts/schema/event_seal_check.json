@@ -1,0 +1,28 @@
+{
+  "properties": {
+    "case_id": {
+      "title": "Case Id",
+      "type": "string"
+    },
+    "check": {
+      "title": "Check",
+      "type": "string"
+    },
+    "passed": {
+      "title": "Passed",
+      "type": "boolean"
+    },
+    "output": {
+      "title": "Output",
+      "type": "string"
+    }
+  },
+  "required": [
+    "case_id",
+    "check",
+    "passed",
+    "output"
+  ],
+  "title": "SealCheck",
+  "type": "object"
+}

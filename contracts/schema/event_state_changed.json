@@ -1,0 +1,50 @@
+{
+  "$defs": {
+    "CaseState": {
+      "enum": [
+        "opened",
+        "snapshotting",
+        "restoring",
+        "sealed",
+        "investigating",
+        "reported",
+        "contained",
+        "closed",
+        "failed"
+      ],
+      "title": "CaseState",
+      "type": "string"
+    }
+  },
+  "properties": {
+    "case_id": {
+      "title": "Case Id",
+      "type": "string"
+    },
+    "from_state": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/CaseState"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "to_state": {
+      "$ref": "#/$defs/CaseState"
+    },
+    "detail": {
+      "default": "",
+      "title": "Detail",
+      "type": "string"
+    }
+  },
+  "required": [
+    "case_id",
+    "from_state",
+    "to_state"
+  ],
+  "title": "StateChanged",
+  "type": "object"
+}

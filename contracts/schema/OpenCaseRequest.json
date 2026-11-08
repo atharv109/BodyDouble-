@@ -1,0 +1,20 @@
+{
+  "properties": {
+    "instance_id": {
+      "title": "Instance Id",
+      "type": "string"
+    },
+    "reason": {
+      "maxLength": 500,
+      "minLength": 1,
+      "title": "Reason",
+      "type": "string"
+    }
+  },
+  "required": [
+    "instance_id",
+    "reason"
+  ],
+  "title": "OpenCaseRequest",
+  "type": "object"
+}

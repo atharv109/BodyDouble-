@@ -1,0 +1,14 @@
+{
+  "description": "POST /cases/{id}/actions/{action_id}/approve. Requires a human session.",
+  "properties": {
+    "approved_by": {
+      "title": "Approved By",
+      "type": "string"
+    }
+  },
+  "required": [
+    "approved_by"
+  ],
+  "title": "ApproveRequest",
+  "type": "object"
+}

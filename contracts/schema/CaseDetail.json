@@ -1,0 +1,573 @@
+{
+  "$defs": {
+    "Action": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "api_method": {
+          "anyOf": [
+            {
+              "enum": [
+                "GET",
+                "POST",
+                "PATCH",
+                "DELETE"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Method"
+        },
+        "api_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Path"
+        },
+        "api_body": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Body"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ActionStatus",
+          "default": "proposed"
+        },
+        "approved_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approved By"
+        },
+        "response": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response"
+        }
+      },
+      "required": [
+        "id",
+        "case_id",
+        "kind",
+        "target",
+        "description"
+      ],
+      "title": "Action",
+      "type": "object"
+    },
+    "ActionKind": {
+      "enum": [
+        "quarantine_firewall",
+        "revoke_ssh_key",
+        "stop_instance",
+        "rotate_secrets"
+      ],
+      "title": "ActionKind",
+      "type": "string"
+    },
+    "ActionStatus": {
+      "enum": [
+        "proposed",
+        "approved",
+        "applied",
+        "rejected"
+      ],
+      "title": "ActionStatus",
+      "type": "string"
+    },
+    "BlastRadius": {
+      "description": "F16 / close screen. All should be 0.",
+      "properties": {
+        "prod_writes_before_approval": {
+          "title": "Prod Writes Before Approval",
+          "type": "integer"
+        },
+        "packets_out": {
+          "title": "Packets Out",
+          "type": "integer"
+        },
+        "containers_left": {
+          "title": "Containers Left",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "prod_writes_before_approval",
+        "packets_out",
+        "containers_left"
+      ],
+      "title": "BlastRadius",
+      "type": "object"
+    },
+    "Case": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "instance_id": {
+          "title": "Instance Id",
+          "type": "string"
+        },
+        "instance_label": {
+          "title": "Instance Label",
+          "type": "string"
+        },
+        "reason": {
+          "title": "Reason",
+          "type": "string"
+        },
+        "state": {
+          "$ref": "#/$defs/CaseState",
+          "default": "opened"
+        },
+        "snapshot_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Snapshot Id"
+        },
+        "twin_instance_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Twin Instance Id"
+        },
+        "vpc_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Vpc Id"
+        },
+        "firewall_group_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Firewall Group Id"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "closed_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Closed At"
+        }
+      },
+      "required": [
+        "id",
+        "instance_id",
+        "instance_label",
+        "reason",
+        "created_at"
+      ],
+      "title": "Case",
+      "type": "object"
+    },
+    "CaseState": {
+      "enum": [
+        "opened",
+        "snapshotting",
+        "restoring",
+        "sealed",
+        "investigating",
+        "reported",
+        "contained",
+        "closed",
+        "failed"
+      ],
+      "title": "CaseState",
+      "type": "string"
+    },
+    "Evidence": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "step_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Step Id"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "title": "Sha256",
+          "type": "string"
+        },
+        "excerpt": {
+          "title": "Excerpt",
+          "type": "string"
+        },
+        "injection_flag": {
+          "default": false,
+          "title": "Injection Flag",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "case_id",
+        "path",
+        "sha256",
+        "excerpt"
+      ],
+      "title": "Evidence",
+      "type": "object"
+    },
+    "Finding": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "title": {
+          "title": "Title",
+          "type": "string"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "mitre_id": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Mitre Id"
+        },
+        "summary": {
+          "title": "Summary",
+          "type": "string"
+        },
+        "evidence_ids": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Evidence Ids",
+          "type": "array"
+        }
+      },
+      "required": [
+        "id",
+        "case_id",
+        "title",
+        "severity",
+        "summary",
+        "evidence_ids"
+      ],
+      "title": "Finding",
+      "type": "object"
+    },
+    "SealStatus": {
+      "properties": {
+        "disk_read_only": {
+          "title": "Disk Read Only",
+          "type": "boolean"
+        },
+        "egress_blocked": {
+          "title": "Egress Blocked",
+          "type": "boolean"
+        },
+        "detail": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Detail",
+          "type": "object"
+        }
+      },
+      "required": [
+        "disk_read_only",
+        "egress_blocked"
+      ],
+      "title": "SealStatus",
+      "type": "object"
+    },
+    "Severity": {
+      "enum": [
+        "critical",
+        "high",
+        "medium",
+        "info"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "Step": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "seq": {
+          "title": "Seq",
+          "type": "integer"
+        },
+        "kind": {
+          "$ref": "#/$defs/StepKind"
+        },
+        "tool": {
+          "$ref": "#/$defs/ToolName"
+        },
+        "args": {
+          "additionalProperties": true,
+          "title": "Args",
+          "type": "object"
+        },
+        "rationale": {
+          "title": "Rationale",
+          "type": "string"
+        },
+        "code": {
+          "title": "Code",
+          "type": "string"
+        },
+        "stdout": {
+          "default": "",
+          "title": "Stdout",
+          "type": "string"
+        },
+        "stderr": {
+          "default": "",
+          "title": "Stderr",
+          "type": "string"
+        },
+        "exit_code": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Exit Code"
+        },
+        "duration_ms": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Duration Ms"
+        }
+      },
+      "required": [
+        "id",
+        "case_id",
+        "seq",
+        "kind",
+        "tool",
+        "rationale",
+        "code"
+      ],
+      "title": "Step",
+      "type": "object"
+    },
+    "StepKind": {
+      "enum": [
+        "triage",
+        "detonate"
+      ],
+      "title": "StepKind",
+      "type": "string"
+    },
+    "ToolName": {
+      "description": "The planner's only choices (PRD: \"Tool list\").",
+      "enum": [
+        "os_facts",
+        "persistence_scan",
+        "auth_scan",
+        "recent_files",
+        "binary_integrity",
+        "listener_config",
+        "extract",
+        "detonate",
+        "custom_script"
+      ],
+      "title": "ToolName",
+      "type": "string"
+    }
+  },
+  "description": "GET /cases/{id}",
+  "properties": {
+    "case": {
+      "$ref": "#/$defs/Case"
+    },
+    "steps": {
+      "items": {
+        "$ref": "#/$defs/Step"
+      },
+      "title": "Steps",
+      "type": "array"
+    },
+    "evidence": {
+      "items": {
+        "$ref": "#/$defs/Evidence"
+      },
+      "title": "Evidence",
+      "type": "array"
+    },
+    "findings": {
+      "items": {
+        "$ref": "#/$defs/Finding"
+      },
+      "title": "Findings",
+      "type": "array"
+    },
+    "actions": {
+      "items": {
+        "$ref": "#/$defs/Action"
+      },
+      "title": "Actions",
+      "type": "array"
+    },
+    "seal": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SealStatus"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "blast_radius": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/BlastRadius"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    }
+  },
+  "required": [
+    "case",
+    "steps",
+    "evidence",
+    "findings",
+    "actions"
+  ],
+  "title": "CaseDetail",
+  "type": "object"
+}

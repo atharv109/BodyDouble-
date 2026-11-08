@@ -1,0 +1,190 @@
+{
+  "$defs": {
+    "Action": {
+      "properties": {
+        "id": {
+          "title": "Id",
+          "type": "string"
+        },
+        "case_id": {
+          "title": "Case Id",
+          "type": "string"
+        },
+        "kind": {
+          "$ref": "#/$defs/ActionKind"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        },
+        "api_method": {
+          "anyOf": [
+            {
+              "enum": [
+                "GET",
+                "POST",
+                "PATCH",
+                "DELETE"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Method"
+        },
+        "api_path": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Path"
+        },
+        "api_body": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Api Body"
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/ActionStatus",
+          "default": "proposed"
+        },
+        "approved_by": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Approved By"
+        },
+        "response": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Response"
+        }
+      },
+      "required": [
+        "id",
+        "case_id",
+        "kind",
+        "target",
+        "description"
+      ],
+      "title": "Action",
+      "type": "object"
+    },
+    "ActionKind": {
+      "enum": [
+        "quarantine_firewall",
+        "revoke_ssh_key",
+        "stop_instance",
+        "rotate_secrets"
+      ],
+      "title": "ActionKind",
+      "type": "string"
+    },
+    "ActionStatus": {
+      "enum": [
+        "proposed",
+        "approved",
+        "applied",
+        "rejected"
+      ],
+      "title": "ActionStatus",
+      "type": "string"
+    },
+    "ApiResponse": {
+      "description": "Every mutating Vultr call to production is logged as one of these (F10).",
+      "properties": {
+        "method": {
+          "title": "Method",
+          "type": "string"
+        },
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "body": {
+          "anyOf": [
+            {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Body"
+        },
+        "status_code": {
+          "title": "Status Code",
+          "type": "integer"
+        },
+        "response": {
+          "default": null,
+          "title": "Response"
+        }
+      },
+      "required": [
+        "method",
+        "path",
+        "status_code"
+      ],
+      "title": "ApiResponse",
+      "type": "object"
+    }
+  },
+  "properties": {
+    "action": {
+      "$ref": "#/$defs/Action"
+    },
+    "api": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ApiResponse"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    }
+  },
+  "required": [
+    "action",
+    "api"
+  ],
+  "title": "ActionApplied",
+  "type": "object"
+}

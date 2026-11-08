@@ -1,0 +1,12 @@
+.remember/
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+node_modules/
+.next/
+dist/
+.env
+*.env
+!.env.example
+video/out/
