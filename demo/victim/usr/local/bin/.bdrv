@@ -1,0 +1,5 @@
+#!/bin/sh
+# Body Double stand-in beacon (harmless): resolves a fake C2 domain, then
+# drops a fake miner file. Never contacts anything real.
+getent hosts c2.bodydouble-demo.test >/dev/null 2>&1
+echo "bd-demo-miner-stand-in" > /tmp/.bd-miner

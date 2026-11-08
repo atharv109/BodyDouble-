@@ -1,0 +1,4 @@
+#!/bin/sh
+# Body Double demo stand-in: this is NOT the real procps top. The attacker
+# replaced top with this script, so the checksum will not match the dpkg record.
+echo "top - stand-in for the Body Double demo"

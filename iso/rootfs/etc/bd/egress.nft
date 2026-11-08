@@ -1,0 +1,47 @@
+#!/usr/sbin/nft -f
+# Body Double forensics ISO - egress ruleset (PRD "Network walls", F5).
+#
+# Vultr Firewall filters only inbound traffic, so the ISO itself default-DROPs
+# all egress and allows only the case VPC subnet. This is trustworthy because
+# the attacker's OS never runs - this ISO boots instead of the cloned one
+# (PRD). nftables semantics make the drop robust: a packet is finally
+# accepted only when every base chain in every table accepts it, so rules
+# that another component (e.g. dockerd's iptables shims) adds to a different
+# table can only tighten these drops, never loosen them.
+#
+# The case VPC subnet is a DEPLOY-TIME value. The placeholder
+# __BD_VPC_SUBNET__ below is never loaded as-is: /etc/bd/boot.sh substitutes
+# it with the subnet from bd.subnet= on the kernel cmdline (or from the
+# bd-deploy.env file the deploy step attaches) and feeds the result to
+# `nft -f`. With no subnet provided, boot.sh REMOVES the accept line
+# entirely (allow nothing anywhere) and refuses to start the twin agent -
+# fail closed.
+#
+# Allowed outbound, exhaustively: loopback, established/related replies, and
+# the case VPC subnet. Nothing else. Inbound allows nothing beyond
+# established/related and loopback: the twin long-polls the control plane
+# (contracts/endpoints.py), so it needs no inbound rule at all; the Vultr
+# firewall group denies inbound on the public interface too. Forward is
+# dropped: containers get --network none (F7).
+
+flush ruleset
+
+table inet bd_seal {
+
+    chain input {
+        type filter hook input priority 0; policy drop;
+        ct state established,related accept
+        iifname "lo" accept
+    }
+
+    chain forward {
+        type filter hook forward priority 0; policy drop;
+    }
+
+    chain output {
+        type filter hook output priority 0; policy drop;
+        oifname "lo" accept
+        ct state established,related accept
+        ip daddr __BD_VPC_SUBNET__ accept
+    }
+}

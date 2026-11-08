@@ -1,0 +1,14 @@
+Package: procps
+Status: install ok installed
+Architecture: amd64
+Version: 2:4.0.2-3
+
+Package: cron
+Status: install ok installed
+Architecture: all
+Version: 3.0pl1-137
+
+Package: openssh-server
+Status: install ok installed
+Architecture: amd64
+Version: 1:9.2p1-2+deb12u2
