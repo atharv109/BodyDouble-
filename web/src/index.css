@@ -57,6 +57,7 @@ body { font-family: var(--font-sans); font-size: 16px; line-height: 1.5; -webkit
 .btn-agent:disabled { background: transparent; border-color: var(--color-line); color: var(--color-muted); opacity: 1; }
 .btn-agent:hover:not(:disabled) { background: var(--color-ink); border-color: var(--color-ink); color: var(--color-ground); }
 
+.blast-pending { color: transparent; -webkit-text-stroke: 1.5px var(--color-muted); }
 details > summary { cursor: pointer; list-style: none; }
 details > summary::-webkit-details-marker { display: none; }
 details > summary .chev { display: inline-block; transition: rotate 160ms var(--ease-latch); }
