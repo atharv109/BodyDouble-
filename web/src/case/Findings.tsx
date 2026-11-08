@@ -34,7 +34,7 @@ export function FindingCard({ f, ev }: { f: Finding; ev: Record<string, Evidence
         </span>
         {f.mitre_id && <span className="font-mono text-xs text-muted">{f.mitre_id}</span>}
       </div>
-      <h4 className="mt-2 font-sans text-[15px] font-medium leading-snug">{f.title}</h4>
+      <h3 className="mt-2 font-sans text-[15px] font-medium leading-snug">{f.title}</h3>
       <p className="mt-1 font-sans text-sm text-muted">{f.summary}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {f.evidence_ids.map((id) => <EvidenceChip key={id} id={id} e={ev[id]} />)}
