@@ -325,3 +325,6 @@ class ToolResult(BaseModel):
     artifacts: list[Artifact] = Field(default_factory=list)  # files hashed during the run
     dns_queries: list[str] = Field(default_factory=list)  # detonate only
     file_writes: list[str] = Field(default_factory=list)  # detonate only
+    # F16, detonate/custom_script: after cleanup; backend sums them into BlastRadius. Must be 0.
+    containers_left: int = 0
+    packets_out: int = 0  # outbound packets that left the twin
