@@ -565,6 +565,9 @@ class CaseService:
             except Exception as e:
                 errors.append(e)
 
+        blast_radius = self.blast_radius(row.id)
+        row.blast_radius = blast_radius.model_dump(mode="json")
+        self._touch(row)
         payload = {
             "twin_instance_id": row.twin_instance_id,
             "twin_status_code": twin_status,
@@ -580,13 +583,46 @@ class CaseService:
                 twin_instance_id=row.twin_instance_id,
                 twin_status_code=twin_status,
                 vpc_deleted=vpc_deleted,
-                blast_radius=BlastRadius(
-                    prod_writes_before_approval=0,
-                    packets_out=0,
-                    containers_left=0,
-                ),
+                blast_radius=blast_radius,
             ))
         if twin_status != 404:
             raise CaseFailure(f"twin {row.twin_instance_id} still exists after teardown")
         if errors:
             raise CaseFailure("teardown incomplete: " + "; ".join(str(e) for e in errors))
+
+    def blast_radius(self, case_id: str) -> BlastRadius:
+        row = self.row(case_id)
+        packets_out = 0
+        containers_left = 0
+        for job in self.channel.jobs_with_results(case_id):
+            result = job.to_result()
+            if result is not None:
+                packets_out += result.packets_out
+                containers_left += result.containers_left
+
+        writes = 0
+        approved = False
+        production_path = f"/v2/instances/{row.instance_id}"
+        for entry in self.log.entries(case_id):
+            if entry.event == "action_approved":
+                approved = True
+            if approved:
+                continue
+            if entry.event == "production_write":
+                writes += 1
+            elif entry.event == "api_call":
+                method = str(entry.payload.get("method", "")).upper()
+                path = str(entry.payload.get("path", ""))
+                if method in {"POST", "PATCH", "PUT", "DELETE"} and path.startswith(
+                    production_path
+                ):
+                    writes += 1
+            elif entry.event == "action_applied":
+                action = entry.payload.get("action", {})
+                if action.get("target") == row.instance_id:
+                    writes += 1
+        return BlastRadius(
+            prod_writes_before_approval=writes,
+            packets_out=packets_out,
+            containers_left=containers_left,
+        )
