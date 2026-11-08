@@ -231,6 +231,9 @@ class CreateTwinRequest(BaseModel):
     attach_vpc: list[str] = Field(default_factory=list)
     firewall_group_id: str
     enable_ipv6: bool = False
+    # base64 JSON {"case_id", "token", "control_plane"}: the one-time registration token for the
+    # forensics ISO, read at boot from the metadata service (http://169.254.169.254/v1/user-data).
+    user_data: str | None = None
 
 
 class ApiResponse(BaseModel):
