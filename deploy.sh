@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+APP_DIR=/srv/body-double
+ENV_FILE=/etc/body-double.env
+SERVICE_FILE=/etc/systemd/system/body-double.service
+SOURCE_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+
+if [[ $(id -u) -ne 0 ]]; then
+  echo "deploy.sh must run as root" >&2
+  exit 1
+fi
+
+export DEBIAN_FRONTEND=noninteractive
+apt-get update
+apt-get install -y ca-certificates curl gnupg postgresql postgresql-contrib rsync
+
+install -d -m 0755 /etc/apt/keyrings
+curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/gpg.key \
+  | gpg --dearmor --yes -o /etc/apt/keyrings/caddy-stable-archive-keyring.gpg
+curl -fsSL https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt \
+  > /etc/apt/sources.list.d/caddy-stable.list
+curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key \
+  | gpg --dearmor --yes -o /etc/apt/keyrings/nodesource.gpg
+echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" \
+  > /etc/apt/sources.list.d/nodesource.list
+apt-get update
+apt-get install -y caddy nodejs
+
+if [[ ! -x /usr/local/bin/uv ]]; then
+  curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/usr/local/bin sh
+fi
+
+if ! id bodydouble >/dev/null 2>&1; then
+  useradd --system --create-home --home-dir /var/lib/bodydouble --shell /usr/sbin/nologin bodydouble
+fi
+
+install -d -o bodydouble -g bodydouble -m 0755 "$APP_DIR"
+if [[ "$SOURCE_DIR" != "$APP_DIR" ]]; then
+  rsync -a --delete --exclude .git --exclude TASK.md "$SOURCE_DIR/" "$APP_DIR/"
+fi
+chown -R bodydouble:bodydouble "$APP_DIR"
+
+role_exists=$(runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_roles WHERE rolname='bodydouble'")
+if [[ "$role_exists" != "1" ]]; then
+  runuser -u postgres -- createuser bodydouble
+fi
+database_exists=$(runuser -u postgres -- psql -tAc "SELECT 1 FROM pg_database WHERE datname='body_double'")
+if [[ "$database_exists" != "1" ]]; then
+  runuser -u postgres -- createdb --owner=bodydouble body_double
+fi
+
+if [[ ! -e "$ENV_FILE" ]]; then
+  install -m 0600 /dev/null "$ENV_FILE"
+  cat > "$ENV_FILE" <<'EOF'
+VULTR_API_KEY=
+VULTR_INFERENCE_KEY=
+BD_OPERATOR_PASSWORD=CHANGE_ME
+DATABASE_URL=postgresql:///body_double
+BD_DOMAIN=example.com
+APP_SECRET=CHANGE_ME_WITH_A_LONG_RANDOM_VALUE
+EOF
+fi
+chmod 0600 "$ENV_FILE"
+
+vultr_key=$(sed -n 's/^VULTR_API_KEY=//p' "$ENV_FILE" | tail -n 1)
+operator_password=$(sed -n 's/^BD_OPERATOR_PASSWORD=//p' "$ENV_FILE" | tail -n 1)
+if [[ -n "$vultr_key" && "$vultr_key" != "CHANGE_ME" && "$operator_password" == "CHANGE_ME" ]]; then
+  echo "Refusing deployment: set BD_OPERATOR_PASSWORD before enabling VULTR_API_KEY" >&2
+  exit 1
+fi
+
+runuser -u bodydouble -- /usr/local/bin/uv sync --project "$APP_DIR/backend" --frozen
+runuser -u bodydouble -- npm --prefix "$APP_DIR/web" ci
+runuser -u bodydouble -- npm --prefix "$APP_DIR/web" run build
+
+cat > "$SERVICE_FILE" <<EOF
+[Unit]
+Description=Body Double control plane
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=bodydouble
+Group=bodydouble
+WorkingDirectory=$APP_DIR
+EnvironmentFile=$ENV_FILE
+ExecStart=/usr/local/bin/uv run --project $APP_DIR/backend uvicorn backend.app:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=3
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+install -m 0644 "$APP_DIR/Caddyfile" /etc/caddy/Caddyfile
+install -d -m 0755 /etc/systemd/system/caddy.service.d
+cat > /etc/systemd/system/caddy.service.d/body-double.conf <<EOF
+[Service]
+EnvironmentFile=$ENV_FILE
+EOF
+
+systemctl daemon-reload
+systemctl enable --now postgresql body-double caddy
+systemctl restart body-double caddy
+
+echo "Body Double deployed. Point BD_DOMAIN at this VM and verify HTTPS."
