@@ -17,7 +17,7 @@ import logging
 import re
 import secrets
 import zipfile
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -38,21 +38,28 @@ from contracts.models import (
     CaseDetail,
     CaseState,
     CreateTwinRequest,
+    CustomActionRequest,
     Evidence,
     FirewallRule,
     SealStatus,
     BlastRadius,
+    Alert,
+    SensorSignal,
+    HEARTBEAT_LOST_S,
+    ALERTS_PER_INSTANCE_PER_MIN,
     can_transition,
 )
 from contracts.vultr import VultrError, VultrNotFound
 
 from .db import (
     ActionRow,
+    AlertRow,
     CaseRow,
     EvidenceRow,
     FindingRow,
     ReportRow,
     StepRow,
+    SensorRow,
     WarmTwinRow,
     utcnow,
 )
@@ -83,6 +90,10 @@ class TransitionError(ValueError):
 
 class ActionConflict(ValueError):
     """The action is not in `proposed` any more (approved twice, etc.)."""
+
+
+class AlertRateLimit(ValueError):
+    pass
 
 
 class CaseService:
@@ -123,6 +134,80 @@ class CaseService:
 
     def _touch(self, row: CaseRow) -> None:  # persist column updates
         self._save(row)
+
+    def now(self) -> datetime:
+        value = self.state.clock()
+        if value.tzinfo is not None:
+            value = value.astimezone(timezone.utc).replace(tzinfo=None)
+        return value
+
+    async def create_alert(self, instance_id: str, signal: SensorSignal,
+                           source: str, summary: str, detail: dict[str, str],
+                           *, now: datetime | None = None,
+                           rate_limit: bool = True,
+                           fixture_finding_ids: set[str] | None = None,
+                           case_operator: str = "sensor") -> Alert:
+        now = now or self.now()
+        with self.state.sf() as s:
+            if rate_limit:
+                count = s.scalar(select(func.count()).select_from(AlertRow).where(
+                    AlertRow.instance_id == instance_id,
+                    AlertRow.received_at > now - timedelta(minutes=1),
+                )) or 0
+                if count >= ALERTS_PER_INSTANCE_PER_MIN:
+                    raise AlertRateLimit(instance_id)
+            live = s.execute(select(CaseRow).where(
+                CaseRow.instance_id == instance_id,
+                CaseRow.state.not_in([CaseState.closed.value, CaseState.failed.value]),
+            ).order_by(CaseRow.created_at.desc())).scalars().first()
+            number = (s.scalar(select(func.count()).select_from(AlertRow)) or 0) + 1
+            row = AlertRow(id=f"alert-{number:04d}", instance_id=instance_id,
+                           signal=signal.value, source=source, summary=summary,
+                           detail=detail, received_at=now,
+                           case_id=live.id if live else None)
+            s.add(row)
+            s.commit()
+            result = row.to_model()
+        if live is None:
+            case = await self.open_case(instance_id, f"Sensor: {summary}",
+                                        operator=case_operator)
+            with self.state.sf() as s:
+                case_row = s.get(CaseRow, case.id)
+                case_row.alert_id = result.id
+                alert_row = s.get(AlertRow, result.id)
+                alert_row.case_id = case.id
+                s.commit()
+                result = alert_row.to_model()
+            await self.run_case(case.id, force_full=True, auto_close=False,
+                                propose_actions=fixture_finding_ids is not None,
+                                fixture_finding_ids=fixture_finding_ids)
+        return result
+
+    async def check_heartbeat_losses(self) -> list[Alert]:
+        """Raise at most one control-plane alert for each continuous lapse."""
+        now = self.now()
+        cutoff = now - timedelta(seconds=HEARTBEAT_LOST_S)
+        with self.state.sf() as s:
+            sensors = list(s.execute(select(SensorRow).where(
+                func.coalesce(SensorRow.last_seen, SensorRow.enrolled_at) < cutoff
+            )).scalars())
+            due = []
+            for sensor in sensors:
+                since = sensor.last_seen or sensor.enrolled_at
+                exists = s.scalar(select(func.count()).select_from(AlertRow).where(
+                    AlertRow.instance_id == sensor.instance_id,
+                    AlertRow.signal == SensorSignal.heartbeat_lost.value,
+                    AlertRow.received_at >= since,
+                ))
+                if not exists:
+                    due.append(sensor.instance_id)
+        alerts = []
+        for instance_id in due:
+            alerts.append(await self.create_alert(
+                instance_id, SensorSignal.heartbeat_lost, "control_plane",
+                "Sensor heartbeat lost", {"threshold_s": str(HEARTBEAT_LOST_S)},
+                now=now, rate_limit=False))
+        return alerts
 
     def next_case_id(self) -> str:
         with self.state.sf() as s:
@@ -167,7 +252,9 @@ class CaseService:
         return row.to_model()
 
     async def run_case(self, case_id: str, *, force_full: bool = False,
-                       auto_apply: bool = False, auto_close: bool = True) -> Case:
+                       auto_apply: bool = False, auto_close: bool = True,
+                       propose_actions: bool = True,
+                       fixture_finding_ids: set[str] | None = None) -> Case:
         """Walk the case as far as the phases implemented so far allow."""
         row = self.row(case_id)
         try:
@@ -175,7 +262,8 @@ class CaseService:
                 await self._snapshot_phase(row)
                 await self._twin_phase(row)
             if self.settings.full_pipeline or force_full:
-                await self._investigation_phase(self.row(case_id))
+                await self._investigation_phase(self.row(case_id), propose_actions,
+                                                fixture_finding_ids)
                 if auto_apply:
                     actions = await self.build_action_menu(case_id)
                     for action in actions:
@@ -353,10 +441,19 @@ class CaseService:
         self.log.append(evidence.case_id, "evidence_added", evidence.model_dump(mode="json"))
         return evidence
 
-    async def _investigation_phase(self, row: CaseRow) -> None:
+    async def _investigation_phase(self, row: CaseRow,
+                                   propose_actions: bool = True,
+                                   fixture_finding_ids: set[str] | None = None) -> None:
         self._move(row, CaseState.investigating, "sealed investigation started")
+        fixture_ids = row.operator == "dev-demo"
+        if row.operator == "dev-infect":
+            with self.state.sf() as s:
+                fixture_ids = not bool(s.scalar(
+                    select(func.count()).select_from(StepRow)
+                    .where(StepRow.id.like("step-%"))))
         report = await ScriptedInvestigator(
-            fixture_ids=row.operator == "dev-demo"
+            fixture_ids=fixture_ids,
+            finding_ids=fixture_finding_ids,
         ).investigate(
             row.to_model(),
             TwinStepRunner(self.channel, self.settings),
@@ -373,7 +470,8 @@ class CaseService:
             s.commit()
         row = self.row(row.id)
         self._move(row, CaseState.reported, report.summary, actor=Actor.agent)
-        await self.build_action_menu(row.id)
+        if propose_actions:
+            await self.build_action_menu(row.id)
 
     # ------------------------------------------------------------- F3: twin
     async def _twin_phase(self, row: CaseRow) -> None:
@@ -495,6 +593,18 @@ class CaseService:
 
     async def _propose_action(self, row: CaseRow, kind: ActionKind,
                               report: ReportRow | None) -> None:
+        action = await self._build_action(row, kind, report=report)
+        with self.state.sf() as s:
+            s.add(ActionRow(**action.model_dump()))
+            s.commit()
+        self.log.append(row.id, "action_proposed", ActionProposed(action=action),
+                        actor=Actor.agent)
+
+    async def _build_action(self, row: CaseRow, kind: ActionKind,
+                            report: ReportRow | None = None,
+                            description: str | None = None,
+                            created_by: Actor = Actor.agent) -> Action:
+        """Build every action's trusted API fields in one backend-only place."""
         target = row.instance_id
         if kind is ActionKind.quarantine_firewall:
             if row.quarantine_group_id is None:
@@ -506,42 +616,79 @@ class CaseService:
                 row.quarantine_group_id = group.id
                 self._touch(row)
             action = Action(
-                id=self._action_id(row), case_id=row.id, kind=kind,
+                id=self._action_id(row, kind), case_id=row.id, kind=kind,
                 target=target, api_method="PATCH", api_path=f"/v2/instances/{target}",
                 api_body={"firewall_group_id": row.quarantine_group_id},
-                description=f"Move {row.instance_label} into the quarantine "
-                            f"group (admin SSH only)")
+                description=description or
+                            f"Move {row.instance_label} into the quarantine "
+                            f"group (admin SSH only)",
+                recommended=created_by is Actor.agent, created_by=created_by)
         elif kind is ActionKind.stop_instance:
             action = Action(
-                id=self._action_id(row), case_id=row.id, kind=kind,
+                id=self._action_id(row, kind), case_id=row.id, kind=kind,
                 target=target, api_method="POST",
                 api_path=f"/v2/instances/{target}/halt",
-                description=f"Halt {row.instance_label}")
+                description=description or f"Halt {row.instance_label}",
+                created_by=created_by)
         elif kind is ActionKind.revoke_ssh_key:
-            keys = "; ".join(report.rogue_ssh_keys)
+            keys = "; ".join(report.rogue_ssh_keys) if report else "specified keys"
             action = Action(
-                id=self._action_id(row), case_id=row.id, kind=kind,
+                id=self._action_id(row, kind), case_id=row.id, kind=kind,
                 target=target, api_method=None, api_path=None,
-                description=f"On {row.instance_label}, remove the rogue "
-                            f"authorized_keys lines: {keys}")
-        else:  # rotate_secrets
-            paths = ", ".join(report.secrets_found)
+                description=description or
+                            f"On {row.instance_label}, remove the rogue "
+                            f"authorized_keys lines: {keys}", created_by=created_by)
+        elif kind is ActionKind.rotate_secrets:
+            paths = ", ".join(report.secrets_found) if report else "specified secrets"
             action = Action(
-                id=self._action_id(row), case_id=row.id, kind=kind,
+                id=self._action_id(row, kind), case_id=row.id, kind=kind,
                 target=target, api_method=None, api_path=None,
-                description=f"Rotate the secrets found on the disk: {paths}")
+                description=description or
+                            f"Rotate the secrets found on the disk: {paths}",
+                created_by=created_by)
+        else:  # manual_plan: human-authored record, never executable
+            action = Action(
+                id=self._action_id(row, kind), case_id=row.id, kind=kind,
+                target=target, api_method=None, api_path=None, api_body=None,
+                description=description or "Manual remediation plan",
+                created_by=created_by)
+        return action
+
+    async def add_custom_action(self, case_id: str,
+                                request: CustomActionRequest) -> Action:
+        row = self.row(case_id)
+        if CaseState(row.state) is not CaseState.reported:
+            raise TransitionError(CaseState(row.state), CaseState.reported)
+        with self.state.sf() as s:
+            report = s.get(ReportRow, case_id)
+        action = await self._build_action(
+            row, request.kind, report=report, description=request.description,
+            created_by=Actor.human)
         with self.state.sf() as s:
             s.add(ActionRow(**action.model_dump()))
             s.commit()
-        self.log.append(row.id, "action_proposed", ActionProposed(action=action),
-                        actor=Actor.agent)
+        self.log.append(case_id, "action_proposed", ActionProposed(action=action),
+                        actor=Actor.human)
+        return action
 
     def _next_id(self, row_class, case_id: str, prefix: str) -> str:
         with self.state.sf() as s:
             n = s.scalar(select(func.count()).where(row_class.case_id == case_id)) or 0
         return f"{case_id}-{prefix}-{n + 1:03d}"
 
-    def _action_id(self, row: CaseRow) -> str:
+    def _action_id(self, row: CaseRow, kind: ActionKind) -> str:
+        if row.operator == "dev-infect":
+            candidate = {
+                ActionKind.quarantine_firewall: "act-1",
+                ActionKind.revoke_ssh_key: "act-2",
+                ActionKind.stop_instance: "act-3",
+                ActionKind.rotate_secrets: "act-4",
+                ActionKind.manual_plan: "act-5",
+            }[kind]
+            with self.state.sf() as s:
+                if s.get(ActionRow, candidate) is None:
+                    return candidate
+            return f"{row.id}-{candidate}"
         if row.operator == "dev-demo":
             with self.state.sf() as s:
                 n = s.scalar(select(func.count()).where(ActionRow.case_id == row.id)) or 0

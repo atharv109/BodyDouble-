@@ -13,29 +13,50 @@ Endpoint shapes are owned here (TASK.md); every change is logged to
 from __future__ import annotations
 
 import asyncio
+import hashlib
+import hmac
 import secrets
+from datetime import timedelta, timezone
+from pathlib import Path
 
 from fastapi import Cookie, Depends, FastAPI, Header, HTTPException, Request, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from contracts.models import (
     Action,
     ApproveRequest,
     Case,
     CaseDetail,
+    CustomActionRequest,
     OpenCaseRequest,
+    SensorEnrollRequest,
+    SensorEnrollResponse,
+    SensorStatus,
+    SensorReport,
+    SensorHeartbeat,
+    Alert,
+    SensorSignal,
+    WebhookAlert,
+    Attack,
+    ATTACK_FINDINGS,
+    InfectRequest,
+    InfectResponse,
+    VultrInstance,
+    SENSOR_CLOCK_SKEW_S,
     ToolCall,
     ToolResult,
     TwinRegisterRequest,
     TwinRegisterResponse,
 )
-from contracts.vultr import FakeVultr, VultrError
+from contracts.vultr import FakeVultr, VultrError, VultrNotFound
+from contracts.hashing import sensor_signature
 
 from .sessions import mint, verify
-from .db import CaseRow
+from .db import AlertRow, CaseRow, SensorNonceRow, SensorRow, utcnow
 from .state import AppState, build_state
-from .service import ActionConflict, TransitionError
+from .service import ActionConflict, AlertRateLimit, TransitionError
 from .twin import TwinChannelError, in_subnet
 
 COOKIE_NAME = "bd_session"
@@ -89,6 +110,30 @@ def create_app(state: AppState | None = None) -> FastAPI:
     )
     app.state.bd = state
 
+    async def heartbeat_watch_loop():
+        while True:
+            await asyncio.sleep(30)
+            try:
+                await state.service.check_heartbeat_losses()
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                # A transient watcher failure must not stop API service; the
+                # next scan is idempotent and retries any still-due lapse.
+                import logging
+                logging.getLogger("backend").exception("heartbeat watcher failed")
+
+    @app.on_event("startup")
+    async def start_heartbeat_watcher():
+        state.heartbeat_task = asyncio.create_task(heartbeat_watch_loop())
+
+    @app.on_event("shutdown")
+    async def stop_heartbeat_watcher():
+        if state.heartbeat_task is not None:
+            state.heartbeat_task.cancel()
+            await asyncio.gather(state.heartbeat_task, return_exceptions=True)
+            state.heartbeat_task = None
+
     @app.get("/healthz", include_in_schema=False)
     async def healthz():
         return {"ok": True, "vultr": "fake" if state.is_fake else "real"}
@@ -121,6 +166,136 @@ def create_app(state: AppState | None = None) -> FastAPI:
     @app.get("/instances", dependencies=[Depends(require_human)])
     async def list_instances():
         return await state.vultr.list_instances()
+
+    # ------------------------------------------------------------- sensors
+    @app.post("/sensors", response_model=SensorEnrollResponse)
+    async def enroll_sensor(body: SensorEnrollRequest,
+                            _: str = Depends(require_human)):
+        try:
+            await state.vultr.get_instance(body.instance_id)
+        except VultrNotFound:
+            raise HTTPException(404, f"unknown instance {body.instance_id}")
+        token = secrets.token_hex(32)
+        now = utcnow()
+        with state.sf() as session:
+            row = session.get(SensorRow, body.instance_id)
+            if row is None:
+                row = SensorRow(instance_id=body.instance_id,
+                                token_sha256="", enrolled_at=now)
+                session.add(row)
+            row.token_sha256 = hashlib.sha256(token.encode()).hexdigest()
+            row.enrolled_at = now
+            row.last_seen = None
+            session.commit()
+        state.sensor_tokens[body.instance_id] = token
+        url = state.settings.public_url
+        command = (f"curl -fsSL {url}/api/sensors/install.sh | sudo sh -s -- "
+                   f"{url} {body.instance_id} {token}")
+        return SensorEnrollResponse(
+            instance_id=body.instance_id, token=token,
+            install_command=command,
+            startup_script=f"#!/bin/sh\n{command}\n",
+        )
+
+    @app.get("/sensors", response_model=list[SensorStatus])
+    async def list_sensors(_: str = Depends(require_human)):
+        now = utcnow()
+        with state.sf() as session:
+            rows = session.execute(select(SensorRow).order_by(SensorRow.instance_id)).scalars()
+            return [SensorStatus(
+                instance_id=row.instance_id, enrolled_at=row.enrolled_at,
+                last_seen=row.last_seen,
+                healthy=(row.last_seen is not None and
+                         row.last_seen >= now - timedelta(seconds=180)),
+            ) for row in rows]
+
+    @app.get("/sensors/install.sh", include_in_schema=True)
+    async def sensor_installer():
+        path = Path(__file__).resolve().parents[2] / "sensor" / "install.sh"
+        if not path.is_file():
+            raise HTTPException(404, "sensor installer is not available")
+        return FileResponse(path, media_type="text/x-shellscript")
+
+    async def _authenticated_sensor(request: Request, model_type):
+        raw = await request.body()
+        try:
+            body = model_type.model_validate_json(raw)
+        except Exception as e:
+            raise HTTPException(422, "invalid sensor payload") from e
+        token = state.sensor_tokens.get(body.instance_id)
+        signature = request.headers.get("X-BD-Signature")
+        if token is None or signature is None or not hmac.compare_digest(
+                signature, sensor_signature(token, raw)):
+            raise HTTPException(401, "invalid sensor signature")
+        sent_at = body.sent_at
+        if sent_at.tzinfo is not None:
+            sent_at = sent_at.astimezone(timezone.utc).replace(tzinfo=None)
+        now = state.service.now()
+        if abs((now - sent_at).total_seconds()) > SENSOR_CLOCK_SKEW_S:
+            raise HTTPException(401, "sensor timestamp outside allowed skew")
+        with state.sf() as session:
+            session.add(SensorNonceRow(instance_id=body.instance_id,
+                                       nonce=body.nonce, received_at=now))
+            try:
+                session.commit()
+            except IntegrityError:
+                session.rollback()
+                raise HTTPException(409, "sensor nonce already used")
+        return body, now
+
+    @app.post("/sensors/report", response_model=Alert)
+    async def sensor_report(request: Request):
+        body, now = await _authenticated_sensor(request, SensorReport)
+        try:
+            return await state.service.create_alert(
+                body.instance_id, body.signal, "sensor", body.summary, body.detail,
+                now=now)
+        except AlertRateLimit:
+            raise HTTPException(429, "alert rate limit exceeded")
+
+    @app.post("/sensors/heartbeat", status_code=204)
+    async def sensor_heartbeat(request: Request):
+        body, now = await _authenticated_sensor(request, SensorHeartbeat)
+        with state.sf() as session:
+            row = session.get(SensorRow, body.instance_id)
+            if row is None:
+                raise HTTPException(401, "invalid sensor signature")
+            row.last_seen = now
+            session.commit()
+        return Response(status_code=204)
+
+    # ------------------------------------------------------------- alerts
+    @app.post("/alerts/webhook", response_model=Alert)
+    async def alert_webhook(request: Request):
+        secret = state.settings.webhook_secret
+        if not secret:
+            raise HTTPException(404, "webhook alert intake is disabled")
+        raw = await request.body()
+        signature = request.headers.get("X-BD-Signature")
+        if signature is None or not hmac.compare_digest(
+                signature, sensor_signature(secret, raw)):
+            raise HTTPException(401, "invalid webhook signature")
+        try:
+            body = WebhookAlert.model_validate_json(raw)
+        except Exception as e:
+            raise HTTPException(422, "invalid webhook payload") from e
+        try:
+            await state.vultr.get_instance(body.instance_id)
+        except VultrNotFound:
+            raise HTTPException(404, f"unknown instance {body.instance_id}")
+        try:
+            return await state.service.create_alert(
+                body.instance_id, SensorSignal.external, body.source,
+                body.summary, body.detail)
+        except AlertRateLimit:
+            raise HTTPException(429, "alert rate limit exceeded")
+
+    @app.get("/alerts", response_model=list[Alert])
+    async def list_alerts(_: str = Depends(require_human)):
+        with state.sf() as session:
+            rows = session.execute(select(AlertRow).order_by(
+                AlertRow.received_at.desc(), AlertRow.id.desc())).scalars()
+            return [row.to_model() for row in rows]
 
     @app.post("/cases", response_model=Case, status_code=201,
               dependencies=[Depends(require_human)])
@@ -171,6 +346,55 @@ def create_app(state: AppState | None = None) -> FastAPI:
             raise HTTPException(404, str(e))
         except ValueError as e:
             raise HTTPException(422, str(e))
+
+    @app.post("/dev/infect", response_model=InfectResponse, status_code=201)
+    async def dev_infect(body: InfectRequest,
+                         _: str = Depends(require_human)):
+        if state.settings.vultr_api_key or not state.is_fake:
+            raise HTTPException(404, "development infection demo is unavailable")
+        chosen = set(body.attacks)
+        while True:
+            suffix = secrets.token_hex(2)
+            instance_id = f"inst-demo-{suffix}"
+            if instance_id not in state.vultr.instances:
+                break
+        label = f"demo-{suffix}"
+        state.vultr.instances[instance_id] = VultrInstance(
+            id=instance_id, label=label, region="ewr",
+            main_ip=f"192.0.2.{20 + len(state.vultr.instances)}",
+            status="active", plan="vc2-1c-2gb", os="Ubuntu 24.04 LTS x64",
+            firewall_group_id="fw-shop-web")
+        now = state.service.now()
+        token = secrets.token_hex(32)
+        with state.sf() as session:
+            session.add(SensorRow(
+                instance_id=instance_id,
+                token_sha256=hashlib.sha256(token.encode()).hexdigest(),
+                enrolled_at=now, last_seen=now))
+            session.commit()
+        state.sensor_tokens[instance_id] = token
+        finding_ids = {
+            finding_id for attack in chosen for finding_id in ATTACK_FINDINGS[attack]
+        }
+        if chosen:
+            names = ", ".join(sorted(attack.value for attack in chosen))
+            alert = await state.service.create_alert(
+                instance_id, SensorSignal.file_changed, "sensor",
+                f"Demo sensor detected planted attacks: {names}",
+                {"attacks": names}, now=now, rate_limit=False,
+                fixture_finding_ids=finding_ids, case_operator="dev-infect")
+            case_id = alert.case_id
+            alert_id = alert.id
+        else:
+            case = await state.service.open_case(
+                instance_id, "Clean control: no attacks planted",
+                operator="dev-infect")
+            await state.service.run_case(
+                case.id, force_full=True, auto_close=False,
+                fixture_finding_ids=set())
+            case_id, alert_id = case.id, None
+        return InfectResponse(instance_id=instance_id, alert_id=alert_id,
+                              case_id=case_id)
 
     @app.get("/cases/{case_id}", response_model=CaseDetail,
              dependencies=[Depends(require_human)])
@@ -274,6 +498,16 @@ def create_app(state: AppState | None = None) -> FastAPI:
         except LookupError as e:
             raise HTTPException(404, str(e))
         except ActionConflict as e:
+            raise HTTPException(409, str(e))
+
+    @app.post("/cases/{case_id}/actions", response_model=Action, status_code=201)
+    async def add_custom_action(case_id: str, body: CustomActionRequest,
+                                _: str = Depends(require_human)):
+        try:
+            return await state.service.add_custom_action(case_id, body)
+        except LookupError as e:
+            raise HTTPException(404, str(e))
+        except TransitionError as e:
             raise HTTPException(409, str(e))
 
     # ---------------------------------------------------------------- F11: teardown

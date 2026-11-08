@@ -42,6 +42,8 @@ class Settings:
     twin_plan: str = "vc2-1c-2gb"
     control_url: str = "http://10.0.0.1:8000"  # told to the twin via user_data (real mode)
     admin_ip: str = "203.0.113.7"  # the one IP allowed SSH in the quarantine group
+    public_url: str = "http://localhost:5173"
+    webhook_secret: str | None = None
 
     # polling / timeouts (seconds); tests pass small values directly
     poll_interval_s: float = 0.05
@@ -71,6 +73,8 @@ def settings_from_env() -> Settings:
         twin_plan=os.environ.get("TWIN_PLAN", "vc2-1c-2gb"),
         control_url=os.environ.get("CONTROL_URL", "http://10.0.0.1:8000"),
         admin_ip=os.environ.get("ADMIN_IP", "203.0.113.7"),
+        public_url=os.environ.get("BD_PUBLIC_URL", "http://localhost:5173").rstrip("/"),
+        webhook_secret=os.environ.get("BD_WEBHOOK_SECRET") or None,
         poll_interval_s=_f("POLL_INTERVAL_S", 5.0 if real else 0.05),
         snapshot_timeout_s=_f("SNAPSHOT_TIMEOUT_S", 900.0),
         boot_timeout_s=_f("BOOT_TIMEOUT_S", 300.0),

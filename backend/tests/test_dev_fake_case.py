@@ -21,7 +21,7 @@ async def test_dev_fake_case_stops_reported_then_browser_applies_and_closes(
     assert len(detail["actions"]) == 4
     assert [action["id"] for action in detail["actions"]] == [f"act-{i}" for i in range(1, 5)]
     assert {action["kind"] for action in detail["actions"]} == {
-        kind.value for kind in ActionKind
+        kind.value for kind in ActionKind if kind is not ActionKind.manual_plan
     }
     assert all(action["status"] == ActionStatus.proposed.value
                for action in detail["actions"])

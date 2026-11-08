@@ -8,6 +8,7 @@ Vultr access only through contracts.vultr.VultrClient:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from sqlalchemy.orm import sessionmaker
 
@@ -29,6 +30,9 @@ class AppState:
     service: object = field(default=None)
     app: object = field(default=None)
     fake_twin_tasks: dict = field(default_factory=dict)
+    heartbeat_task: object = field(default=None)
+    sensor_tokens: dict[str, str] = field(default_factory=dict)
+    clock: object = field(default=datetime.utcnow)
 
     @property
     def is_fake(self) -> bool:
