@@ -12,7 +12,9 @@ from urllib.request import urlopen
 METADATA_URL = "http://169.254.169.254/v1/user-data"
 REQUIRED = {"case_id", "token", "control_plane", "vpc_subnet", "vpc_ip"}
 SAFE_ID = re.compile(r"^[A-Za-z0-9-]{1,128}$")
-NFT_PLACEHOLDER = "__BD_VPC_SUBNET__"
+NFT_IP_PLACEHOLDER = "__BD_CONTROL_PLANE_IP__"
+NFT_PORT_PLACEHOLDER = "__BD_CONTROL_PLANE_PORT__"
+NFT_PLACEHOLDERS = (NFT_IP_PLACEHOLDER, NFT_PORT_PLACEHOLDER)
 
 
 def validate_bootstrap(payload: object) -> dict[str, str]:
@@ -63,19 +65,23 @@ def fetch_bootstrap(url: str = METADATA_URL, timeout_s: float = 5.0) -> dict[str
 
 def drop_only_rules(template: str) -> str:
     return "\n".join(
-        line for line in template.splitlines() if NFT_PLACEHOLDER not in line
+        line for line in template.splitlines()
+        if not any(placeholder in line for placeholder in NFT_PLACEHOLDERS)
     ) + "\n"
 
 
 def configure_boot(metadata_url: str, nft_template: str | Path,
                    nft_output: str | Path, bootstrap_output: str | Path) -> dict[str, str]:
-    """Write drop-only first; only validated data can add the VPC accept rule."""
+    """Write drop-only first; only validated data can add the control-plane rule."""
     template = Path(nft_template).read_text(encoding="utf-8")
     nft_path, bootstrap_path = Path(nft_output), Path(bootstrap_output)
     nft_path.write_text(drop_only_rules(template), encoding="utf-8")
     bootstrap_path.unlink(missing_ok=True)
     bootstrap = fetch_bootstrap(metadata_url)
-    nft_path.write_text(template.replace(NFT_PLACEHOLDER, bootstrap["vpc_subnet"]), encoding="utf-8")
+    control_plane = urlsplit(bootstrap["control_plane"])
+    rendered = template.replace(NFT_IP_PLACEHOLDER, control_plane.hostname or "")
+    rendered = rendered.replace(NFT_PORT_PLACEHOLDER, str(control_plane.port))
+    nft_path.write_text(rendered, encoding="utf-8")
     bootstrap_path.write_text(json.dumps(bootstrap), encoding="utf-8")
     bootstrap_path.chmod(0o600)
     return bootstrap

@@ -15,7 +15,7 @@
 #     copied WHOLESALE to /usr/lib/bd, so later files ship for free
 #   - docker + the gVisor runsc runtime (official static binary, downloaded
 #     at build time - no key needed) for the F7 detonation sandbox
-#   - nftables default-DROP egress that allows only the case VPC subnet
+#   - nftables default-DROP egress that allows only the case control plane
 #   - the boot chain: initramfs init -> busybox init (inittab) ->
 #     /etc/bd/boot.sh -> bd-twin (seal checks, register over the VPC with
 #     the ONE-TIME token, long-poll /twin/jobs/next, post ToolResults)
@@ -84,10 +84,11 @@ stage() {
     cp -a "$OVERLAY/usr/." "$s/usr/"
     cp -a "$BOOTFILES/." "$s/boot/"
 
-    log "stage: live egress ruleset demo (fake deploy-time subnet)"
+    log "stage: live egress ruleset demo (fake deploy-time control plane)"
     # Demonstrate the validated Python renderer's final substitution using
     # the documentation-only RFC 5737 subnet.
-    sed "s|__BD_VPC_SUBNET__|192.0.2.0/24|g" \
+    sed -e "s|__BD_CONTROL_PLANE_IP__|192.0.2.10|g" \
+        -e "s|__BD_CONTROL_PLANE_PORT__|8000|g" \
         "$s/etc/bd/egress.nft" > "$s/etc/bd/egress.live.nft"
 
     log "stage: sha256 manifest"

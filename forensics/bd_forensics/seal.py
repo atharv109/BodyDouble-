@@ -4,7 +4,7 @@ Both checks run on the twin itself (the forensics ISO booted instead of the
 cloned OS, so the results are trustworthy - the attacker's code never runs):
 - disk_read_only: the cloned disk must be mounted with the `ro` option.
 - egress_blocked: an outbound connection to the public internet must fail
-  (the ISO egress firewall default-DROPs everything but the case VPC).
+  (the ISO egress firewall allows only the case control-plane IP and port).
 """
 from __future__ import annotations
 
