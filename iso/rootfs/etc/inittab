@@ -1,0 +1,13 @@
+# /etc/inittab - busybox init for the Body Double forensics appliance.
+#
+# One sysinit pass builds the walls (egress default-DROP, read-only cloned
+# disk mount) and starts the twin agent; the consoles respawn a root shell so
+# the operator can watch the seal checks and step feed on the twin's console
+# (VNC tty1, serial ttyS0). No other services run on this machine - it
+# exists only to investigate a read-only clone.
+
+::sysinit:/etc/bd/boot.sh
+tty1::respawn:/sbin/getty 38400 tty1
+ttyS0::respawn:/sbin/getty -L 115200 ttyS0 vt100
+::ctrlaltdel:/sbin/reboot
+::shutdown:/bin/sync

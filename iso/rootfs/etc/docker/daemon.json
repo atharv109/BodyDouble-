@@ -1,0 +1,8 @@
+{
+    "iptables": false,
+    "bridge": "none",
+    "storage-driver": "vfs",
+    "runtimes": {
+        "runsc": { "path": "/usr/bin/runsc" }
+    }
+}

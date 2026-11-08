@@ -1,0 +1,76 @@
+#!/bin/sh
+# initramfs /init for the Body Double forensics ISO (packed by iso/build.sh).
+#
+# Trusted, busybox-only bootstrap (runs before anything from the cloned disk
+# could even be seen): mount the base trees, load the media/filesystem
+# modules packed at build time, find the BDFORENSICS boot media, hand any
+# bd-deploy.env found on an attached block device to the real root (via
+# /run, which survives switch_root), mount the squashfs read-only and
+# switch_root into busybox init, whose inittab runs /etc/bd/boot.sh.
+export PATH=/bin:/sbin:/usr/bin:/usr/sbin
+
+BB=/bin/busybox
+
+$BB --install -s /bin
+$BB mkdir -p /proc /sys /dev /run /tmp /media /newroot
+$BB mount -t proc proc /proc
+$BB mount -t sysfs sysfs /sys
+$BB mount -t devtmpfs devtmpfs /dev
+$BB mount -t tmpfs tmpfs /run
+$BB mkdir -p /dev/pts /run/bd
+$BB mount -t devpts devpts /dev/pts
+
+# media + filesystem modules, dependency-first, packed by the build
+if [ -f /modules ]; then
+    while IFS= read -r ko; do
+        [ -n "$ko" ] && $BB insmod "$ko" 2>/dev/null || true
+    done < /modules
+fi
+
+# pass any deploy-time bd-deploy.env from an attached device to the root:
+# mount each candidate read-only, copy the file to /run/bd/deploy.env, umount
+for d in /dev/sr1 /dev/vd[a-z] /dev/sd[a-z] /dev/nvme[0-9]n[0-9]; do
+    if [ -b "$d" ] && [ ! -f /run/bd/deploy.env ]; then
+        if $BB mount -o ro "$d" /media 2>/dev/null; then
+            if [ -f /media/bd-deploy.env ]; then
+                $BB cp /media/bd-deploy.env /run/bd/deploy.env
+                $BB chmod 600 /run/bd/deploy.env
+                echo "bd-init: deploy config found on $d"
+            fi
+            $BB umount /media
+        fi
+    fi
+done
+
+# find the BDFORENSICS boot media (holds /rootfs.squashfs)
+media=
+for d in /dev/sr0 /dev/vd[a-z] /dev/sd[a-z]; do
+    if [ -b "$d" ]; then
+        if $BB mount -o ro "$d" /media 2>/dev/null; then
+            if [ -f /media/rootfs.squashfs ]; then
+                media=$d
+                echo "bd-init: boot media $d"
+                break
+            fi
+            $BB umount /media
+        fi
+    fi
+done
+if [ -z "$media" ]; then
+    echo "bd-init: no BDFORENSICS boot media found - dropping to a shell" >&2
+    exec $BB sh
+fi
+
+# the root filesystem, read-only
+if ! $BB mount -o ro,loop -t squashfs /media/rootfs.squashfs /newroot; then
+    echo "bd-init: squashfs mount failed - dropping to a shell" >&2
+    exec $BB sh
+fi
+
+# move the base trees into the new root (mkinitfs's proven pattern), then go
+for d in /proc /sys /dev /run /media; do
+    $BB mkdir -p "/newroot$d"
+    $BB mount -o move "$d" "/newroot$d"
+done
+$BB sync
+exec $BB switch_root -c /dev/console /newroot /sbin/init
