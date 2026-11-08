@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useLocation, useParams } from 'react-router'
 import { api } from '../api/client'
 import type { VultrInstance } from '../api/types'
 import { ApproveDrawer } from '../case/Approve'
+import { AnalystConsole } from '../case/AnalystConsole'
 import { Production } from '../case/Production'
 import { InvestigationLog, StatusBand, TaskRail } from '../case/Terminal'
 import { useCase } from '../case/useCase'
@@ -10,6 +11,8 @@ import { useTitle } from '../ui/useTitle'
 
 export function CaseScreen() {
   const { id } = useParams()
+  const location = useLocation()
+  const openedFromDemo = (location.state as { from?: string } | null)?.from === 'infect'
   const live = useCase(id)
   const c = live.detail?.case
   const label = c?.instance_label ?? ''
@@ -47,6 +50,8 @@ export function CaseScreen() {
           </button>
         </>} />
 
+        {openedFromDemo && <p className="case-handoff" role="status"><strong>Demo sensor opened this real case record.</strong> You are now in the live investigation timeline for case <span className="font-mono">{id}</span>.</p>}
+
         {live.error && !live.detail && (
           <div role="alert" className="border border-line bg-panel p-4 text-sm">
             <p className="font-medium">This case could not be loaded.</p>
@@ -60,6 +65,7 @@ export function CaseScreen() {
           <div className="case-prod"><Production live={live} server={server} /></div>
           <aside className="case-rail" aria-label="Case status"><TaskRail live={live} /></aside>
         </div>
+        {id && <AnalystConsole caseId={id} state={live.state} />}
       </section>
 
       {id && <ApproveDrawer live={live} caseId={id} open={drawer} onClose={() => setDrawer(false)} />}

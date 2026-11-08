@@ -35,7 +35,7 @@ export function Infect() {
     try {
       await api.session(operator)
       const r = await api.infect(picked)
-      navigate(`/cases/${r.case_id}`, { viewTransition: true })
+      navigate(`/cases/${r.case_id}`, { viewTransition: true, state: { from: 'infect', attacks: picked.length } })
     } catch (e) {
       setPhase(e instanceof ApiError && (e.status === 404 || e.status === 401 || e.status === 403) ? 'unavailable' : 'down')
     }
@@ -109,8 +109,10 @@ export function Infect() {
           : 'Nothing planted: a clean control. Expect zero findings.'}
       </p>
 
+      <p className="text-sm text-muted max-w-[60ch]">This creates a demo server, triggers its sensor, and opens the resulting case as a real investigation record.</p>
+
       <button type="button" data-testid="infect" className="btn btn-agent btn-xl infect-go" disabled={phase === 'busy'} onClick={start}>
-        {phase === 'busy' ? 'Planting...' : n ? `Infect a server with ${n} ${n === 1 ? 'attack' : 'attacks'}` : 'Run a clean server'}
+        {phase === 'busy' ? 'Creating case from sensor alert…' : n ? `Infect a server with ${n} ${n === 1 ? 'attack' : 'attacks'}` : 'Run a clean server'}
       </button>
 
       {phase === 'ask' && (

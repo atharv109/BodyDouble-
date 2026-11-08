@@ -1,5 +1,5 @@
 import type {
-  Action, Alert, Attack, Case, CaseDetail, CustomActionRequest, InfectResponse, SensorEnrollResponse, SensorStatus, VultrInstance,
+  Action, Alert, AnalystRun, Attack, Case, CaseDetail, CustomActionRequest, InfectResponse, SensorEnrollResponse, SensorStatus, ToolName, VultrInstance,
 } from './types'
 
 export const API = '/api'
@@ -74,6 +74,8 @@ export const api = {
   alerts: () => call<Alert[]>('GET', '/alerts'),
   customAction: (id: string, body: CustomActionRequest) => call<Action>('POST', `/cases/${id}/actions`, body),
   caseDetail: (id: string) => call<CaseDetail>('GET', `/cases/${id}`),
+  analystRun: (id: string, tool: ToolName, args: Record<string, unknown>) =>
+    call<AnalystRun>('POST', `/cases/${id}/analyst/run`, { tool, args }),
   approve: (id: string, actionId: string, approved_by: string) =>
     call<Action>('POST', `/cases/${id}/actions/${actionId}/approve`, { approved_by }),
   close: (id: string) => call<CaseDetail>('POST', `/cases/${id}/close`),

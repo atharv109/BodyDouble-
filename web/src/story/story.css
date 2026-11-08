@@ -52,7 +52,7 @@
 .lane-prod { grid-column: 1 / 4; }
 .lane-twin { grid-column: 4 / -1; min-width: 0; border-left: 1px solid var(--color-line); padding-left: var(--lane-pad); }
 
-.rail { position: sticky; top: calc(var(--head-h) + 24px); margin-top: clamp(5rem, 10vw, 9rem); }
+.rail { position: sticky; top: calc(var(--head-h) + 24px); margin-top: 32px; }
 .prod-card { padding: 20px;
   background: var(--color-panel); border: 1px solid var(--color-line); border-radius: 2px;
   transition: border-color 280ms var(--ease-latch); }
@@ -68,18 +68,20 @@
 .story[data-contained] .prod-fw dd { color: var(--color-agent); animation: latch-in 280ms var(--ease-latch) both; }
 
 /* the rail index: one row per case state, the one on screen in ink with a brass tick; Approve is brass */
-.step-index { margin-top: 28px; }
-.step-index ol { margin-top: 10px; border-top: 1px solid var(--color-line); }
-.step-index a { position: relative; display: grid; grid-template-columns: 1.75rem minmax(0, 1fr) auto; align-items: baseline; gap: 8px;
-  min-height: 34px; padding: 7px 0 7px 12px; border-bottom: 1px solid var(--color-line); font-size: 14px; color: var(--color-muted);
+.step-index { margin-top: 20px; }
+.step-index ol { margin-top: 8px; border-top: 1px solid var(--color-line); }
+.step-index a { position: relative; display: grid; grid-template-columns: 1.75rem minmax(0, 1fr); align-items: center; gap: 6px;
+  min-height: 30px; padding: 5px 4px 5px 10px; border-bottom: 1px solid var(--color-line); font-size: 13px; color: var(--color-muted);
   transition: color 160ms, translate 160ms var(--ease-latch); }
 .step-index a::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 2px; background: var(--color-agent);
   scale: 1 0; transition: scale 280ms var(--ease-latch); }
 .si-n { font-family: var(--font-mono); font-size: 12px; font-variant-numeric: tabular-nums; }
-.si-s { font-family: var(--font-mono); font-size: 12px; }
+.si-s { display: none; grid-column: 2; font-family: var(--font-mono); font-size: 11px; }
 .step-index [data-done] a { color: var(--color-ink); }
 .step-index [data-done] .si-s, .step-index [data-done] .si-n { color: var(--color-muted); }
 .step-index a[aria-current] { color: var(--color-ink); font-weight: 500; }
+.step-index a[aria-current] { min-height: 42px; align-content: center; }
+.step-index a[aria-current] .si-s { display: block; color: var(--color-agent); font-weight: 400; }
 .step-index a[aria-current]::before { scale: 1 1; }
 .step-index [data-approve] a { color: var(--color-agent); }
 @media (hover: hover) { .step-index a:hover { color: var(--color-ink); translate: 3px 0; } }
@@ -225,7 +227,7 @@
 @media (max-width: 1023px) { .thread { display: none; } }
 
 /* the case: each stop takes the room while it is mid-screen; a ghost numeral marks the one playing */
-@media (min-width: 1024px) { .stop { min-height: 44vh; align-content: center; } }
+@media (min-width: 1024px) { .stop { min-height: clamp(15rem, 30vh, 20rem); align-content: center; } .stop[data-crossing] { min-height: clamp(18rem, 36vh, 24rem); } }
 .stop-ghost { font-family: var(--font-sans); position: absolute; right: 0; top: 50%; translate: 0 -50%; z-index: -1; pointer-events: none; font-weight: 600; line-height: 1;
   font-size: clamp(5rem, 2rem + 10vw, 13rem); letter-spacing: -0.06em; font-variant-numeric: tabular-nums; color: transparent;
   -webkit-text-stroke: 1px var(--color-line); transition: -webkit-text-stroke-color 600ms var(--ease-latch), translate 600ms var(--ease-latch); }

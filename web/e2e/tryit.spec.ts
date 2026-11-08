@@ -22,6 +22,7 @@ test('infect, with a session: straight to the case', async ({ page, request }) =
   await page.getByTestId('attack-c2_beacon').click()
   await page.getByTestId('infect').click()
   await expect(page).toHaveURL(/\/cases\/[\w-]+$/)
+  await expect(page.getByRole('status')).toContainText('Demo sensor opened this real case record')
   await expect(page.getByTestId('case-alert')).toBeVisible()
 })
 

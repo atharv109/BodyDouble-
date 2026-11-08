@@ -145,6 +145,7 @@ function close(c, id) {
 
 /** POST /cases/{id}/actions: the operator's own fix. The API call is built here, never taken from the client. */
 let nextAction = 100;
+let nextAnalystStep = 100;
 function customAction(c, { kind, description }) { // created_by is the operator; Action records the actor ("human")
   const t = c.detail.case.instance_id;
   const api = kind === "quarantine_firewall" ? { api_method: "PATCH", api_path: `/v2/instances/${t}`, api_body: { firewall_group_id: "fw-0005" } }
@@ -154,6 +155,26 @@ function customAction(c, { kind, description }) { // created_by is the operator;
     recommended: false, created_by: "human", approved_by: null, response: null };
   emit(c, "action_proposed", { action });
   return action;
+}
+
+function analystRun(c, tool, args) {
+  const outputs = {
+    os_facts: ["cat /mnt/evidence/etc/os-release", "NAME=Ubuntu\nVERSION=24.04.1 LTS\n"],
+    persistence_scan: ["find /mnt/evidence/etc -type f -path '*cron*'", "/mnt/evidence/etc/cron.d/sysupdate\n"],
+    auth_scan: ["cat /mnt/evidence/root/.ssh/authorized_keys", "ssh-ed25519 AAAA fixture-key\n"],
+    recent_files: ["find /mnt/evidence -type f -mmin -60", "/mnt/evidence/etc/cron.d/sysupdate\n"],
+    binary_integrity: ["sha256sum /mnt/evidence/usr/bin/top", "fixture-sha  /mnt/evidence/usr/bin/top\n"],
+    listener_config: ["cat /mnt/evidence/etc/nginx/nginx.conf", "worker_processes auto;\n"],
+  };
+  let [code, stdout] = outputs[tool] ?? [`${tool} ${args.path ?? ""}`.trim(), `read ${args.path}\n`];
+  if (tool === "custom_script") { code = args.code; stdout = args.code.includes('verified') ? "verified\n" : "script completed\n"; }
+  const step = { id: `step-human-${nextAnalystStep++}`, case_id: c.detail.case.id, seq: c.detail.steps.length + 1,
+    kind: tool === "detonate" ? "detonate" : "triage", tool, args, rationale: "Human analyst run", code,
+    stdout, stderr: "", exit_code: 0, duration_ms: 12 };
+  emit(c, "step_started", { step: { ...step, stdout: null, stderr: null, exit_code: null, duration_ms: null } });
+  emit(c, "step_finished", { step });
+  return { step, result: { job_id: `job-${step.id}`, code, stdout, stderr: "", exit_code: 0, duration_ms: 12,
+    artifacts: [], dns_queries: [], file_writes: [], containers_left: 0, packets_out: 0 } };
 }
 
 function infect(attacks) {
@@ -233,6 +254,15 @@ createServer(async (req, res) => {
     }
     if (p[0] === "cases" && !c) return json(res, 404, { detail: "no such case" });
     if (req.method === "GET" && p.length === 2) return json(res, 200, c.detail);
+    if (req.method === "POST" && p[2] === "analyst" && p[3] === "run") {
+      if (!["sealed", "investigating", "reported", "contained"].includes(c.detail.case.state)) return json(res, 409, { detail: `case is ${c.detail.case.state}` });
+      const b = await body(req);
+      const tools = ["os_facts", "persistence_scan", "auth_scan", "recent_files", "binary_integrity", "listener_config", "extract", "detonate", "custom_script"];
+      if (!tools.includes(b.tool) || !b.args || typeof b.args !== "object") return json(res, 422, { detail: "invalid tool or args" });
+      if ((b.tool === "extract" || b.tool === "detonate") && !b.args.path?.trim()) return json(res, 422, { detail: "path required" });
+      if (b.tool === "custom_script" && !b.args.code?.trim()) return json(res, 422, { detail: "code required" });
+      return json(res, 200, analystRun(c, b.tool, b.args));
+    }
     if (req.method === "GET" && p[2] === "stream") {
       res.writeHead(200, { "content-type": "text/event-stream", "cache-control": "no-cache", connection: "keep-alive" });
       const from = Number(req.headers["last-event-id"] ?? -1) + 1;
