@@ -1,8 +1,5 @@
 import { useId, useState } from 'react'
 import type { DnsCaptured, Evidence, Finding, Severity } from '../api/types'
-import { SEVERITY_ORDER } from '../api/types'
-import type { LiveCase } from './useCase'
-import { evidenceIndex } from './useCase'
 
 const SEV_STYLE: Record<Severity, string> = {
   critical: 'bg-finding text-ground border-finding',
@@ -11,41 +8,9 @@ const SEV_STYLE: Record<Severity, string> = {
   info: 'text-muted border-line',
 }
 
-/** Right column: what the agent found, severity first, each tied to hashed evidence. */
-export function Findings({ live }: { live: LiveCase }) {
-  const ev = evidenceIndex(live.detail)
-  const sorted = [...live.findings].sort(
-    (a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || a.id.localeCompare(b.id),
-  )
-  const done = live.state === 'reported' || live.state === 'contained' || live.state === 'closed'
-
+export function DnsCard({ dns, evidence }: { dns: DnsCaptured; evidence?: Evidence }) {
   return (
-    <section aria-labelledby="col-find" className="flex flex-col gap-4 min-w-0" data-testid="col-findings">
-      <header className="flex items-baseline justify-between gap-3">
-        <h2 id="col-find" className="label">Findings</h2>
-        <span className="font-mono text-xs text-muted" data-testid="finding-count">
-          {sorted.length} {sorted.length === 1 ? 'finding' : 'findings'}
-        </span>
-      </header>
-
-      {live.dns.map((d) => <DnsCard key={`${d.step_id}-${d.query}`} dns={d} evidence={ev[d.evidence_id]} />)}
-
-      {sorted.length === 0 && live.dns.length === 0 ? (
-        <p className="text-sm text-muted border border-dashed border-line rounded-xs p-5">
-          {done ? 'Nothing found. The copy looks clean.' : 'Findings appear here as the copy is examined.'}
-        </p>
-      ) : (
-        <ol className="grid gap-3" aria-live="polite" aria-relevant="additions">
-          {sorted.map((f) => <FindingCard key={f.id} f={f} ev={ev} />)}
-        </ol>
-      )}
-    </section>
-  )
-}
-
-function DnsCard({ dns, evidence }: { dns: DnsCaptured; evidence?: Evidence }) {
-  return (
-    <article className="latch border border-finding bg-finding/10 rounded-xs p-5" data-testid="dns-card" aria-label="DNS capture">
+    <article className="latch border border-finding bg-finding/10 rounded-xs p-4 font-sans" data-testid="dns-card" aria-label="DNS capture">
       <p className="font-mono text-xs text-finding uppercase tracking-[.06em]">Caught phoning home</p>
       <p className="mt-2 font-mono text-lg break-all leading-tight">{dns.query}</p>
       <p className="mt-2 text-sm">
@@ -60,17 +25,17 @@ function DnsCard({ dns, evidence }: { dns: DnsCaptured; evidence?: Evidence }) {
   )
 }
 
-function FindingCard({ f, ev }: { f: Finding; ev: Record<string, Evidence> }) {
+export function FindingCard({ f, ev }: { f: Finding; ev: Record<string, Evidence> }) {
   return (
-    <li className="latch border border-line bg-panel rounded-xs p-5" data-testid={`finding-${f.id}`} data-severity={f.severity}>
+    <li className="latch border border-line bg-ground rounded-xs p-4" data-testid={`finding-${f.id}`} data-severity={f.severity}>
       <div className="flex items-center gap-2">
         <span className={`border rounded-xs px-1.5 py-px font-mono text-[11px] uppercase tracking-[.06em] ${SEV_STYLE[f.severity]}`}>
           {f.severity}
         </span>
         {f.mitre_id && <span className="font-mono text-xs text-muted">{f.mitre_id}</span>}
       </div>
-      <h3 className="mt-2.5 font-medium leading-snug">{f.title}</h3>
-      <p className="mt-1 text-sm text-muted">{f.summary}</p>
+      <h4 className="mt-2 font-sans text-[15px] font-medium leading-snug">{f.title}</h4>
+      <p className="mt-1 font-sans text-sm text-muted">{f.summary}</p>
       <div className="mt-3 flex flex-wrap gap-2">
         {f.evidence_ids.map((id) => <EvidenceChip key={id} id={id} e={ev[id]} />)}
       </div>
@@ -81,7 +46,7 @@ function FindingCard({ f, ev }: { f: Finding; ev: Record<string, Evidence> }) {
 const base = (p: string) => (p.includes(':') ? p : p.split('/').pop() || p)
 
 /** Opens the hashed excerpt in place. Excerpts are quoted attacker text: shown, never followed. */
-function EvidenceChip({ id, e }: { id: string; e?: Evidence }) {
+export function EvidenceChip({ id, e }: { id: string; e?: Evidence }) {
   const [open, setOpen] = useState(false)
   const pid = useId()
   return (

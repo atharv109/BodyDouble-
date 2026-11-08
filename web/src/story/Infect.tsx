@@ -2,7 +2,7 @@ import { useId, useRef, useState, type FormEvent } from 'react'
 import { Link, useNavigate } from 'react-router'
 import { api, ApiError, getOperator } from '../api/client'
 import type { Attack } from '../api/types'
-import { attacks } from './content'
+import { attacks, scenarios } from './content'
 
 type Phase = 'idle' | 'busy' | 'ask' | 'unavailable' | 'down'
 
@@ -20,6 +20,15 @@ export function Infect() {
   const input = useRef<HTMLInputElement>(null)
 
   const toggle = (a: Attack) => setPicked((p) => (p.includes(a) ? p.filter((x) => x !== a) : [...p, a]))
+  // A preset is just a set of attacks: it stays selected only while the picked set is exactly its set.
+  const same = (a: Attack[], b: Attack[]) => a.length === b.length && a.every((x) => b.includes(x))
+  const [shown, setShown] = useState<string | null>(null)
+  const card = scenarios.find((sc) => sc.id === shown && same(sc.attacks, picked)) ?? null
+  const choose = (id: string) => {
+    const sc = scenarios.find((x) => x.id === id)!
+    if (card?.id === id) { setPicked([]); setShown(null); return }
+    setPicked(sc.attacks); setShown(id)
+  }
 
   async function run(operator: string) {
     setPhase('busy')
@@ -47,8 +56,39 @@ export function Infect() {
 
   return (
     <div className="infect">
+      <fieldset className="presets">
+        <legend className="presets-legend">Replay a technique from the news</legend>
+        <div className="preset-row">
+          {scenarios.map((sc) => (
+            <button key={sc.id} type="button" className="preset" aria-pressed={card?.id === sc.id} data-testid={`preset-${sc.id}`}
+              onClick={() => choose(sc.id)}>
+              <span className="preset-name">{sc.title}</span>
+              <span className="preset-meta font-mono">{sc.year} · {sc.attacks.length} {sc.attacks.length === 1 ? 'attack' : 'attacks'}</span>
+            </button>
+          ))}
+        </div>
+      </fieldset>
+
+      {card && (
+        <article key={card.id} className="scenario" data-testid={`scenario-${card.id}`} aria-labelledby={`${id}-sc`}>
+          <p className="scenario-label font-mono" data-testid="scenario-label">
+            Technique from public reporting. Not data from {card.company}.
+          </p>
+          <h3 id={`${id}-sc`} className="scenario-title">{card.title}, {card.year}</h3>
+          <dl className="scenario-body">
+            <div><dt>What happened</dt><dd>{card.happened}</dd></div>
+            <div><dt>Planted here</dt><dd>{card.planted}</dd></div>
+            <div><dt>Where Body Double fits</dt><dd>{card.helped}</dd></div>
+          </dl>
+          <a className="source" href={card.source.href} target="_blank" rel="noopener noreferrer" data-testid="scenario-source">
+            Source: {card.source.label} <span className="arrow" aria-hidden="true">↗</span><span className="sr-only"> (opens in a new tab)</span>
+          </a>
+          <p className="scenario-note">The case below runs on a fictional server. It shows how the technique is investigated, not what happened at {card.company}.</p>
+        </article>
+      )}
+
       <fieldset className="attacks">
-        <legend className="sr-only">Attacks to plant</legend>
+        <legend className="sr-only">Attacks to plant{card ? `, preset from ${card.title}` : ''}</legend>
         {attacks.map((a) => {
           const on = picked.includes(a.value)
           return (
