@@ -12,20 +12,24 @@ export function SiteHeader({ onStory = false }: { onStory?: boolean }) {
       <div className="wrap h-16 flex items-center gap-3 sm:gap-6">
         <Link to="/" viewTransition className="brand min-h-11 flex items-center gap-2.5 whitespace-nowrap shrink-0 font-semibold tracking-[-0.01em]" aria-label="Body Double, home">
           <Emblem className="size-7" />
-          <span>Body Double</span>
+          <span className={caseId ? 'max-sm:sr-only' : ''}>Body Double</span>
         </Link>
         {/* phone + case open: the wordmark stays; the breadcrumb scrolls sideways if it runs out of room */}
         <nav aria-label="Primary" className="ml-auto flex items-center gap-1 text-sm whitespace-nowrap min-w-0 overflow-x-auto">
           {onStory
             ? <a className="navlink text-muted hidden sm:inline-block" href="#how">How it works</a>
             : <Link to="/#how" viewTransition className="navlink text-muted hidden sm:inline-block">How it works</Link>}
-          <Link to="/console" viewTransition className={tone(inConsole)} aria-current={inConsole && !caseId ? 'page' : undefined}>Console</Link>
+          <Link to="/console" viewTransition className={tone(inConsole)} aria-current={inConsole && !caseId ? 'page' : undefined}>
+            <span className="sm:hidden">{caseId ? '← Console' : 'Console'}</span><span className="hidden sm:inline">Console</span>
+          </Link>
           {caseId && (
             <>
-              <span className="text-muted" aria-hidden="true">/</span>
-              <NavLink to={`/cases/${caseId}`} end className={({ isActive }) => `${tone(isActive)} font-mono`}>{caseId}</NavLink>
-              <span className="text-muted" aria-hidden="true">/</span>
-              <NavLink to={`/cases/${caseId}/evidence`} className={({ isActive }) => tone(isActive)}>Evidence</NavLink>
+              <span className="text-muted hidden sm:inline" aria-hidden="true">/</span>
+              <NavLink to={`/cases/${caseId}`} end className={({ isActive }) => `${tone(isActive)} font-mono ${isActive ? '' : 'max-sm:hidden'}`}>
+                <span className="sm:hidden">Case</span><span className="hidden sm:inline">{caseId}</span>
+              </NavLink>
+              <span className="text-muted hidden sm:inline" aria-hidden="true">/</span>
+              <NavLink to={`/cases/${caseId}/evidence`} className={({ isActive }) => `${tone(isActive)} ${isActive ? '' : 'max-sm:hidden'}`}>Evidence</NavLink>
             </>
           )}
           {!caseId && (onStory

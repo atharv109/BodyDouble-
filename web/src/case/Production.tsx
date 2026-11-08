@@ -99,7 +99,7 @@ function AlertQuote({ alertId }: { alertId: string }) {
     api.alerts().then((xs) => setAlert(xs.find((a) => a.id === alertId) ?? null)).catch(() => {})
   }, [alertId])
   return (
-    <figure className="latch border-l-2 border-finding pl-4" data-testid="case-alert">
+    <figure className="latch border border-finding/60 bg-finding/5 p-4" data-testid="case-alert">
       <p className="label"><span className="text-finding">Sensor alert</span> opened this case</p>
       <blockquote className="mt-2 text-sm">&ldquo;{alert?.summary ?? '...'}&rdquo;</blockquote>
       <figcaption className="mt-1 font-mono text-xs text-muted">

@@ -62,11 +62,14 @@ export function WatchDialog({ server, onClose }: { server: VultrInstance | null;
           {!res && !error && <p className="mt-6 text-sm text-muted">Issuing a token...</p>}
           {res && (
             <>
-              <p className="mt-6 border-l-2 border-agent pl-3 text-sm" data-testid="token-once">
+              <p className="mt-6 border border-agent/60 bg-agent/5 p-3 text-sm" data-testid="token-once">
                 The token is inside both commands and is shown <strong>once</strong>. Copy one now; closing this hides it for good.
               </p>
               <Command label="On the running server, as root" text={res.install_command} testid="install-command" />
-              <Command label="Or, for a new server: Vultr startup script" text={res.startup_script} testid="startup-script" />
+              <details className="fold mt-5 border-t border-line pt-3">
+                <summary className="min-h-9 font-mono text-xs text-muted"><span aria-hidden="true" className="chev mr-2">▸</span>New server: Vultr startup script</summary>
+                <Command label="Vultr startup script" text={res.startup_script} testid="startup-script" />
+              </details>
             </>
           )}
 

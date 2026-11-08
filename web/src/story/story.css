@@ -107,6 +107,7 @@
 .beat { padding-block: clamp(4.5rem, 9vw, 9rem); border-top: 1px solid var(--color-line); }
 .beat:first-child { border-top: 0; }
 .beat-final { padding-bottom: clamp(6rem, 14vw, 12rem); }
+#try { scroll-margin-top: calc(var(--head-h) + 56px); }
 
 .options { margin-top: clamp(2.5rem, 5vw, 4rem); display: grid; gap: 2.5rem 24px; }
 @media (min-width: 768px) { .options { grid-template-columns: 1fr 1fr; } }
@@ -280,6 +281,8 @@
 .scenario { margin: 0 0 24px; padding: 18px 20px 20px; border: 1px solid var(--color-line); border-left: 2px solid var(--color-agent); border-radius: 2px; background: var(--color-panel);
   max-width: 72ch; animation: latch-in 280ms var(--ease-latch) both; }
 .scenario-label { display: inline-block; font-size: 12px; padding: 2px 8px; border: 1px solid var(--color-agent); color: var(--color-agent); border-radius: 2px; }
+.scenario-summary { display: flex; min-height: 44px; align-items: center; justify-content: space-between; gap: 16px; color: var(--color-ink); }
+.scenario[open] .scenario-summary { margin-bottom: 14px; }
 .scenario-title { margin-top: 12px; font-size: clamp(1.25rem, 1.1rem + 0.6vw, 1.6rem); font-weight: 600; letter-spacing: -0.015em; line-height: 1.2; }
 .scenario-body { margin: 14px 0 12px; display: grid; gap: 12px; }
 .scenario-body dt { font-family: var(--font-mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--color-muted); }

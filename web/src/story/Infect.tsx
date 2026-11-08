@@ -70,11 +70,14 @@ export function Infect() {
       </fieldset>
 
       {card && (
-        <article key={card.id} className="scenario" data-testid={`scenario-${card.id}`} aria-labelledby={`${id}-sc`}>
+        <details key={card.id} className="scenario" data-testid={`scenario-${card.id}`}>
+          <summary className="scenario-summary">
+            <span><span aria-hidden="true" className="chev mr-2">▸</span><strong id={`${id}-sc`}>{card.title}, {card.year}</strong></span>
+            <span className="font-mono text-xs text-muted">source and mapping</span>
+          </summary>
           <p className="scenario-label font-mono" data-testid="scenario-label">
             Technique from public reporting. Not data from {card.company}.
           </p>
-          <h3 id={`${id}-sc`} className="scenario-title">{card.title}, {card.year}</h3>
           <dl className="scenario-body">
             <div><dt>What happened</dt><dd>{card.happened}</dd></div>
             <div><dt>Planted here</dt><dd>{card.planted}</dd></div>
@@ -84,7 +87,7 @@ export function Infect() {
             Source: {card.source.label} <span className="arrow" aria-hidden="true">↗</span><span className="sr-only"> (opens in a new tab)</span>
           </a>
           <p className="scenario-note">The case below runs on a fictional server. It shows how the technique is investigated, not what happened at {card.company}.</p>
-        </article>
+        </details>
       )}
 
       <fieldset className="attacks">
@@ -114,10 +117,10 @@ export function Infect() {
         <form className="tryit-ask" onSubmit={submit}>
           <label htmlFor={id} className="block font-medium">Operator name</label>
           <p className="text-sm text-muted mt-1">Approvals in the case log are signed with this name.</p>
-          <div className="mt-3 flex gap-3 max-w-md">
+          <div className="mt-3 flex flex-col sm:flex-row gap-3 max-w-md">
             <input ref={input} id={id} value={name} onChange={(e) => setName(e.target.value)} required maxLength={64} autoComplete="name"
               className="flex-1 min-w-0 bg-ground border border-line rounded-xs px-3 h-11 text-base focus:border-muted outline-none" />
-            <button type="submit" className="btn btn-primary h-11" disabled={!name.trim()}>Start session</button>
+            <button type="submit" className="btn btn-primary h-11 justify-center" disabled={!name.trim()}>Start session</button>
           </div>
         </form>
       )}
