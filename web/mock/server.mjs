@@ -30,6 +30,7 @@ const INSTANCES = [
 
 const cases = new Map(); // id -> { detail, log: [{event,data}], subs:Set<res> }
 let nextCase = 1;
+const sessions = new Set();
 const swapId = (o, id) => JSON.parse(JSON.stringify(o).replaceAll("case-0001", id));
 
 function emit(c, event, data) {
@@ -111,6 +112,18 @@ createServer(async (req, res) => {
   const p = url.pathname.split("/").filter(Boolean);
   const c = p[0] === "cases" && p[1] ? cases.get(p[1]) : null;
   try {
+    // Operator session, as the backend does it (to-frontend.md 20:20): cookie bd_session or X-Human-Session.
+    if (req.method === "POST" && url.pathname === "/auth/session") {
+      const { operator } = await body(req);
+      if (!operator?.trim()) return json(res, 422, { detail: "operator required" });
+      const token = `${operator}.${Date.now()}.${Math.random().toString(16).slice(2)}`;
+      sessions.add(token);
+      res.setHeader("set-cookie", `bd_session=${token}; Path=/; HttpOnly; SameSite=Lax`);
+      return json(res, 200, { operator, session_token: token });
+    }
+    const cookie = /(?:^|;\s*)bd_session=([^;]+)/.exec(req.headers.cookie ?? "")?.[1];
+    if (!sessions.has(cookie) && !sessions.has(req.headers["x-human-session"]))
+      return json(res, 401, { detail: "operator session required" });
     if (req.method === "GET" && url.pathname === "/instances") return json(res, 200, INSTANCES);
     if (req.method === "POST" && (url.pathname === "/cases" || url.pathname === "/dev/fake-case")) {
       const b = await body(req);

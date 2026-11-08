@@ -22,7 +22,7 @@
 
 :root { color-scheme: dark; }
 html, body { background: var(--color-ground); color: var(--color-ink); }
-body { font-family: var(--font-sans); font-size: 15px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+body { font-family: var(--font-sans); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 ::selection { background: var(--color-agent); color: var(--color-ground); }
 
 :focus-visible { outline: 2px solid var(--color-ink); outline-offset: 2px; border-radius: 2px; }
@@ -45,7 +45,7 @@ body { font-family: var(--font-sans); font-size: 15px; line-height: 1.5; -webkit
 .btn { display: inline-flex; align-items: center; gap: .5rem; min-height: 36px; padding: 0 14px; border-radius: 2px; font-weight: 500; font-size: 14px;
   border: 1px solid var(--color-line); background: var(--color-raise); color: var(--color-ink);
   transition: translate 160ms var(--ease-latch), background-color 160ms, border-color 160ms; cursor: pointer; }
-.btn:hover:not(:disabled) { translate: 0 -2px; border-color: var(--color-muted); }
+.btn:hover:not(:disabled) { translate: 0 -2px; background: var(--color-ink); border-color: var(--color-ink); color: var(--color-ground); }
 .btn:active:not(:disabled) { translate: 0 0; }
 .btn:disabled { opacity: .45; cursor: not-allowed; }
 .btn-primary { background: var(--color-ink); color: var(--color-ground); border-color: var(--color-ink); }
@@ -63,7 +63,15 @@ details[open] > summary .chev { rotate: 90deg; }
 }
 
 .navlink { position: relative; padding: 6px 8px; border-radius: 2px; transition: color 160ms; }
-.navlink:hover { color: var(--color-ink); }
+.navlink, .brand { transition: color 160ms, translate 160ms var(--ease-latch); }
+.navlink:hover, .brand:hover { color: var(--color-ink); translate: 0 -2px; }
+.navlink:active, .brand:active { translate: 0 0; }
+.brand .twin-pane { transition: translate 280ms var(--ease-latch); }
+.brand:hover .twin-pane { translate: 3px 0; }
+.chip { transition: translate 160ms var(--ease-latch), border-color 160ms, background-color 160ms; }
+.chip:hover { translate: 0 -2px; background: var(--color-raise); }
+.chip:active { translate: 0 0; }
+.skip { background: var(--color-ink); color: var(--color-ground); border-color: var(--color-ink); }
 .navlink::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: 0; height: 1px; background: currentColor;
   scale: 0 1; transform-origin: left; transition: scale 160ms var(--ease-latch); }
 .navlink:hover::after, .navlink[aria-current="page"]::after { scale: 1 1; }

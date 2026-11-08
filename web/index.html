@@ -5,11 +5,28 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Body Double</title>
-    <meta name="description" content="Investigate a suspect Vultr server on a sealed twin. Production is never touched." />
+    <meta name="description" content="Investigate a suspect Vultr server on a sealed twin. Production is never touched until you approve a change." />
     <meta name="theme-color" content="#0d0e10" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Body Double" />
+    <meta property="og:description" content="Investigate a suspect Vultr server on a sealed twin. Production is never touched until you approve a change." />
+    <meta property="og:image" content="/og.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <style>html,body{background:#0d0e10;color:#e7e5df;margin:0}</style>
   </head>
   <body>
-    <div id="root"></div>
+    <!-- Static shell for crawlers and first paint; React replaces it on mount. -->
+    <div id="root">
+      <main style="font-family:system-ui,sans-serif;max-width:640px;padding:80px 24px">
+        <h1>Body Double</h1>
+        <p>Incident response for Vultr servers. Body Double snapshots a suspect server, investigates an exact copy in a
+          sealed room with the disk read-only and egress dropped, and proposes containment that a human approves.
+          Production is never written to before that approval.</p>
+        <noscript><p>This console needs JavaScript.</p></noscript>
+      </main>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>
