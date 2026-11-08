@@ -56,6 +56,10 @@ if [[ ! -e "$ENV_FILE" ]]; then
   cat > "$ENV_FILE" <<EOF
 VULTR_API_KEY=
 VULTR_INFERENCE_KEY=
+BD_MODEL_PLANNER=
+BD_MODEL_SOLVER=
+BD_WEBHOOK_SECRET=
+BD_PUBLIC_URL=https://example.com
 BD_OPERATOR_PASSWORD=CHANGE_ME
 DATABASE_URL=postgresql:///body_double
 BD_DOMAIN=example.com

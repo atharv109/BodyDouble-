@@ -23,4 +23,11 @@
 		root * /srv/body-double/web/dist
 		file_server
 	}
+
+	# unknown paths keep their 404 status but get the app's own 404 page
+	handle_errors 404 {
+		root * /srv/body-double/web/dist
+		rewrite * /index.html
+		file_server
+	}
 }
