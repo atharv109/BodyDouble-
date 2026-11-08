@@ -2,29 +2,49 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" href="/favicon.ico" sizes="48x48" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Body Double</title>
-    <meta name="description" content="Investigate a suspect Vultr server on a sealed twin. Production is never touched until you approve a change." />
-    <meta name="theme-color" content="#0d0e10" />
+    <title>Body Double: investigate a hacked Vultr server on its sealed twin</title>
+    <meta name="description" content="Body Double snapshots a suspect Vultr server, investigates an exact copy in a sealed room, and proposes containment a human approves. Production keeps running." />
+    <link rel="canonical" href="%VITE_SITE_URL%/" />
+    <meta name="theme-color" content="#0b0d0f" />
     <meta property="og:type" content="website" />
-    <meta property="og:title" content="Body Double" />
-    <meta property="og:description" content="Investigate a suspect Vultr server on a sealed twin. Production is never touched until you approve a change." />
-    <meta property="og:image" content="/og.png" />
+    <meta property="og:site_name" content="Body Double" />
+    <meta property="og:url" content="%VITE_SITE_URL%/" />
+    <meta property="og:title" content="Body Double: investigate the double, leave production running" />
+    <meta property="og:description" content="An incident-response agent for teams on Vultr. It investigates a sealed copy of a hacked server; production changes only when a human approves." />
+    <meta property="og:image" content="%VITE_SITE_URL%/og.png" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Body Double: the original server in a grey frame marked untouched, its twin in a sealed brass frame." />
     <meta name="twitter:card" content="summary_large_image" />
-    <style>html,body{background:#0d0e10;color:#e7e5df;margin:0}</style>
+    <meta name="twitter:title" content="Body Double: investigate the double, leave production running" />
+    <meta name="twitter:description" content="An incident-response agent for teams on Vultr. It investigates a sealed copy of a hacked server; production changes only when a human approves." />
+    <meta name="twitter:image" content="%VITE_SITE_URL%/og.png" />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"SoftwareApplication","name":"Body Double","applicationCategory":"SecurityApplication","operatingSystem":"Linux servers on Vultr","url":"%VITE_SITE_URL%/","description":"Incident-response agent for teams on Vultr: snapshots a suspect server, investigates a sealed twin, proposes containment a human approves.","license":"https://opensource.org/licenses/MIT"}
+    </script>
+    <style>html,body{background:#0b0d0f;color:#e7e5df;margin:0}.shell{font-family:system-ui,sans-serif;max-width:1600px;margin:0 auto;padding:120px 24px 80px}.shell h1{font-size:clamp(2.6rem,.8rem + 6.2vw,7.5rem);line-height:.92;letter-spacing:-.045em;margin:0}.shell p,.shell li{max-width:60ch;color:#8f949c;line-height:1.55}</style>
   </head>
   <body>
-    <!-- Static shell for crawlers and first paint; React replaces it on mount. -->
+    <!-- Static shell for crawlers and first paint (same headline as the hero); React replaces it on mount. -->
     <div id="root">
-      <main style="font-family:system-ui,sans-serif;max-width:640px;padding:80px 24px">
-        <h1>Body Double</h1>
-        <p>Incident response for Vultr servers. Body Double snapshots a suspect server, investigates an exact copy in a
-          sealed room with the disk read-only and egress dropped, and proposes containment that a human approves.
-          Production is never written to before that approval.</p>
-        <noscript><p>This console needs JavaScript.</p></noscript>
+      <main class="shell">
+        <h1>Investigate the double. Leave production running.</h1>
+        <p>Body Double is an incident-response agent for teams on Vultr. When a server looks hacked, it snapshots it,
+          investigates an exact copy in a sealed room, and proposes containment for the real server that a human approves.</p>
+        <p>A small team that suspects a breach has two bad options: poke the live server and risk tipping off the attacker,
+          or shut it down and take the business offline. Body Double works on the copy instead.</p>
+        <p>The copy never boots its own OS: the twin starts from a forensics ISO, mounts the cloned disk read-only, and runs
+          anything suspicious only in no-network gVisor containers with a fake DNS resolver that catches the beacon.</p>
+        <ul>
+          <li>Writes to production before approval: 0. Packets out of the investigation: 0. Containers left running: 0.</li>
+          <li>Built on Vultr Cloud Compute, Snapshots, custom ISO, VPC, firewall groups, the Vultr API and Serverless Inference.</li>
+        </ul>
+        <noscript><p>The story and the live console need JavaScript.</p></noscript>
       </main>
     </div>
     <script type="module" src="/src/main.tsx"></script>

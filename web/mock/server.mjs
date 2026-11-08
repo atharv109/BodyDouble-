@@ -1,6 +1,6 @@
 // Mock control plane: replays contracts/fixtures when the real backend on :8000 is down.
 // Implements the PRD HTTP API + POST /dev/fake-case. Usage: node mock/server.mjs [port]
-// MOCK_DELAY=ms between replayed events (default 350).
+// MOCK_DELAY=ms between replayed events (default 350). MOCK_FAKE_CASE_OFF=1: /dev/fake-case 404s, as in real mode.
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { zipSync, strToU8 } from "fflate";
@@ -126,6 +126,8 @@ createServer(async (req, res) => {
       res.setHeader("set-cookie", `bd_session=${token}; Path=/; HttpOnly; SameSite=Lax`);
       return json(res, 200, { operator, session_token: token });
     }
+    // Real mode turns the demo endpoint off (backend: 404); MOCK_FAKE_CASE_OFF=1 reproduces that.
+    if (url.pathname === "/dev/fake-case" && process.env.MOCK_FAKE_CASE_OFF === "1") return json(res, 404, { detail: "Not Found" });
     const cookie = /(?:^|;\s*)bd_session=([^;]+)/.exec(req.headers.cookie ?? "")?.[1];
     if (!sessions.has(cookie) && !sessions.has(req.headers["x-human-session"]))
       return json(res, 401, { detail: "operator session required" });

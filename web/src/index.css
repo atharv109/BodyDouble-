@@ -6,12 +6,12 @@
 @import "@fontsource/ibm-plex-mono/500.css";
 
 @theme {
-  --color-ground: #0d0e10;
-  --color-panel: #141619;
+  --color-ground: #0b0d0f;
+  --color-panel: #13161a;
   --color-raise: #1a1d21;
   --color-line: #262a30;
   --color-ink: #e7e5df;
-  --color-muted: #8b9099;
+  --color-muted: #8f949c;
   --color-agent: #d6b25e;
   --color-finding: #ef5a52;
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
@@ -80,3 +80,10 @@ details[open] > summary .chev { rotate: 90deg; }
 .navlink::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: 0; height: 1px; background: currentColor;
   scale: 0 1; transform-origin: left; transition: scale 160ms var(--ease-latch); }
 .navlink:hover::after, .navlink[aria-current="page"]::after { scale: 1 1; }
+
+/* route changes (story <-> console): latch, not a cut */
+@keyframes vt-out { to { opacity: 0; } }
+::view-transition-old(root) { animation: 220ms var(--ease-latch) both vt-out; }
+::view-transition-new(root) { animation: 420ms var(--ease-latch) 120ms both latch-in; }
+::view-transition-group(site-head) { animation-duration: 420ms; animation-timing-function: var(--ease-latch); }
+@media (prefers-reduced-motion: reduce) { ::view-transition-old(root), ::view-transition-new(root) { animation: none; } }

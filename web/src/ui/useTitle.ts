@@ -1,16 +1,18 @@
 import { useEffect } from 'react'
 
-/** Unique document title per screen. */
-export function useTitle(title: string) {
+export const SITE = (import.meta.env.VITE_SITE_URL ?? location.origin).replace(/\/$/, '')
+
+/** Unique document title (and optionally description) per screen; canonical follows the route under VITE_SITE_URL. */
+export function useTitle(title: string, description?: string) {
   useEffect(() => {
-    document.title = title ? `${title} · Body Double` : 'Body Double'
-    // Canonical per route, set at runtime: a static tag in index.html makes vite try to bundle its href.
+    document.title = title.startsWith('Body Double') ? title : title ? `${title} · Body Double` : 'Body Double'
+    if (description) document.querySelector('meta[name="description"]')?.setAttribute('content', description)
     let link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
     if (!link) {
       link = document.createElement('link')
       link.rel = 'canonical'
       document.head.appendChild(link)
     }
-    link.href = location.origin + location.pathname
-  }, [title])
+    link.href = SITE + location.pathname
+  }, [title, description])
 }
