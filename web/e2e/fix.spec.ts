@@ -41,7 +41,7 @@ test('your own plan: posted as kind + description, then the same Approve; never 
   ])
   expect(res.ok()).toBe(true)
   const mine = await res.json()
-  expect(posts[0].body).toEqual({ kind: 'manual_plan', description: 'Rebuild from a clean image tonight, restore the database from Tuesday.', created_by: 'e2e-operator' })
+  expect(posts[0].body).toEqual({ kind: 'manual_plan', description: 'Rebuild from a clean image tonight, restore the database from Tuesday.', created_by: 'demo-judge' })
 
   const row = drawer.getByTestId('fix-own').getByTestId(`action-${mine.id}`)
   await expect(row).toHaveAttribute('data-status', 'proposed')

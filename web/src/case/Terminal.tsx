@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import type { Action, ActionApplied, CaseState, DnsCaptured, Finding, SealCheck, StateChanged, Step } from '../api/types'
-import { SEVERITY_ORDER } from '../api/types'
+import { EVENT_NAMES, SEVERITY_ORDER } from '../api/types'
 import { DnsCard, FindingCard } from './Findings'
 import type { LiveCase, LogItem } from './useCase'
 import { evidenceIndex } from './useCase'
@@ -27,145 +27,178 @@ const KIND: Record<string, string> = {
   rotate_secrets: 'Rotate secrets', manual_plan: 'Your plan',
 }
 const num = (n: number) => String(n).padStart(2, '0')
+const isRunning = (s: Step) => s.exit_code === null || s.exit_code === undefined
+const phaseOf = (s: CaseState | null) => (s ? RAIL.findIndex((r) => r.state === s) + 1 : 0) // 0 = opened / none
+const reduced = () => typeof matchMedia !== 'undefined' && matchMedia('(prefers-reduced-motion: reduce)').matches
 
-/** The twin, as a four-pane terminal: what ran, what the model thought, what the sandbox caught, what was logged. */
-export function Terminal({ live }: { live: LiveCase }) {
-  const sealed = SEALS.every((s) => live.seals[s.check]?.passed)
-  const working = live.state === 'investigating' || live.state === 'sealed'
-  const tail = working || live.state === 'reported' // follow through to the report, then stop
-  const steps = Object.fromEntries(live.steps.map((s) => [s.id, s]))
-  const started = live.log.filter((e) => e.name === 'step_started')
-  const n = live.log.length
+/* ------------------------------------------------------------------ status band */
 
-  return (
-    <section aria-labelledby="col-twin" className="min-w-0" data-testid="col-twin">
-      <div className="seal-frame term border border-line bg-panel rounded-xs" data-sealed={sealed} data-testid="twin-frame">
-        <StatusBar live={live} />
-
-        <div className="term-grid">
-          <Pane id="commands" title="Commands + output" meta={`${live.steps.length} run`} tail={tail} count={n}>
-            {started.length === 0 ? (
-              <Empty>The agent starts writing triage scripts once the twin is sealed.</Empty>
-            ) : (
-              <ol className="grid gap-5" aria-live="polite" aria-relevant="additions" data-testid="step-feed">
-                {started.map((e) => { const s = steps[e.data.step.id]; return s && <CommandBlock key={s.id} step={s} /> })}
-              </ol>
-            )}
-            {working && <p aria-hidden="true" className="mt-3"><span className="prompt">$</span> <span className="cursor" /></p>}
-          </Pane>
-
-          {/* AI + sandbox together hold every finding and the DNS capture (case.spec scopes them by col-findings). */}
-          <div className="contents" data-testid="col-findings">
-            <Pane id="ai" title="AI reasoning" meta={`${live.findings.length} ${live.findings.length === 1 ? 'finding' : 'findings'}`}
-              metaTestId="finding-count" tail={tail} count={n}>
-              <AiFeed live={live} steps={steps} />
-            </Pane>
-            <Pane id="sandbox" title="Sandbox / network" meta="--network none" tail={tail} count={n}>
-              <SandboxFeed live={live} steps={steps} />
-            </Pane>
-          </div>
-
-          <Pane id="log" title="Seal + case log" meta={live.detail?.case.firewall_group_id ?? 'inbound deny'} tail={tail} count={n}>
-            <CaseLog live={live} sealed={sealed} />
-          </Pane>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-function StatusBar({ live }: { live: LiveCase }) {
+/** The compact band across the top: where the case is, how far along, and the one thing to do next. */
+export function StatusBand({ live, caseId, actions }: { live: LiveCase; caseId?: string; actions: ReactNode }) {
   const c = live.detail?.case
+  const label = c?.instance_label ?? ''
+  const events = Object.values(live.seen).reduce((a, b) => a + (b ?? 0), 0)
   const reached = new Set(live.transitions.map((t) => t.to))
   const at = live.state ? ORDER.indexOf(live.state) : -1
   const last = live.transitions[live.transitions.length - 1]
+  const phase = phaseOf(live.state)
+  const done = live.steps.filter((s) => !isRunning(s)).length
+  const active = live.steps.length - done
+  const severe = live.findings.filter((f) => f.severity === 'critical' || f.severity === 'high').length
+  const sealed = SEALS.every((s) => live.seals[s.check]?.passed)
+
   return (
-    <header className="border-b border-line px-4 md:px-5 pt-4 pb-3">
-      <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
-        <h2 id="col-twin" className="label">Twin</h2>
-        <span className="font-mono text-xs text-muted min-w-0 truncate">
-          {c?.twin_instance_id ?? 'not booted'}{c?.vpc_id ? ` · ${c.vpc_id}` : ''}{c?.snapshot_id ? ` · from ${c.snapshot_id}` : ''}
-        </span>
+    <header className="band" data-testid="status-band">
+      <div className="flex flex-wrap items-end gap-x-6 gap-y-4">
+        <div className="min-w-0">
+          <p className="label flex flex-wrap items-center gap-x-3 gap-y-1">
+            <span>Case <span className="font-mono normal-case tracking-normal text-ink">{caseId}</span></span>
+            <span className="flex items-center gap-1.5 normal-case tracking-normal" aria-live="off" data-testid="stream-status">
+              <span aria-hidden="true" className={`size-1.5 rounded-full ${live.connected ? 'bg-agent' : 'bg-muted/50'}`} />
+              {live.connected ? 'live' : live.state === 'closed' ? 'closed' : 'reconnecting'} · {events} events
+            </span>
+          </p>
+          <h1 className="mt-1 text-[1.75rem] md:text-[2.5rem] leading-[1.02] font-semibold tracking-[-0.035em] -ml-[0.04em]">
+            {label || '...'} <span className="text-muted font-normal">and its twin</span>
+          </h1>
+        </div>
+        {/* Phone: primary first and full width (column-reverse puts the approve button on top). */}
+        <div className="w-full sm:w-auto sm:ml-auto flex flex-col-reverse sm:flex-row flex-wrap gap-3 [&>*]:justify-center max-sm:[&>*]:w-full">
+          {actions}
+        </div>
       </div>
-      <ol className="mt-3 grid grid-cols-7 gap-1" aria-label="Case progress">
-        {RAIL.map((r) => {
-          const i = ORDER.indexOf(r.state)
-          const done = reached.has(r.state) && i < at
-          const current = r.state === live.state
-          return (
-            <li key={r.state} className="min-w-0" aria-current={current ? 'step' : undefined} data-testid={`rail-${r.state}`}
-              data-done={done || current}>
-              <span aria-hidden="true" className={`block h-[3px] rounded-xs transition-colors duration-300 ${
-                current ? 'bg-agent' : done ? 'bg-agent/55' : 'bg-line'}`} />
-              <span className={`mt-1.5 block font-mono text-[11px] sm:text-xs ${current ? 'text-ink' : 'text-muted max-sm:sr-only'}`}>
-                {r.label}<span className="sr-only">{current ? ' (current)' : done ? ' (done)' : ''}</span>
-              </span>
-            </li>
-          )
-        })}
-      </ol>
-      <p className="mt-2 font-mono text-xs text-muted min-h-[1.5em] wrap-anywhere" aria-live="polite" data-testid="state-detail">
-        {at > 0 && <span className="sm:hidden" aria-hidden="true">{num(Math.min(at, 7))}/07 · </span>}
-        {live.state === 'failed' ? <span className="text-ink">failed: {last?.detail}</span>
-          : last ? <><span className="text-agent">{last.to}</span>{last.detail ? ` · ${last.detail}` : ''}</> : 'waiting for the control plane'}
-      </p>
+
+      <div className="mt-5 grid gap-2 md:grid-cols-[9rem_minmax(0,1fr)] md:items-start md:gap-x-6">
+        <p className="font-mono text-sm text-ink" data-testid="phase">
+          <span className="text-agent">[{phase}/7]</span> {phase ? RAIL[phase - 1].label : live.state === 'failed' ? 'Failed' : 'Opened'}
+        </p>
+        <div className="min-w-0">
+          <ol className="grid grid-cols-7 gap-1" aria-label="Case progress">
+            {RAIL.map((r) => {
+              const i = ORDER.indexOf(r.state)
+              const isDone = reached.has(r.state) && i < at
+              const current = r.state === live.state
+              return (
+                <li key={r.state} className="min-w-0" aria-current={current ? 'step' : undefined} data-testid={`rail-${r.state}`}
+                  data-done={isDone || current}>
+                  <span aria-hidden="true" className="rail-seg" data-state={current ? 'current' : isDone ? 'done' : 'todo'} />
+                  <span className={`mt-1.5 block font-mono text-[11px] sm:text-xs ${current ? 'text-ink' : 'text-muted max-sm:sr-only'}`}>
+                    {r.label}<span className="sr-only">{current ? ' (current)' : isDone ? ' (done)' : ''}</span>
+                  </span>
+                </li>
+              )
+            })}
+          </ol>
+          <p className="mt-1.5 font-mono text-xs text-muted min-h-[1.5em] wrap-anywhere" aria-live="polite" data-testid="state-detail">
+            {live.state === 'failed' ? <span className="text-ink">failed: {last?.detail}</span>
+              : last ? <><span className="text-agent">{last.to}</span>{last.detail ? ` · ${last.detail}` : ''}</> : 'waiting for the control plane'}
+          </p>
+        </div>
+      </div>
+
+      <dl className="band-stats">
+        <div><dt>Commands</dt><dd>{done}/{live.steps.length} done{active ? <span className="text-agent">, {active} active</span> : null}</dd></div>
+        <div><dt>Findings</dt><dd data-testid="finding-count" className={severe ? 'text-finding' : ''}>
+          {live.findings.length}{severe ? <span className="text-muted">, {severe} high or critical</span> : null}</dd></div>
+        <div><dt>Caught</dt><dd className={live.dns.length ? 'text-finding' : ''}>{live.dns.length} DNS {live.dns.length === 1 ? 'lookup' : 'lookups'}</dd></div>
+        <div><dt>Seal</dt><dd className={sealed ? 'text-agent' : ''}>{sealed ? 'sealed' : Object.keys(live.seals).length ? 'checking' : 'pending'}</dd></div>
+        <div className="min-w-0 max-sm:col-span-2"><dt>Twin</dt><dd className="truncate">
+          {c?.twin_instance_id ?? 'not booted'}<span className="text-muted">{c?.vpc_id ? ` · ${c.vpc_id}` : ''}</span></dd></div>
+      </dl>
     </header>
   )
 }
 
-/** One terminal pane. Desktop: fixed height, scrolls inside, follows the tail while the case is live. */
-function Pane({ id, title, meta, metaTestId, tail, count, children }: {
-  id: string; title: string; meta: string; metaTestId?: string; tail: boolean; count: number; children: ReactNode
-}) {
+/* ------------------------------------------------------------- investigation log */
+
+/** The one chronological log: the planner's reasoning in full, each command folded under it, findings as they land. */
+export function InvestigationLog({ live }: { live: LiveCase }) {
+  const sealed = SEALS.every((s) => live.seals[s.check]?.passed)
+  const working = live.state === 'investigating' || live.state === 'sealed'
+  const tail = working || live.state === 'reported' // follow through to the report, then stop
+  const steps = Object.fromEntries(live.steps.map((s) => [s.id, s]))
+  const items = live.log.filter((e) => e.name === 'state_changed' || e.name === 'step_started'
+    || e.name === 'finding_added' || e.name === 'dns_captured')
+
   const body = useRef<HTMLDivElement>(null)
-  const pinned = useRef(true)
+  const [pinned, setPinned] = useState(true)
+  const pinnedRef = useRef(true)
   useLayoutEffect(() => {
     const el = body.current
-    if (el && tail && pinned.current) el.scrollTop = el.scrollHeight
-  }, [count, tail])
+    if (el && tail && pinnedRef.current) el.scrollTop = el.scrollHeight
+  }, [live.log.length, tail])
+  const follow = () => {
+    const el = body.current
+    if (!el) return
+    pinnedRef.current = true; setPinned(true)
+    el.scrollTo({ top: el.scrollHeight, behavior: reduced() ? 'auto' : 'smooth' })
+  }
+
   return (
-    <section aria-labelledby={`pane-${id}-h`} className={`pane pane-${id}`} data-testid={`pane-${id}`}>
+    <section aria-label="Case investigation activity log" className="inv seal-frame" data-sealed={sealed} data-testid="twin-frame">
       <header className="pane-head">
-        <h3 id={`pane-${id}-h`} className="text-ink">{title}</h3>
-        <span className="text-muted truncate" data-testid={metaTestId}>{meta}</span>
+        <h2 id="log-h" className="text-ink">Investigation log</h2>
+        <span className="text-muted truncate">{sealed ? 'twin sealed · no inbound · no egress' : 'twin not sealed yet'}</span>
       </header>
-      <div ref={body} className="pane-body" tabIndex={0} role="region" aria-label={title}
-        onScroll={(e) => { const el = e.currentTarget; pinned.current = el.scrollHeight - el.scrollTop - el.clientHeight < 32 }}>
-        {children}
+      <div ref={body} className="pane-body inv-body" tabIndex={0} role="region" aria-label="Investigation log" data-testid="pane-commands"
+        onScroll={(e) => {
+          const el = e.currentTarget
+          const p = el.scrollHeight - el.scrollTop - el.clientHeight < 32
+          if (p !== pinnedRef.current) { pinnedRef.current = p; setPinned(p) }
+        }}>
+        <div data-testid="pane-ai">
+        {items.length === 0 ? (
+          <p className="text-muted"># Waiting for the control plane. The agent starts once the twin is sealed.</p>
+        ) : (
+          <ol className="grid gap-4" aria-live="polite" aria-relevant="additions" data-testid="investigation-log">
+            {items.map((e) => <Entry key={e.seq} e={e} live={live} steps={steps} />)}
+          </ol>
+        )}
+        {working && <p aria-hidden="true" className="mt-3"><span className="prompt">$</span> <span className="cursor" /></p>}
+        </div>
       </div>
+      {tail && !pinned && (
+        <button type="button" className="term-btn follow-btn latch" onClick={follow}>
+          <span aria-hidden="true">↓</span> follow live
+        </button>
+      )}
     </section>
   )
 }
 
-const Empty = ({ children }: { children: ReactNode }) => <p className="text-muted"># {children}</p>
-
-function CommandBlock({ step: s }: { step: Step }) {
-  const running = s.exit_code === null || s.exit_code === undefined
-  const [copied, setCopied] = useState(false)
-  const copy = () => navigator.clipboard?.writeText(s.code)
-    .then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) }, () => {})
+function Entry({ e, live, steps }: { e: LogItem; live: LiveCase; steps: Record<string, Step> }) {
+  if (e.name === 'state_changed') {
+    const d = e.data as StateChanged
+    const p = phaseOf(d.to_state)
+    return (
+      <>
+        <li className="phase-row latch">
+          <span className="text-agent whitespace-nowrap">[{p}/7] {d.to_state}</span>
+          {d.detail ? <span className="text-muted min-w-0 wrap-anywhere">{d.detail}</span> : null}
+        </li>
+        {d.to_state === 'reported' && <Report live={live} summary={d.detail ?? ''} />}
+      </>
+    )
+  }
+  if (e.name === 'step_started') {
+    const s: Step = steps[e.data.step.id] ?? e.data.step
+    return <StepEntry step={s} />
+  }
+  if (e.name === 'finding_added') {
+    const f = e.data.finding as Finding
+    const hot = f.severity === 'critical' || f.severity === 'high'
+    return (
+      <li className={`latch ai-line ${hot ? 'hot' : ''}`} data-testid={`ai-${f.id}`}>
+        <Role r="solver" />
+        <p className="min-w-0"><span className={hot ? 'text-finding' : 'text-muted'}>[{f.severity}]</span> {f.title}{' '}
+          <span className="text-muted">({f.evidence_ids.join(', ')})</span></p>
+      </li>
+    )
+  }
+  const d = e.data as DnsCaptured
   return (
-    <li className="latch" data-testid={`step-${s.id}`} data-status={running ? 'running' : 'done'}>
-      <div className="flex flex-wrap items-baseline gap-x-2 text-muted">
-        <span>#{num(s.seq)}</span>
-        <span className="text-agent">{s.tool}</span>
-        {s.kind === 'detonate' && <span className="border border-line rounded-xs px-1.5">no-network container</span>}
-        <button type="button" className="term-btn ml-auto" onClick={copy}>
-          {copied ? 'copied' : 'copy code'}<span className="sr-only"> for step {s.seq}, {s.tool}</span>
-        </button>
-      </div>
-      <p className="text-muted"># {s.rationale}</p>
-      <pre className="term-code"><span className="prompt" aria-hidden="true">$ </span>{s.code}</pre>
-      {running ? (
-        <p className="text-muted flex items-center gap-1.5"><span aria-hidden="true" className="running-dot size-1.5 rounded-full bg-agent" />running</p>
-      ) : (
-        <>
-          {s.stdout && <pre className="term-out term-gutter">{s.stdout}</pre>}
-          {s.stderr && <pre className="term-out term-gutter text-muted"><span className="sr-only">stderr: </span><span aria-hidden="true">2&gt; </span>{s.stderr}</pre>}
-          {!s.stdout && !s.stderr && <p className="text-muted">(no output)</p>}
-          <p className={s.exit_code === 0 ? 'text-muted' : 'text-ink'}>[exit {s.exit_code} · {s.duration_ms} ms]</p>
-        </>
-      )}
+    <li className="latch" data-testid={`sbx-dns-${num(e.seq)}`}>
+      <DnsCard dns={d} evidence={evidenceIndex(live.detail)[d.evidence_id]} />
     </li>
   )
 }
@@ -174,37 +207,52 @@ const Role = ({ r }: { r: 'planner' | 'solver' }) => (
   <span className={`role ${r === 'planner' ? 'text-agent' : 'text-ink'}`}>{r}</span>
 )
 
-function AiFeed({ live, steps }: { live: LiveCase; steps: Record<string, Step> }) {
-  const items = live.log.filter((e) => e.name === 'step_started' || e.name === 'finding_added'
-    || (e.name === 'state_changed' && (e.data as StateChanged).to_state === 'reported'))
-  if (!items.length) return <Empty>The planner picks the first tool once the copy is sealed.</Empty>
+/** One step: the planner's reason in full, the command folded beneath it (open it for code and output). */
+function StepEntry({ step: s }: { step: Step }) {
+  const running = isRunning(s)
+  const args = Object.keys(s.args ?? {}).length ? JSON.stringify(s.args) : '{}'
+  const first = s.code.split('\n')[0]
+  const [copied, setCopied] = useState(false)
+  const copy = () => navigator.clipboard?.writeText(s.code)
+    .then(() => { setCopied(true); setTimeout(() => setCopied(false), 1200) }, () => {})
   return (
-    <ol className="grid gap-3" aria-live="polite" aria-relevant="additions">
-      {items.map((e) => {
-        if (e.name === 'step_started') {
-          const s: Step = steps[e.data.step.id] ?? e.data.step
-          const args = Object.keys(s.args ?? {}).length ? JSON.stringify(s.args) : '{}'
-          return (
-            <li key={e.seq} className="latch ai-line" data-testid={`ai-${s.id}`}>
-              <Role r="planner" />
-              <div className="min-w-0"><span className="text-agent">{s.tool}</span> <span className="text-muted wrap-anywhere">{args}</span>
-                <p>{s.rationale}</p></div>
-            </li>
-          )
-        }
-        if (e.name === 'finding_added') {
-          const f = e.data.finding as Finding
-          return (
-            <li key={e.seq} className="latch ai-line" data-testid={`ai-${f.id}`}>
-              <Role r="solver" />
-              <div className="min-w-0"><span className={f.severity === 'critical' || f.severity === 'high' ? 'text-finding' : 'text-muted'}>
-                [{f.severity}]</span> {f.title} <span className="text-muted">({f.evidence_ids.join(', ')})</span></div>
-            </li>
-          )
-        }
-        return <Report key={e.seq} live={live} summary={(e.data as StateChanged).detail ?? ''} />
-      })}
-    </ol>
+    <li id={`entry-${s.id}`} className="latch entry" data-testid={`step-${s.id}`} data-status={running ? 'running' : 'done'}>
+      <div className="ai-line" data-testid={`ai-${s.id}`}>
+        <Role r="planner" />
+        <div className="min-w-0">
+          <p className="text-ink">{s.rationale}</p>
+          <p className="text-muted wrap-anywhere">
+            #{num(s.seq)} <span className="text-agent">{s.tool}</span> {args}
+            {s.kind === 'detonate' && <span className="ml-2 border border-line rounded-xs px-1.5 text-ink">no-network container</span>}
+          </p>
+        </div>
+      </div>
+      <div className="cmd-row">
+        <details className="cmd">
+          <summary>
+            <span aria-hidden="true" className="chev">▸</span>
+            <span className="cmd-line"><span className="prompt" aria-hidden="true">$ </span>{first}</span>
+            {running
+              ? <span className="cmd-status text-agent"><span aria-hidden="true" className="running-dot size-1.5 rounded-full bg-agent inline-block mr-1.5" />running</span>
+              : <span className={`cmd-status ${s.exit_code === 0 ? 'text-muted' : 'text-finding'}`}>[exit {s.exit_code} · {s.duration_ms} ms]</span>}
+            <span className="sr-only">, show command and output</span>
+          </summary>
+          <div className="cmd-body">
+            <pre className="term-code"><span className="prompt" aria-hidden="true">$ </span>{s.code}</pre>
+            {running ? <p className="text-muted">running</p> : (
+              <>
+                {s.stdout && <pre className="term-out term-gutter">{s.stdout}</pre>}
+                {s.stderr && <pre className="term-out term-gutter text-muted"><span className="sr-only">stderr: </span><span aria-hidden="true">2&gt; </span>{s.stderr}</pre>}
+                {!s.stdout && !s.stderr && <p className="text-muted">(no output)</p>}
+              </>
+            )}
+          </div>
+        </details>
+        <button type="button" className="term-btn shrink-0" onClick={copy}>
+          {copied ? 'copied' : 'copy code'}<span className="sr-only"> for step {s.seq}, {s.tool}</span>
+        </button>
+      </div>
+    </li>
   )
 }
 
@@ -214,15 +262,18 @@ function Report({ live, summary }: { live: LiveCase; summary: string }) {
   const sorted = [...live.findings].sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || a.id.localeCompare(b.id))
   const ranked = [...live.actions].sort((a, b) => Number(b.recommended) - Number(a.recommended))
   return (
-    <li className="latch" data-testid="ai-report">
+    <li className="latch report" data-testid="ai-report">
       <div className="ai-line"><Role r="solver" /><p className="text-ink">report · {summary || `${sorted.length} findings`}</p></div>
+      <div data-testid="col-findings">
       {sorted.length === 0 ? (
         <p className="mt-3 text-muted"># Nothing found. The copy looks clean.</p>
       ) : (
-        <ol className="mt-3 grid gap-2">
+        <ol className="mt-3 grid gap-2 2xl:grid-cols-2">
           {sorted.map((f) => <FindingCard key={f.id} f={f} ev={ev} />)}
         </ol>
       )}
+      {live.dns.map((d, i) => <div className="mt-2" key={`${d.evidence_id}-${i}`}><DnsCard dns={d} evidence={ev[d.evidence_id]} /></div>)}
+      </div>
       {ranked.length > 0 && (
         <>
           <p className="mt-4 text-muted"># fixes, ranked. A human approves each one; the agent applies none.</p>
@@ -244,91 +295,180 @@ function Report({ live, summary }: { live: LiveCase; summary: string }) {
   )
 }
 
-function SandboxFeed({ live, steps }: { live: LiveCase; steps: Record<string, Step> }) {
-  const ev = evidenceIndex(live.detail)
-  const items = live.log.filter((e) => e.name === 'dns_captured' || (e.name === 'step_started' && e.data.step.kind === 'detonate'))
-  const blast = live.teardown?.blast_radius ?? live.detail?.blast_radius ?? null
+/* ---------------------------------------------------------------------- the rail */
+
+/** Scroll the log to a step, open its command and put focus on it. */
+function jumpTo(id: string) {
+  const el = document.getElementById(`entry-${id}`)
+  if (!el) return
+  const d = el.querySelector('details')
+  if (d) d.open = true
+  el.scrollIntoView({ block: 'start', behavior: reduced() ? 'auto' : 'smooth' })
+  el.querySelector<HTMLElement>('summary')?.focus({ preventScroll: true })
+  el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash')
+}
+
+function RailSection({ id, title, meta, children, testId }: {
+  id: string; title: string; meta?: ReactNode; children: ReactNode; testId?: string
+}) {
   return (
-    <div className="grid gap-4">
-      {items.length === 0 && <Empty>Nothing detonated yet. Files run here with no network and a fake DNS resolver.</Empty>}
-      {items.map((e) => {
-        if (e.name === 'dns_captured') {
-          const d = e.data as DnsCaptured
-          return (
-            <div key={e.seq} className="grid gap-2" data-testid={`sbx-dns-${num(e.seq)}`}>
-              <p className="latch wrap-anywhere"><span className="text-finding">dns</span> {d.query} <span className="text-muted">-&gt;</span>{' '}
-                {d.answered_with} <span className="text-muted">(sinkhole)</span></p>
-              <DnsCard dns={d} evidence={ev[d.evidence_id]} />
-            </div>
-          )
-        }
-        const s: Step = steps[e.data.step.id] ?? e.data.step
-        const target = (s.args as { path?: string })?.path ?? s.id
-        const done = s.exit_code !== null && s.exit_code !== undefined
-        return (
-          <div key={e.seq} className="latch" data-testid={`sbx-${s.id}`}>
-            <p className="wrap-anywhere"><span className="text-agent">detonate</span> {target} <span className="text-muted">· {s.id}</span></p>
-            <p className="text-muted"># no network; a fake resolver answers every lookup and logs the name</p>
-            {done ? (
-              <>
-                {(s.stdout ?? '').split('\n').filter(Boolean).map((l, i) => {
-                  const k = l.includes(':') ? l.slice(0, l.indexOf(':')) : ''
-                  return <p key={i} className="wrap-anywhere"><span className={k === 'dns' ? 'text-finding' : 'text-muted'}>{k}</span>{l.slice(k.length)}</p>
-                })}
-                <p className="text-muted">[exit {s.exit_code} · {s.duration_ms} ms]</p>
-              </>
-            ) : (
-              <p className="text-muted flex items-center gap-1.5"><span aria-hidden="true" className="running-dot size-1.5 rounded-full bg-agent" />running</p>
-            )}
-          </div>
-        )
-      })}
-      <div className="sbx-meters" data-testid="sandbox-meters">
-        <dl>
-          <div><dt>packets out</dt><dd data-testid="packets-out">{blast ? blast.packets_out : '..'}</dd></div>
-          <div><dt>containers left</dt><dd data-testid="containers-left">{blast ? blast.containers_left : '..'}</dd></div>
-        </dl>
-        <p className="text-muted">{blast ? '# counted at teardown. Both must be 0.' : '# counted when the twin is torn down.'}</p>
-      </div>
-    </div>
+    <section aria-labelledby={`rail-${id}-h`} className="rail-sec" data-testid={testId}>
+      <header className="rail-head">
+        <h2 id={`rail-${id}-h`}>{title}</h2>
+        {meta != null && <span className="text-muted truncate">{meta}</span>}
+      </header>
+      {children}
+    </section>
   )
 }
 
-function CaseLog({ live, sealed }: { live: LiveCase; sealed: boolean }) {
-  const items = live.log.filter((e) => e.name === 'state_changed' || e.name === 'action_proposed'
-    || e.name === 'action_applied' || e.name === 'teardown_done')
+function Glyph({ state }: { state: 'todo' | 'run' | 'done' | 'fail' | 'wait' | 'skip' }) {
+  const g = { todo: '○', run: '◌', done: '●', fail: '×', wait: '◇', skip: '–' }[state]
+  return <span aria-hidden="true" className={`glyph glyph-${state}`}>{g}</span>
+}
+
+/** The narrower rail: what is running, what is sealed, what the sandbox caught, the raw log behind a fold. */
+export function TaskRail({ live }: { live: LiveCase }) {
+  const sealed = SEALS.every((s) => live.seals[s.check]?.passed)
+  const done = live.steps.filter((s) => !isRunning(s)).length
+  const awaiting = live.actions.filter((a) => a.status === 'proposed').length
   return (
-    <div className="grid gap-4">
-      <div>
-        <p className="flex justify-between gap-2"><span className="text-muted"># seal checks</span>
+    <div className="rail" data-testid="pane-log">
+      <RailSection id="tasks" title="Tasks" meta={`${done}/${live.steps.length} commands`} testId="pane-tasks">
+        <p className="task-group">
+          <span>Seal</span>
           <span className={sealed ? 'text-agent' : 'text-muted'} data-testid="seal-status">
-            {sealed ? 'sealed' : Object.keys(live.seals).length ? 'checking' : 'pending'}</span></p>
-        <ul className="mt-1 grid gap-2">
+            {sealed ? 'sealed' : Object.keys(live.seals).length ? 'checking' : 'pending'}</span>
+        </p>
+        <ul className="grid gap-px">
           {SEALS.map((s) => {
             const r: SealCheck | undefined = live.seals[s.check]
             return (
               <li key={s.check} className={r ? 'latch' : ''} data-testid={`seal-${s.check}`}>
-                <p className="flex gap-2"><span className={!r ? 'text-muted' : r.passed ? 'text-agent' : 'text-ink'}>
-                  {!r ? '[ .. ]' : r.passed ? '[ ok ]' : '[FAIL]'}</span>
-                  <span className={r ? '' : 'text-muted'}>{s.label}</span>
-                  <span className="ml-auto text-muted">{!r ? 'pending' : r.passed ? 'passed' : 'FAILED'}</span></p>
-                {r && <pre className="term-out text-muted sm:pl-[7ch]">{r.output}</pre>}
+                <details className="task-fold">
+                  <summary className="task">
+                    <Glyph state={!r ? 'todo' : r.passed ? 'done' : 'fail'} />
+                    <span className={`min-w-0 ${r ? '' : 'text-muted'}`}>{s.label}</span>
+                    <span className={`ml-auto shrink-0 ${!r || r.passed ? 'text-muted' : 'text-finding'}`}>
+                      {!r ? 'pending' : r.passed ? 'passed' : 'FAILED'}</span>
+                  </summary>
+                  {r && <pre className="term-out text-muted task-out">{r.output}</pre>}
+                </details>
               </li>
             )
           })}
         </ul>
+
+        <p className="task-group mt-4"><span>Inspect</span><span className="text-muted">{done}/{live.steps.length}</span></p>
+        {live.steps.length === 0 ? <p className="text-muted"># no commands yet</p> : (
+          <ol className="grid gap-px">
+            {live.steps.map((s) => {
+              const running = isRunning(s)
+              return (
+                <li key={s.id} className="latch" data-testid={`task-${s.id}`}>
+                  <button type="button" className="task task-btn" onClick={() => jumpTo(s.id)}>
+                    <Glyph state={running ? 'run' : s.exit_code === 0 ? 'done' : 'fail'} />
+                    <span className="min-w-0 truncate">{s.tool}</span>
+                    <span className={`ml-auto shrink-0 ${running ? 'text-agent' : s.exit_code === 0 ? 'text-muted' : 'text-finding'}`}>
+                      {running ? 'running' : s.exit_code === 0 ? 'done' : `exit ${s.exit_code}`}</span>
+                    <span className="sr-only">, show step {s.seq} in the log</span>
+                  </button>
+                </li>
+              )
+            })}
+          </ol>
+        )}
+
+        {live.actions.length > 0 && (
+          <>
+            <p className="task-group mt-4"><span>Fixes</span>
+              <span className={awaiting ? 'text-agent' : 'text-muted'}>{awaiting ? `${awaiting} awaiting you` : 'decided'}</span></p>
+            <ul className="grid gap-px">
+              {[...live.actions].sort((a, b) => Number(b.recommended) - Number(a.recommended)).map((a) => (
+                <li key={a.id} className="task latch">
+                  <Glyph state={a.status === 'applied' ? 'done' : a.status === 'proposed' ? 'wait' : 'skip'} />
+                  <span className="min-w-0 truncate">{KIND[a.kind] ?? a.kind}
+                    {a.recommended && <span className="text-agent"> · rec.<span className="sr-only">ommended</span></span>}</span>
+                  <span className={`ml-auto shrink-0 ${a.status === 'applied' ? 'text-agent' : 'text-muted'}`}>{a.status}</span>
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
+      </RailSection>
+
+      <Sandbox live={live} />
+      <CaseLog live={live} />
+
+      <RailSection id="events" title="Event log" testId="pane-events">
+        <details className="fold">
+          <summary><span aria-hidden="true" className="chev">▸</span> count per stream event</summary>
+          <ul className="mt-2 grid grid-cols-[1fr_auto] gap-x-4 gap-y-0.5" data-testid="event-ledger">
+            {EVENT_NAMES.map((n) => (
+              <li key={n} data-event={n} data-count={live.seen[n] ?? 0} className="contents">
+                <span className={live.seen[n] ? 'text-ink' : 'text-muted'}>{n}</span>
+                <span className={`text-right ${live.seen[n] ? 'text-agent' : 'text-muted'}`}>{live.seen[n] ?? 0}</span>
+              </li>
+            ))}
+          </ul>
+        </details>
+      </RailSection>
+    </div>
+  )
+}
+
+function Sandbox({ live }: { live: LiveCase }) {
+  const steps = Object.fromEntries(live.steps.map((s) => [s.id, s]))
+  const runs = live.log.filter((e) => e.name === 'step_started' && e.data.step.kind === 'detonate')
+  const blast = live.teardown?.blast_radius ?? live.detail?.blast_radius ?? null
+  return (
+    <RailSection id="sandbox" title="Sandbox / network" meta="--network none" testId="pane-sandbox">
+      <div className="grid gap-1.5">
+        {runs.length === 0 && live.dns.length === 0 && <p className="text-muted"># nothing detonated yet</p>}
+        {runs.map((e) => {
+          const s: Step = steps[e.data.step.id] ?? e.data.step
+          const target = (s.args as { path?: string })?.path ?? s.id
+          return (
+            <p key={e.seq} className="latch wrap-anywhere" data-testid={`sbx-${s.id}`}>
+              <span className="text-agent">detonate</span> {target}{' '}
+              <span className="text-muted">{isRunning(s) ? '· running' : `· exit ${s.exit_code}`}</span>
+            </p>
+          )
+        })}
+        {live.dns.map((d, i) => (
+          <div key={i} className="grid gap-1">
+            <p className="latch wrap-anywhere"><span className="text-finding">dns</span> {d.query} <span className="text-muted">-&gt;</span> {d.answered_with}</p>
+            <DnsCard dns={d} evidence={evidenceIndex(live.detail)[d.evidence_id]} />
+          </div>
+        ))}
       </div>
-      <ol className="grid gap-1.5" aria-label="Case log">
-        <li className="text-muted"># case log, in order</li>
-        {items.map((e) => <LogLine key={e.seq} e={e} />)}
-      </ol>
+      <dl className="sbx-meters mt-3" data-testid="sandbox-meters">
+        <div><dt>packets out</dt><dd data-testid="packets-out">{blast ? blast.packets_out : '..'}</dd></div>
+        <div><dt>containers left</dt><dd data-testid="containers-left">{blast ? blast.containers_left : '..'}</dd></div>
+      </dl>
+      <p className="mt-1 text-muted">{blast ? '# counted at teardown. Both must be 0.' : '# counted when the twin is torn down.'}</p>
+    </RailSection>
+  )
+}
+
+function CaseLog({ live }: { live: LiveCase }) {
+  const items = live.log.filter((e) => e.name === 'state_changed' || e.name === 'action_proposed'
+    || e.name === 'action_applied' || e.name === 'teardown_done')
+  return (
+    <RailSection id="log" title="Case log" meta={live.detail?.case.firewall_group_id ?? 'inbound deny'}>
       {live.teardown && (
-        <p className="latch border-t border-line pt-3" data-testid="twin-teardown">
+        <p className="latch mb-2" data-testid="twin-teardown">
           <span className="text-agent">twin destroyed</span> · GET {live.teardown.twin_instance_id} returned{' '}
           {live.teardown.twin_status_code} · VPC {live.teardown.vpc_deleted ? 'deleted' : 'still present'}
         </p>
       )}
-    </div>
+      <details className="fold">
+        <summary><span aria-hidden="true" className="chev">▸</span> {items.length} entries, each Vultr API call</summary>
+        <ol className="mt-2 grid gap-1.5" aria-label="Case log">
+          {items.map((e) => <LogLine key={e.seq} e={e} />)}
+        </ol>
+      </details>
+    </RailSection>
   )
 }
 
@@ -337,18 +477,18 @@ function LogLine({ e }: { e: LogItem }) {
   if (e.name === 'state_changed') {
     const d = e.data as StateChanged
     return (
-      <li className="latch log-line">{seq}
+      <li className="log-line">{seq}
         <span className="min-w-0 wrap-anywhere"><span className="text-agent">{d.to_state}</span>{d.detail ? <span className="text-muted"> · {d.detail}</span> : null}</span>
       </li>
     )
   }
   if (e.name === 'teardown_done')
-    return <li className="latch log-line">{seq}<span>teardown <span className="text-muted">· twin, VPC and firewall group deleted</span></span></li>
+    return <li className="log-line">{seq}<span>teardown <span className="text-muted">· twin, VPC and firewall group deleted</span></span></li>
   const applied = e.name === 'action_applied'
   const a = (e.data as { action: Action }).action
   const res = applied ? (e.data as ActionApplied).api : null
   return (
-    <li className="latch log-line" data-testid={`log-${applied ? 'applied' : 'proposed'}-${a.id}`}>
+    <li className="log-line" data-testid={`log-${applied ? 'applied' : 'proposed'}-${a.id}`}>
       {seq}
       <div className="min-w-0">
         <span className={applied ? 'text-agent' : ''}>{applied ? `${a.status} by ${a.approved_by ?? 'operator'}` : 'proposed'}</span>{' '}

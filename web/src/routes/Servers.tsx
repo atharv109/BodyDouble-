@@ -98,9 +98,9 @@ export function Servers() {
                     </span>
                   </td>
                   <td className="py-3 align-top">
-                    <div className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2">
+                    <div className="flex flex-col-reverse sm:flex-row sm:flex-wrap sm:items-center sm:justify-end gap-2 sm:gap-x-4">
                       <SensorCell server={s} status={sensors[s.id]} onWatch={() => setWatching(s)} />
-                      <button type="button" className="btn btn-agent" onClick={() => setTarget(s)} aria-label={`Investigate ${s.label}`}>
+                      <button type="button" className="btn btn-agent max-sm:w-full max-sm:justify-center" onClick={() => setTarget(s)} aria-label={`Investigate ${s.label}`}>
                         Investigate
                       </button>
                     </div>
@@ -113,7 +113,7 @@ export function Servers() {
         {import.meta.env.DEV && <FakeCase />}
         <AlertsInbox alerts={alerts} labels={labels} />
       </div>
-      <div className="lg:col-span-12"><Lifecycle /></div>
+      <div className="lg:col-span-12"><Lifecycle compact /></div>
 
       <InvestigateDialog server={target} onClose={() => setTarget(null)} />
       <WatchDialog server={watching} onClose={() => { setWatching(null); loadWatch() }} />
@@ -206,27 +206,38 @@ const LIFECYCLE: [string, string, boolean][] = [
   ['closed', 'Twin destroyed, snapshot kept, case log sealed into a downloadable bundle.', false],
 ]
 
-export function Lifecycle() {
+export function Lifecycle({ compact = false }: { compact?: boolean }) {
+  const rail = (
+    <ol className="mt-5 relative grid gap-y-5 pl-6 lg:pl-0 lg:grid-cols-7 lg:gap-x-6
+      before:absolute before:left-[3px] before:top-1 before:bottom-1 before:w-px before:bg-line
+      lg:before:left-0 lg:before:right-0 lg:before:top-[3px] lg:before:bottom-auto lg:before:h-px lg:before:w-auto">
+      {LIFECYCLE.map(([state, text, human], i) => (
+        <li key={state} className="relative lg:pt-6">
+          <span aria-hidden="true" className={`absolute -left-6 top-1 lg:left-0 lg:top-0 size-[7px] rounded-full ${
+            human ? 'bg-ink ring-4 ring-ground' : 'bg-agent ring-4 ring-ground'}`} />
+          <p className="font-mono text-xs text-muted">
+            {String(i + 1).padStart(2, '0')}{' '}
+            <span className={human ? 'text-ink' : 'text-agent'}>{state}</span>
+          </p>
+          {human && <p className="mt-1 font-mono text-xs text-ink">the only step that touches production</p>}
+          <p className="mt-1.5 text-sm text-muted leading-[1.5] max-w-[40ch]">{text}</p>
+        </li>
+      ))}
+    </ol>
+  )
+  if (compact) return (
+    <details className="fold mt-8 md:mt-12 border-t border-line pt-4">
+      <summary className="flex min-h-11 items-center justify-between gap-2 text-sm max-sm:flex-col max-sm:items-start">
+        <span><span aria-hidden="true" className="chev mr-2">▸</span><strong>What happens after you open a case</strong></span>
+        <span className="font-mono text-xs text-muted">7 guarded stages</span>
+      </summary>
+      {rail}
+    </details>
+  )
   return (
     <section aria-labelledby="lifecycle-t" className="mt-8 md:mt-14">
       <h2 id="lifecycle-t" className="label">After you open a case</h2>
-      {/* One rail, seven stops. Phone: vertical rail on the left. Desktop: one horizontal rule. */}
-      <ol className="mt-5 relative grid gap-y-5 pl-6 lg:pl-0 lg:grid-cols-7 lg:gap-x-6
-        before:absolute before:left-[3px] before:top-1 before:bottom-1 before:w-px before:bg-line
-        lg:before:left-0 lg:before:right-0 lg:before:top-[3px] lg:before:bottom-auto lg:before:h-px lg:before:w-auto">
-        {LIFECYCLE.map(([state, text, human], i) => (
-          <li key={state} className="relative lg:pt-6">
-            <span aria-hidden="true" className={`absolute -left-6 top-1 lg:left-0 lg:top-0 size-[7px] rounded-full ${
-              human ? 'bg-ink ring-4 ring-ground' : 'bg-agent ring-4 ring-ground'}`} />
-            <p className="font-mono text-xs text-muted">
-              {String(i + 1).padStart(2, '0')}{' '}
-              <span className={human ? 'text-ink' : 'text-agent'}>{state}</span>
-            </p>
-            {human && <p className="mt-1 font-mono text-xs text-ink">the only step that touches production</p>}
-            <p className="mt-1.5 text-sm text-muted leading-[1.5] max-w-[40ch]">{text}</p>
-          </li>
-        ))}
-      </ol>
+      {rail}
     </section>
   )
 }

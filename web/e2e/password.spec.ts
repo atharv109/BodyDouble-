@@ -37,9 +37,10 @@ test('password gate: field shown when required, wrong password inline, right one
   ])
 })
 
-test('fake mode gate has no password field', async ({ page }) => {
+test('fake mode bypasses the operator gate', async ({ page }) => {
   test.skip(live, 'mock only')
   await page.goto('http://localhost:5179/console')
-  await expect(page.getByLabel('Operator name')).toBeVisible()
+  await expect(page.getByRole('heading', { level: 1, name: 'Pick the server that worries you.' })).toBeVisible()
+  await expect(page.getByLabel('Operator name')).toHaveCount(0)
   await expect(page.getByLabel('Operator password')).toHaveCount(0)
 })
