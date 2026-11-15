@@ -30,6 +30,8 @@ STATE = {
              {"id": "v-theirs", "description": "office"}],
     "isos": [{"id": "iso-ours", "filename": "bd-forensics.iso"},
              {"id": "iso-theirs", "filename": "windows.iso"}],
+    "object_storages": [{"id": "obs-ours", "label": "bd-iso-upload"},
+                        {"id": "obs-theirs", "label": "customer-files"}],
     "plans": [{"id": "vc2-1c-1gb", "monthly_cost": 5}],
 }
 
@@ -39,7 +41,8 @@ def fake():
     state = json.loads(json.dumps(STATE))
     deleted: list[str] = []
     key_for = {"instances": "instances", "snapshots": "snapshots", "firewalls": "firewall_groups",
-               "vpcs": "vpcs", "iso": "isos", "plans": "plans"}
+               "vpcs": "vpcs", "iso": "isos", "object-storage": "object_storages",
+               "plans": "plans"}
 
     def handler(req: httpx.Request) -> httpx.Response:
         parts = req.url.path.strip("/").split("/")  # ["v2", kind, id?]
@@ -59,7 +62,7 @@ def fake():
 def test_sweep_deletes_only_ours(fake):
     api, deleted = fake
     vs.sweep(api, dry_run=False, keep={"v-env"}, out=lambda *_: None)
-    assert sorted(deleted) == ["f-ours", "i-bd", "i-ours", "iso-ours", "s-ours", "v-ours"]
+    assert sorted(deleted) == ["f-ours", "i-bd", "i-ours", "iso-ours", "obs-ours", "s-ours", "v-ours"]
 
 
 def test_case_snapshots_and_env_refs_survive(fake):
@@ -77,6 +80,7 @@ def test_case_snapshots_and_env_refs_survive(fake):
     ("firewall", STATE["firewall_groups"][1]),
     ("vpc", STATE["vpcs"][2]),
     ("iso", STATE["isos"][1]),
+    ("object_storage", STATE["object_storages"][1]),
 ])
 def test_delete_guard_refuses_foreign(fake, kind, item):
     api, deleted = fake

@@ -8,6 +8,7 @@ Deletes ONLY resources marked as ours:
   snapshots        description contains "body-double" or starts "bd-",
                    EXCEPT the case-NNNN snapshots (case-0001/case-0002), never touched
   VPCs, firewalls  description contains "body-double" or starts "bd-"
+  object storage   label starts "bd-" (the short-lived bd-iso-upload ISO publisher)
   ISOs             filename contains "body-double" or starts "bd-"
 Resources the secrets file points at (VULTR_ISO_ID, BD_VPC_ID) are kept unless
 --include-env-refs is given: they cost $0/hr and the app needs them.
@@ -34,9 +35,10 @@ KINDS = {
     "snapshot": ("/v2/snapshots", "snapshots", "/v2/snapshots"),
     "firewall": ("/v2/firewalls", "firewall_groups", "/v2/firewalls"),
     "vpc": ("/v2/vpcs", "vpcs", "/v2/vpcs"),
+    "object_storage": ("/v2/object-storage", "object_storages", "/v2/object-storage"),
     "iso": ("/v2/iso", "isos", "/v2/iso"),
 }
-ORDER = ["instance", "snapshot", "firewall", "vpc", "iso"]  # instances first: they pin VPCs/firewalls
+ORDER = ["instance", "snapshot", "firewall", "vpc", "object_storage", "iso"]  # instances first
 
 
 class RefusedDelete(Exception):
@@ -56,6 +58,8 @@ def owned(kind: str, item: dict) -> bool:
         return _marked(desc) and not PROTECTED_SNAPSHOT.search(desc)
     if kind in ("firewall", "vpc"):
         return _marked(item.get("description"))
+    if kind == "object_storage":
+        return _marked(item.get("label"))
     if kind == "iso":
         return _marked(item.get("filename"))
     return False
