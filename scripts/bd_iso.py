@@ -31,16 +31,13 @@ REGION = "ewr"
 PRESIGN_S = 7 * 24 * 3600  # SigV4 max
 
 
-def get_s3_credentials(api: Api, sub_id: str) -> tuple[str, str, str]:
+def get_s3_credentials(api: Api, sub_id: str, host_fallback: str) -> tuple[str, str, str]:
     """(access_key, secret_key, endpoint_host) for the subscription; never logged."""
     sub = api.get(f"/v2/object-storage/{sub_id}")["object_storage"]
-    keys = sub.get("s3_keys") or []
-    if not keys:
-        keys = api.call("POST", f"/v2/object-storage/{sub_id}/s3-keys")[1]["s3_keys"]
-    k = keys[0]
-    access, secret = k.get("access_key") or k.get("s3_access_key"), k.get("secret_key") or k.get("s3_secret_key")
-    host = sub.get("s3_hostname") or f"{sub['region']}.vultrobjects.com"
-    return access, secret, host
+    access, secret = sub.get("s3_access_key"), sub.get("s3_secret_key")
+    if not (access and secret):
+        raise RuntimeError("subscription has no s3 credentials yet")
+    return access, secret, sub.get("s3_hostname") or host_fallback
 
 
 def upload(api: Api, env: dict[str, str]) -> str:  # returns the GET presigned URL
@@ -52,30 +49,26 @@ def upload(api: Api, env: dict[str, str]) -> str:  # returns the GET presigned U
     sub = next((s for s in api.list_all("/v2/object-storage", "object_storages")
                 if s.get("label") == LABEL and s.get("status") != "deleted"), None)
     if sub is None:
-        plans = None
-        for path, key in (("/v2/object-storage-plans", "object_storage_plans"),
-                          ("/v2/object-storage/plans", "object_storage_plans")):
-            s, d = api.call("GET", path, ok=(404,))
-            if s == 200:
-                plans = d[key]
-                break
-        if plans is None:
-            raise RuntimeError("no object-storage plans endpoint answered")
-        # cheapest plan that serves REGION (newer plans carry a locations list)
-        usable = [p for p in plans if not p.get("locations") or REGION in p["locations"]]
-        if not usable:
-            usable = plans
-        plan = min(usable, key=lambda p: p.get("monthly_cost", 1e9))
+        # the v2 API is cluster+tier based: /v2/object-storage-plans does not exist;
+        # Legacy tier has locations [] (undeployable) so pick a tier that serves the cluster
+        clusters = [c for c in api.get("/v2/object-storage/clusters")["clusters"]
+                    if c["region"] == REGION and c.get("deploy") == "yes"]
+        tiers = api.get("/v2/object-storage/tiers")["tiers"]
+        picked = min(((c, t) for c in clusters for t in tiers
+                      if any(loc.get("id") == c["id"] for loc in t.get("locations") or [])),
+                     key=lambda ct: (ct[1].get("price", 1e9), ct[0]["id"]))
+        cluster, tier = picked
         status, d = api.call("POST", "/v2/object-storage",
-                             {"region": REGION, "plan": plan["id"], "label": LABEL})
+                             {"cluster_id": cluster["id"], "tier_id": tier["id"], "label": LABEL})
         sub = d["object_storage"]
-        print(f"created {LABEL} ({plan['id']}, ${plan.get('monthly_cost')}/mo)")
+        print(f"created {LABEL} on {cluster['hostname']} tier {tier['slug']} (${tier.get('price')}/mo)")
     sub_id = sub["id"]
     print(f"object-storage {sub_id}: waiting for status active")
     sub, took = api.wait(f"/v2/object-storage/{sub_id}", "object_storage", "status", "active", 900, 10)
     print(f"active after {took:.0f}s")
 
-    access, secret, host = get_s3_credentials(api, sub_id)
+    access, secret, host = get_s3_credentials(api, sub_id,
+                                              f"{sub.get('region', REGION)}1.vultrobjects.com")
     s3 = boto3.client("s3", endpoint_url=f"https://{host}", aws_access_key_id=access,
                       aws_secret_access_key=secret, region_name=REGION)
     try:

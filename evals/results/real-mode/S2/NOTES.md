@@ -22,6 +22,21 @@
   `rootfs/usr/share/bd/sandbox-image.tar`.
 - `qemu_boot_test.sh` is the exact script used (also in scripts/).
 
-Upload: the ISO is uploaded as a GitHub release asset on
-https://github.com/atharv109/BodyDouble- (repo is public); see the
-"Release asset" note appended below once curl -I returns 200.
+Upload: gh cannot create a release (the operator's fine-grained PAT lacks
+"Contents: write" and only this token is available), so with the operator's
+go-ahead the ISO is published on a short-lived Vultr Object Storage
+subscription instead — the fallback TASK.md sanctions. Details:
+
+- Subscription 9dad724e-514f-4762-8525-d4fba9e1ef51, label bd-iso-upload,
+  cluster ewr1, tier Archival (the API's cheapest tier that serves ewr), in
+  bucket bd-iso-upload at key forensics/bodydouble-forensics.iso. Uploaded in
+  96 s (393,216,000 B, multipart). scripts/bd_iso.py created all of it.
+- The signed HTTPS URLs (7-day presigned GET and HEAD) live only in
+  .bd-secrets.env as BD_ISO_URL / BD_ISO_URL_HEAD — the signatures are derived
+  from the S3 credentials and stay out of the repo.
+- curl-I.txt is the literal `curl -I` (HEAD) response: HTTP/1.1 200 OK,
+  content-length: 393216000 — the S2 done-when. (schannel needed a retry; the
+  URL always returned 200 once the TLS handshake completed.)
+- scripts/vultr_sweep.py deletes bd-* object-storage subscriptions (S6), so
+  the publisher costs ~$0.008/hr only while the real-mode runs need it.
+- iso-sha256.txt holds the SHA256 of the exact ISO uploaded/boot-tested.
