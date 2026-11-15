@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import ipaddress
 import json
 import re
@@ -58,11 +59,25 @@ def validate_bootstrap(payload: object) -> dict[str, str]:
 
 
 def decode_bootstrap(encoded: bytes) -> dict[str, str]:
-    try:
-        payload = json.loads(base64.b64decode(encoded.strip(), validate=True))
-    except (ValueError, json.JSONDecodeError) as exc:
-        raise ValueError("metadata user_data is not valid base64 JSON") from exc
-    return validate_bootstrap(payload)
+    """Decode base64-until-JSON (max 2 rounds), then strictly validate.
+
+    Live Vultr serves the stored user_data field either DECODED (run 1,
+    evals/results/real-mode/S5/) or AS-STORED (run 2, same folder): measured
+    behavior differs between instances. Unwrapping until the bytes are JSON
+    makes the twin independent of that quirk while still failing closed: only
+    strings that turn into JSON with exactly the five bootstrap keys pass.
+    """
+    data = encoded.strip()
+    for _ in range(3):
+        try:
+            return validate_bootstrap(json.loads(data))
+        except (ValueError, json.JSONDecodeError):
+            pass
+        try:
+            data = base64.b64decode(data, validate=True)
+        except (ValueError, binascii.Error) as exc:
+            break
+    raise ValueError("metadata user_data is not valid base64 JSON")
 
 
 def fetch_bootstrap(url: str = METADATA_URL, timeout_s: float = 5.0) -> dict[str, str]:

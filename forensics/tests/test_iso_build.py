@@ -83,6 +83,19 @@ def test_double_base64_user_data_roundtrip() -> None:
     assert decode_bootstrap(served) == valid_payload()
 
 
+def test_decode_bootstrap_accepts_decoded_or_as_stored_serving() -> None:
+    """Live Vultr serves the user-data field either DECODED (S5 run 1) or
+    AS-STORED (S5 run 2); the twin passes both and fails closed otherwise."""
+    raw = json.dumps(valid_payload()).encode()
+    assert decode_bootstrap(raw) == valid_payload()  # served decoded (run 1)
+    assert decode_bootstrap(base64.b64encode(raw)) == valid_payload()  # as stored (run 2)
+    # every non-bootstrap or non-decodable input still fails closed
+    with pytest.raises(ValueError):
+        decode_bootstrap(base64.b64encode(json.dumps({"case_id": "x"}).encode()))
+    with pytest.raises(ValueError):
+        decode_bootstrap(b"not json, not base64!")
+
+
 @pytest.mark.parametrize("change", [
     {"vpc_subnet": "10.0.0.0/8;reboot", "vpc_ip": "10.20.0.20"},
     {"vpc_ip": "192.0.2.10"},
