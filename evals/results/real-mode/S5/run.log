@@ -1,0 +1,2 @@
+00:11:34 created bd-vpc ab6a9e85-029b-4798-8a08-6c365d424508 and saved BD_VPC_ID/BD_VPC_SUBNET
+00:12:38 bd-cp b1b706cb-71ae-43ea-b9eb-2f55d7dc58dd public 45.76.0.184 vpc 10.1.96.3; /v1/user-data starts ''

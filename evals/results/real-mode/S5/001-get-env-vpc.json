@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-15T05:11:34Z",
+  "method": "GET",
+  "path": "/v2/vpcs/e902fc18-4ec1-4872-9c71-1448b72bae02",
+  "request": null,
+  "status": 404,
+  "response": {
+    "is_external_error": false,
+    "error": "VPC not found.",
+    "status": 404
+  }
+}

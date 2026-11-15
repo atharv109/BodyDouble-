@@ -1,0 +1,26 @@
+{
+  "at": "2026-11-15T05:12:41Z",
+  "method": "POST",
+  "path": "/v2/instances",
+  "request": {
+    "region": "ewr",
+    "plan": "vc2-1c-1gb",
+    "tags": [
+      "body-double"
+    ],
+    "backups": "disabled",
+    "attach_vpc": [
+      "ab6a9e85-029b-4798-8a08-6c365d424508"
+    ],
+    "firewall_group_id": "f01fa6c5-781e-4a68-b860-49aeb57df49c",
+    "label": "bd-twin-t1a",
+    "snapshot_id": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
+    "iso_id": "7c91b469-f503-4fb7-9518-cedb2c71ede0",
+    "user_data": "<redacted>"
+  },
+  "status": 400,
+  "response": {
+    "error": "please provide one app_id, image_id, iso_id, os_id, or snapshot_id",
+    "status": 400
+  }
+}
