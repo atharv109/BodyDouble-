@@ -7,9 +7,16 @@ import json
 import re
 from pathlib import Path
 from urllib.parse import urlsplit
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
-METADATA_URL = "http://169.254.169.254/v1/user-data"
+METADATA_URL = "http://169.254.169.254/v1.json"
+# Real-mode finding (S5 run 1, 2026-11-15, evals/results/real-mode/S5/): the
+# documented http://169.254.169.254/v1/user-data returns 403/404 on live Vultr;
+# the only working endpoint is GET /v1.json with the cloud-init
+# "Metadata-Token: cloudinit" header, whose user-data field holds the DECODED
+# stored user_data. Vultr decodes the create-time value once before serving,
+# so a twin is created with base64(base64(payload)) and this module's
+# decode_bootstrap (which base64-decodes the served bytes) still lines up.
 REQUIRED = {"case_id", "token", "control_plane", "vpc_subnet", "vpc_ip"}
 SAFE_ID = re.compile(r"^[A-Za-z0-9-]{1,128}$")
 NFT_IP_PLACEHOLDER = "__BD_CONTROL_PLANE_IP__"
@@ -59,8 +66,11 @@ def decode_bootstrap(encoded: bytes) -> dict[str, str]:
 
 
 def fetch_bootstrap(url: str = METADATA_URL, timeout_s: float = 5.0) -> dict[str, str]:
-    with urlopen(url, timeout=timeout_s) as response:  # noqa: S310 - fixed link-local URL
-        return decode_bootstrap(response.read())
+    """GET url (Vultr md /v1.json) with the cloud-init token; b64decode user-data."""
+    request = Request(url, headers={"Metadata-Token": "cloudinit"})
+    with urlopen(request, timeout=timeout_s) as response:  # noqa: S310 - fixed link-local URL
+        metadata = json.loads(response.read())
+    return decode_bootstrap(metadata["user-data"].encode())
 
 
 def drop_only_rules(template: str) -> str:
