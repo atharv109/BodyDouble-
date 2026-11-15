@@ -1,0 +1,21 @@
+{
+  "at": "2026-11-15T03:49:19Z",
+  "method": "GET",
+  "path": "/v2/snapshots/ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
+  "request": null,
+  "status": 200,
+  "response": {
+    "snapshot": {
+      "id": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
+      "date_created": "2026-11-15T03:46:57+00:00",
+      "date_expires": "0000-00-00T00:00:00+00:00",
+      "description": "body-double shop-prod planted",
+      "size": 0,
+      "compressed_size": 0,
+      "status": "pending",
+      "os_id": 2284,
+      "app_id": 0,
+      "pending_charges": 0
+    }
+  }
+}
