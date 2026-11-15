@@ -46,15 +46,17 @@ def note(msg: str) -> None:
         f.write(line + "\n")
 
 
-def checkpoint(n: int, what: str, cdir: Path, wait_s: float) -> None:
-    note(f"CHECKPOINT {n}: {what} -- touch {cdir / f'go-{n}'} to continue (max {wait_s:.0f}s)")
-    t0 = time.monotonic()
-    while not (cdir / f"go-{n}").exists() and time.monotonic() - t0 < wait_s:
-        time.sleep(5)
+def checkpoint(n: int, what: str, cdir: Path, wait_s: float, twin_id: str = "") -> None:
+    """Non-blocking by decision (2026-11-15): print the console URL for the
+    isolated CDP Chrome to screenshot later and continue immediately."""
+    url = f"https://my.vultr.com/sub/vps/?id={twin_id}" if twin_id else "(no instance)"
+    note(f"CHECKPOINT {n}: screenshot (orchestrator, CDP): {url} -- {what}. Continue now.")
+    (cdir / f"go-{n}").touch()
 
 
 def cp_log(ip: str) -> list[dict]:
-    raw = ssh(ip, "sudo cat /root/cp.jsonl 2>/dev/null || true")
+    # transient SSH drops must not kill the run (run 2 died here)
+    raw = ssh(ip, "sudo cat /root/cp.jsonl 2>/dev/null || true", check=False)
     return [json.loads(l) for l in raw.splitlines() if l.strip()]
 
 
@@ -148,8 +150,10 @@ def main() -> int:
             payload = json.dumps({"case_id": CASE, "token": token,
                                   "control_plane": f"http://{cp_vpc_ip}:8000",
                                   "vpc_subnet": str(net), "vpc_ip": vpc_ip})
-            inner = base64.b64encode(payload.encode()).decode()   # what the ISO agent b64decodes
-            return base64.b64encode(inner.encode()).decode() if md_serves_decoded else inner
+            # stored as b64(payload): the ISO agent's decode_bootstrap unwraps
+            # base64-until-JSON (max 3), so it passes whether Vultr serves the
+            # field DECODED (run 1) or AS-STORED (run 2) - measured both ways.
+            return base64.b64encode(payload.encode()).decode()
 
         hosts = [str(h) for h in net.hosts() if str(h) != cp_vpc_ip]
         twin_body = {"region": REGION, "plan": PLAN, "tags": ["body-double"], "backups": "disabled",
@@ -173,8 +177,8 @@ def main() -> int:
                 regs = wait_register(cp_ip, 1, 600)
                 findings["t1a_registered"] = bool(regs)
                 note(f"T1a twin {tid} active; registrations: {len(regs)}")
-                checkpoint(1, f"T1a twin {tid}: screenshot the console (which OS booted?)",
-                           args.checkpoint_dir, args.checkpoint_wait)
+                checkpoint(1, "console: which OS booted? (Alpine ISO vs Ubuntu clone)", args.checkpoint_dir,
+                           args.checkpoint_wait, twin_id=tid)
 
         # ------------------------------------------------------------- T1 (b)
         ip_b = hosts[11]
@@ -214,8 +218,8 @@ def main() -> int:
         note(f"T1b twin {tid}: restore {findings['t2_restore_s']}s, ISO registered after restore: "
              f"{findings['t1b_after_restore_registered']}")
         time.sleep(120)  # let the agent run the queued jobs
-        checkpoint(2, f"T1b twin {tid}: screenshot the console (ISO or cloned OS? mount, egress)",
-                   args.checkpoint_dir, args.checkpoint_wait)
+        checkpoint(2, "console: OS booted after restore + read-only mount + egress (bd: lines)",
+                   args.checkpoint_dir, args.checkpoint_wait, twin_id=tid)
         log = cp_log(cp_ip)
         (OUT / "cp-log.jsonl").write_text("\n".join(json.dumps(e) for e in log) + "\n")
         findings["registrations"] = [{"src_ip": e["src_ip"], "status": e.get("status"),

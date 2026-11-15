@@ -1,12 +1,21 @@
 {
-  "at": "2026-11-15T05:11:34Z",
+  "at": "2026-11-15T05:29:59Z",
   "method": "GET",
-  "path": "/v2/vpcs/e902fc18-4ec1-4872-9c71-1448b72bae02",
+  "path": "/v2/vpcs/ab6a9e85-029b-4798-8a08-6c365d424508",
   "request": null,
-  "status": 404,
+  "status": 200,
   "response": {
-    "is_external_error": false,
-    "error": "VPC not found.",
-    "status": 404
+    "vpc": {
+      "id": "ab6a9e85-029b-4798-8a08-6c365d424508",
+      "date_created": "2026-11-15T00:11:34+00:00",
+      "region": "ewr",
+      "description": "bd-vpc",
+      "v4_subnet": "10.1.96.0",
+      "v4_subnet_mask": 20,
+      "internet": {
+        "connectivity": false,
+        "types": []
+      }
+    }
   }
 }
