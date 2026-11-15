@@ -29,7 +29,7 @@ done
 
 bootstrap_ok=no
 if bd-twin --configure-boot \
-    --metadata-url http://169.254.169.254/v1/user-data \
+    --metadata-url http://169.254.169.254/v1.json \
     --nft-template /etc/bd/egress.nft \
     --nft-output "$BD_RUN/egress.live.nft" \
     --bootstrap-file "$BD_RUN/bootstrap.json"; then
