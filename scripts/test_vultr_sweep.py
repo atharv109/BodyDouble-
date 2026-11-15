@@ -29,6 +29,7 @@ STATE = {
     "vpcs": [{"id": "v-ours", "description": "bd-vpc"}, {"id": "v-env", "description": "bd-shared"},
              {"id": "v-theirs", "description": "office"}],
     "isos": [{"id": "iso-ours", "filename": "bd-forensics.iso"},
+             {"id": "iso-ours2", "filename": "bodydouble-forensics.iso"},
              {"id": "iso-theirs", "filename": "windows.iso"}],
     "object_storages": [{"id": "obs-ours", "label": "bd-iso-upload"},
                         {"id": "obs-theirs", "label": "customer-files"}],
@@ -62,7 +63,8 @@ def fake():
 def test_sweep_deletes_only_ours(fake):
     api, deleted = fake
     vs.sweep(api, dry_run=False, keep={"v-env"}, out=lambda *_: None)
-    assert sorted(deleted) == ["f-ours", "i-bd", "i-ours", "iso-ours", "obs-ours", "s-ours", "v-ours"]
+    assert sorted(deleted) == ["f-ours", "i-bd", "i-ours", "iso-ours", "iso-ours2",
+                               "obs-ours", "s-ours", "v-ours"]
 
 
 def test_case_snapshots_and_env_refs_survive(fake):
@@ -79,7 +81,7 @@ def test_case_snapshots_and_env_refs_survive(fake):
     ("snapshot", STATE["snapshots"][3]),
     ("firewall", STATE["firewall_groups"][1]),
     ("vpc", STATE["vpcs"][2]),
-    ("iso", STATE["isos"][1]),
+    ("iso", STATE["isos"][2]),
     ("object_storage", STATE["object_storages"][1]),
 ])
 def test_delete_guard_refuses_foreign(fake, kind, item):

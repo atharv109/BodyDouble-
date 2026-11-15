@@ -47,7 +47,8 @@ class RefusedDelete(Exception):
 
 def _marked(text: str | None) -> bool:
     t = (text or "").strip()
-    return TAG in t or t.startswith("bd-")
+    # "bodydouble" (no hyphen) matches the ISO filename bodydouble-forensics.iso
+    return TAG in t or "bodydouble" in t or t.startswith("bd-")
 
 
 def owned(kind: str, item: dict) -> bool:

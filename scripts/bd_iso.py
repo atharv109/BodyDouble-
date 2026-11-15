@@ -90,21 +90,30 @@ def upload(api: Api, env: dict[str, str]) -> str:  # returns the GET presigned U
 
     # S2 done-when: curl -I (HEAD) must return 200. Try HEAD first; if the
     # provider mangles presigned HEADs, a GET with -I --range also shows 200.
+    # The local network resets TLS mid-handshake often (10054) - retry.
     import httpx  # noqa: PLC0415
-    with httpx.Client(timeout=60) as c:
-        r = c.head(head_url)
-        ok, how = r.status_code == 200, "HEAD presigned"
-        if not ok:
-            r = c.get(get_url, headers={"Range": "bytes=0-1023"})
-            ok, how = r.status_code == 200, "ranged GET standing in for HEAD"
-        rec = {"how": how, "status": r.status_code, "content_length": r.headers.get("content-length"),
-               "url_base": f"https://{host}/{BUCKET}/{KEY}", "expires_s": PRESIGN_S,
-               "subscription": sub_id}
-        (out / "upload.json").write_text(
-            __import__("json").dumps(rec, indent=2) + "\n", encoding="utf-8")
-        print(f"verify: {r.status_code} via {how} on {rec['url_base']}")
-        if not ok:
-            raise SystemExit(f"URL check failed: {r.status_code}")
+    rec: dict | None = None
+    for _ in range(4):
+        try:
+            with httpx.Client(timeout=60) as c:
+                r = c.head(head_url)
+                ok, how = r.status_code == 200, "HEAD presigned"
+                if not ok:
+                    r = c.get(get_url, headers={"Range": "bytes=0-1023"})
+                    ok, how = r.status_code == 200, "ranged GET standing in for HEAD"
+                rec = {"how": how, "status": r.status_code,
+                       "content_length": r.headers.get("content-length"),
+                       "url_base": f"https://{host}/{BUCKET}/{KEY}", "expires_s": PRESIGN_S,
+                       "subscription": sub_id}
+                if ok:
+                    break
+        except httpx.ConnectError:  # TLS reset mid-handshake: retry
+            continue
+    if rec is None or rec["status"] != 200:
+        raise SystemExit(f"URL check failed: {rec}")
+    (out / "upload.json").write_text(
+        __import__("json").dumps(rec, indent=2) + "\n", encoding="utf-8")
+    print(f"verify: {rec['status']} via {rec['how']} on {rec['url_base']}")
     set_secret("BD_ISO_URL", get_url)
     set_secret("BD_ISO_URL_HEAD", head_url)
     return get_url
