@@ -12,6 +12,13 @@ for d in /tmp /var/log /var/lib/docker; do
     mount -t tmpfs tmpfs "$d" 2>/dev/null || true
 done
 
+# no udev/mdev in this appliance: load the NIC drivers ourselves (virtio on
+# Vultr/KVM; e1000 as a fallback), then give the links a moment to appear
+modprobe -a virtio_net e1000 2>/dev/null || true
+sleep 2
+# dockerd needs the unified cgroup hierarchy (normally mounted by openrc)
+mount -t cgroup2 cgroup2 /sys/fs/cgroup 2>/dev/null || true
+
 for i in /sys/class/net/*; do
     iface=${i##*/}
     if [ "$iface" != lo ]; then
@@ -27,6 +34,8 @@ if bd-twin --configure-boot \
     --nft-output "$BD_RUN/egress.live.nft" \
     --bootstrap-file "$BD_RUN/bootstrap.json"; then
     bootstrap_ok=yes
+    # Vultr VPCs have no DHCP: assign the validated vpc_ip statically (T4)
+    bd-vpc-up "$BD_RUN/bootstrap.json" || echo "bd: VPC interface not configured" >&2
 else
     echo "bd: invalid user_data; drop-only egress and no agent" >&2
 fi
@@ -39,11 +48,19 @@ mounted=no
 modprobe ext4 2>/dev/null || true
 modprobe xfs 2>/dev/null || true
 modprobe btrfs 2>/dev/null || true
-for d in /dev/vdb /dev/vdc /dev/vdd /dev/sdb /dev/sdc /dev/sdd /dev/nvme0n2 /dev/nvme1n1; do
-    if [ -b "$d" ] && mount -o ro,noexec,nosuid,nodev "$d" "$BD_MOUNT" 2>/dev/null; then
+# Real-mode finding (T1): the twin is created FROM the snapshot, so the clone
+# is the only disk (/dev/vda) and its root is a partition (vda1). Scan
+# partitions and whole disks; the CD-ROM boot media (sr*) is never a candidate.
+# blockdev --setro first: the kernel then refuses every write, even an ext4
+# journal replay, so "ro" really means zero writes to the clone.
+for d in /dev/vd[a-z]* /dev/sd[a-z]* /dev/nvme[0-9]n[0-9]*; do
+    [ -b "$d" ] || continue
+    blockdev --setro "$d" 2>/dev/null || true
+    if mount -t ext4 -o ro,noexec,nosuid,nodev,noload "$d" "$BD_MOUNT" 2>/dev/null \
+        || mount -o ro,noexec,nosuid,nodev "$d" "$BD_MOUNT" 2>/dev/null; then
         if [ -d "$BD_MOUNT/etc" ]; then
             mounted=yes
-            echo "bd: cloned disk mounted inert and read-only at $BD_MOUNT"
+            echo "bd: cloned disk $d mounted inert and read-only at $BD_MOUNT"
             break
         fi
         umount "$BD_MOUNT"
@@ -55,6 +72,16 @@ fi
 
 if command -v dockerd >/dev/null 2>&1; then
     dockerd >/var/log/dockerd.log 2>&1 &
+    # the sandbox image ships in the ISO; the twin can never pull one
+    for _ in $(seq 1 30); do docker info >/dev/null 2>&1 && break; sleep 1; done
+    if [ -f /usr/share/bd/sandbox-image.tar ]; then
+        if docker load -i /usr/share/bd/sandbox-image.tar >/var/log/docker-load.log 2>&1; then
+            echo "bd: sandbox image loaded; runtimes: $(docker info --format '{{json .Runtimes}}' 2>&1 | head -c 120)"
+        else
+            echo "bd: sandbox image load failed:" >&2
+            tail -n 5 /var/log/docker-load.log /var/log/dockerd.log >&2
+        fi
+    fi
 fi
 if [ "$bootstrap_ok" = yes ]; then
     BD_MOUNT="$BD_MOUNT" bd-twin --bootstrap-file "$BD_RUN/bootstrap.json" \

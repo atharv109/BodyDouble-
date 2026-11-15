@@ -1,7 +1,7 @@
 {
     "iptables": false,
     "bridge": "none",
-    "storage-driver": "vfs",
+    "storage-driver": "overlay2",
     "runtimes": {
         "runsc": { "path": "/usr/bin/runsc" }
     }
