@@ -46,12 +46,26 @@ def note(msg: str) -> None:
         f.write(line + "\n")
 
 
-def checkpoint(n: int, what: str, cdir: Path, wait_s: float, twin_id: str = "") -> None:
-    """Non-blocking by decision (2026-11-15): print the console URL for the
-    isolated CDP Chrome to screenshot later and continue immediately."""
-    url = f"https://my.vultr.com/sub/vps/?id={twin_id}" if twin_id else "(no instance)"
-    note(f"CHECKPOINT {n}: screenshot (orchestrator, CDP): {url} -- {what}. Continue now.")
-    (cdir / f"go-{n}").touch()
+def checkpoint(n: int, what: str, cdir: Path, wait_s: float, twin_id: str = "") -> bool:
+    """BLOCKING: write console-url.txt for the orchestrator, then wait until it
+    saves its screenshot and creates <cdir>/go-<n> (or wait_s passes). The
+    twin is only deleted after this returns. Returns True if go-<n> appeared."""
+    url = f"https://my.vultr.com/subs/vps/novnc/?id={twin_id}" if twin_id else "(no instance)"
+    go = cdir / f"go-{n}"
+    (cdir / "console-url.txt").write_text(
+        f"checkpoint {n}\nconsole: {url}\ninstance page: https://my.vultr.com/subs/?id={twin_id}\n"
+        f"expected on screen: {what}\n"
+        f"save the PNG in {cdir} and then create {go.name} there to continue\n", encoding="utf-8")
+    note(f"CHECKPOINT {n}: STOP FOR ORCHESTRATOR: {url} -- {what}; waiting up to "
+         f"{wait_s:.0f}s for {go}")
+    t0 = time.monotonic()
+    while time.monotonic() - t0 < wait_s:
+        if go.exists():
+            note(f"CHECKPOINT {n}: {go.name} found after {time.monotonic() - t0:.0f}s; continuing")
+            return True
+        time.sleep(10)
+    note(f"CHECKPOINT {n}: no {go.name} after {wait_s:.0f}s; continuing without screenshot")
+    return False
 
 
 def cp_log(ip: str) -> list[dict]:
@@ -72,11 +86,19 @@ def wait_register(ip: str, n_expected: int, timeout_s: float) -> list[dict]:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--checkpoint-dir", type=Path, default=OUT / "checkpoints")
+    ap.add_argument("--batch", default="", help="evidence subfolder of S5/ (fresh numbering), e.g. run4")
+    ap.add_argument("--checkpoint-dir", type=Path, default=None, help="default: S5/checkpoints")
     ap.add_argument("--checkpoint-wait", type=float, default=900)
     ap.add_argument("--skip-t1a", action="store_true")
     args = ap.parse_args()
+    global OUT
+    args.checkpoint_dir = args.checkpoint_dir or OUT / "checkpoints"
+    if args.batch:  # Api numbers files from 001 per process: never overwrite an older run
+        OUT = OUT / args.batch
+        OUT.mkdir(parents=True, exist_ok=True)
     args.checkpoint_dir.mkdir(parents=True, exist_ok=True)
+    for stale in args.checkpoint_dir.glob("go-*"):  # a go-file must come from THIS run
+        stale.unlink()
     env = load_secrets()
     api = Api(env["VULTR_API_KEY"], evidence_dir=OUT)
     iso_id = env["VULTR_ISO_ID"]
@@ -218,8 +240,11 @@ def main() -> int:
         note(f"T1b twin {tid}: restore {findings['t2_restore_s']}s, ISO registered after restore: "
              f"{findings['t1b_after_restore_registered']}")
         time.sleep(120)  # let the agent run the queued jobs
-        checkpoint(2, "console: OS booted after restore + read-only mount + egress (bd: lines)",
-                   args.checkpoint_dir, args.checkpoint_wait, twin_id=tid)
+        findings["checkpoint_2_go"] = checkpoint(
+            2, "Alpine ISO console (not Ubuntu login) with boot.sh lines: 'bd-vpc-up: <vpc_ip>/20 on "
+               "eth1', 'bd: cloned disk /dev/vda1 mounted inert and read-only at /mnt/disk', "
+               "'bd: sandbox image loaded; runtimes: ...runsc...'",
+            args.checkpoint_dir, args.checkpoint_wait, twin_id=tid)
         log = cp_log(cp_ip)
         (OUT / "cp-log.jsonl").write_text("\n".join(json.dumps(e) for e in log) + "\n")
         findings["registrations"] = [{"src_ip": e["src_ip"], "status": e.get("status"),
