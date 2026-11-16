@@ -114,9 +114,11 @@ full() {
     mkdir -p "$ROOT/etc/apk"
     cp -a /etc/apk/keys "$ROOT/etc/apk/keys"
     cp /etc/apk/repositories "$ROOT/etc/apk/repositories"
+    # iproute2: bd-vpc-up needs `ip -j` (JSON); busybox ip rejects -j, which left
+    # the VPC NIC unconfigured on Vultr (S5 run 3: zero requests reached bd-cp)
     apk add --root "$ROOT" --initdb --no-progress --clean-protected \
         alpine-base linux-lts linux-firmware-none python3 py3-httpx py3-pydantic docker nftables \
-        ca-certificates
+        ca-certificates iproute2
 
     log "gVisor runsc runtime (official release tarball + checksum)"
     GVISOR_URL=https://storage.googleapis.com/gvisor/releases/release/latest/x86_64
