@@ -16,18 +16,32 @@
 # - the only disk is a msdos-labelled ext4 vda1 holding demo/victim (the
 #   planted indicators), the layout of a twin restored from the S4 snapshot.
 # Pass: /out/cp.jsonl shows register + 3 job results from 10.1.96.20.
+#
+# Also runs as root in a WSL2/Linux host with /dev/kvm (KVM + -cpu host, like a
+# Vultr twin), isolated in its own network namespace:
+#   SRC=<repo> OUT=<dir> ISO=<repo>/iso/out unshare --net sh scripts/qemu_e2e_test.sh
+# BLANK_DISK=1 gives the twin an empty disk: the state before the restore (T1b).
+# NO_SERIAL=1 boots without a UART, as every Vultr VM does (S5 run 5, G1).
 set -eu
 BOOT_SECONDS=${BOOT_SECONDS:-900}
-apk add --no-cache qemu-system-x86_64 e2fsprogs sfdisk python3 iproute2 >/dev/null
+SRC=${SRC:-/src}
+OUT=${OUT:-/out}
+ISO=${ISO:-/iso}
+if command -v apk >/dev/null 2>&1; then
+    apk add --no-cache qemu-system-x86_64 e2fsprogs sfdisk python3 iproute2 >/dev/null
+fi
+ip link set lo up
 
 W=/tmp/qt
 rm -rf "$W" && mkdir -p "$W/root"
-cp -a /src/demo/victim/. "$W/root/"
 truncate -s 256M "$W/disk.img"
-printf 'label: dos\nstart=2048, type=83\n' | sfdisk -q "$W/disk.img"
-truncate -s 255M "$W/part.img"
-mkfs.ext4 -q -d "$W/root" "$W/part.img"
-dd if="$W/part.img" of="$W/disk.img" bs=1M seek=1 conv=notrunc status=none
+if [ "${BLANK_DISK:-0}" != 1 ]; then
+    cp -a "$SRC/demo/victim/." "$W/root/"
+    printf 'label: dos\nstart=2048, type=83\n' | sfdisk -q "$W/disk.img"
+    truncate -s 255M "$W/part.img"
+    mkfs.ext4 -q -d "$W/root" "$W/part.img"
+    dd if="$W/part.img" of="$W/disk.img" bs=1M seek=1 conv=notrunc status=none
+fi
 
 # metadata service
 ip addr add 169.254.169.254/32 dev lo
@@ -45,7 +59,7 @@ BODY = open(sys.argv[1], "rb").read()
 class H(BaseHTTPRequestHandler):
     def do_GET(self):
         ok = self.path == "/v1.json" and self.headers.get("Metadata-Token") == "cloudinit"
-        with open("/out/md.jsonl", "a") as f:
+        with open(sys.argv[2], "a") as f:
             f.write(json.dumps({"at": time.strftime("%H:%M:%S"), "src": self.client_address[0],
                                 "path": self.path, "served": ok}) + "\n")
         self.send_response(200 if ok else 404)
@@ -55,8 +69,9 @@ class H(BaseHTTPRequestHandler):
             self.wfile.write(BODY)
 HTTPServer(("169.254.169.254", 80), H).serve_forever()
 EOF
-rm -f /out/md.jsonl /out/cp.jsonl /out/serial.log
-python3 "$W/md.py" "$W/v1.json" &
+mkdir -p "$OUT"
+rm -f "$OUT/md.jsonl" "$OUT/cp.jsonl" "$OUT/serial.log"
+python3 "$W/md.py" "$W/v1.json" "$OUT/md.jsonl" &
 
 # VPC: bridge + tap, no DHCP
 ip link add br0 type bridge
@@ -70,15 +85,18 @@ cat > "$W/jobs.json" <<'EOF'
  {"job_id": "job-persistence", "tool": "persistence_scan", "args": {}},
  {"job_id": "job-detonate-bdrv", "tool": "detonate", "args": {"path": "usr/local/bin/.bdrv"}}]
 EOF
-python3 /src/scripts/cp_stub.py --bind 10.1.96.3 --port 8000 --case case-9001 \
-    --token "$TOKEN" --jobs "$W/jobs.json" --log /out/cp.jsonl &
+python3 "$SRC/scripts/cp_stub.py" --bind 10.1.96.3 --port 8000 --case case-9001 \
+    --token "$TOKEN" --jobs "$W/jobs.json" --log "$OUT/cp.jsonl" &
 
-accel=tcg
-[ -e /dev/kvm ] && accel=kvm
-timeout "$BOOT_SECONDS" qemu-system-x86_64 -machine accel=$accel -m 1024 -nographic \
-    -cdrom /iso/bodydouble-forensics.iso -boot d \
+# NO_SERIAL=1: no UART at all, like a Vultr VM (/proc/tty/driver/serial: uart:unknown)
+serial=file:"$OUT/serial.log"
+[ "${NO_SERIAL:-0}" = 1 ] && serial=none
+accel=tcg cpu=qemu64
+[ -e /dev/kvm ] && accel=kvm cpu=host
+timeout "$BOOT_SECONDS" qemu-system-x86_64 -machine accel=$accel -cpu $cpu -m 1024 -nographic \
+    -cdrom "$ISO/bodydouble-forensics.iso" -boot d \
     -drive file="$W/disk.img",if=virtio,format=raw \
     -netdev user,id=n0 -device virtio-net-pci,netdev=n0 \
     -netdev tap,id=n1,ifname=tap0,script=no,downscript=no -device virtio-net-pci,netdev=n1 \
-    -serial file:/out/serial.log -monitor none -display none || true
-echo "qemu ($accel) done; serial /out/serial.log, md /out/md.jsonl, cp /out/cp.jsonl"
+    -serial "$serial" -monitor none -display none || true
+echo "qemu ($accel) done; serial $OUT/serial.log, md $OUT/md.jsonl, cp $OUT/cp.jsonl"

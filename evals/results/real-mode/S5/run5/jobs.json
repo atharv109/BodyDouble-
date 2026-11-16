@@ -1,0 +1,19 @@
+[
+  {
+    "job_id": "job-os-facts",
+    "tool": "os_facts",
+    "args": {}
+  },
+  {
+    "job_id": "job-persistence",
+    "tool": "persistence_scan",
+    "args": {}
+  },
+  {
+    "job_id": "job-detonate-bdrv",
+    "tool": "detonate",
+    "args": {
+      "path": "usr/local/bin/.bdrv"
+    }
+  }
+]
