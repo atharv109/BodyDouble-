@@ -151,6 +151,7 @@ def main() -> int:
         created.append(("instances", cp["id"]))
         cp, _ = api.wait(f"/v2/instances/{cp['id']}", "instance", "status", "active", 900, 10)
         cp_ip = cp["main_ip"]
+        findings["_cp_ip"] = cp_ip  # finally saves the stub log before deleting bd-cp
         wait_ssh(cp_ip)
         cp_vpc = api.get(f"/v2/instances/{cp['id']}/vpcs")["vpcs"][0]
         cp_vpc_ip = cp_vpc["ip_address"]
@@ -246,6 +247,8 @@ def main() -> int:
         api.call("POST", f"/v2/instances/{tid}/reboot", name="T1b-reboot-blank")
         regs = wait_register(cp_ip, n_before + 1, 600)
         findings["t1b_blank_disk_registered"] = len(regs) > n_before
+        note(f"T1b twin {tid} (VPC {ip_b}): blank-disk ISO boot registered: "
+             f"{findings['t1b_blank_disk_registered']}; starting restore")
         n_before = len(regs)
         iso_state(api, tid, "T1b-iso-before-restore")
         # phase 2: only the post-restore boot's token is valid and the 3 jobs wait for it
@@ -286,6 +289,8 @@ def main() -> int:
                 break
             time.sleep(15)
         findings["t1b_iso_reattached"] = iso_state(api, tid, "T1b-iso-reattached") == "isomounted"
+        note(f"T1b twin {tid}: restore {findings['t2_restore_s']}s; ISO re-attached: "
+             f"{findings['t1b_iso_reattached']}; waiting for the post-restore registration")
         regs = wait_register(cp_ip, n_before + 1, 900)
         findings["t1b_after_restore_registered"] = len(regs) > n_before
         if len(regs) > n_before:
@@ -294,6 +299,7 @@ def main() -> int:
              f"{findings['t1b_after_restore_registered']}")
         res = wait_results(cp_ip, len(JOBS), 900)  # the agent runs the 3 queued jobs
         findings["t3_results_received"] = len(res)
+        note(f"T3: {len(res)}/{len(JOBS)} job results received")
         findings["checkpoint_2_go"] = checkpoint(
             2, "Alpine ISO console on tty0 (not Ubuntu login) with boot.sh lines: 'bd: no serial "
                "console; boot messages on tty0', 'bd-vpc-up: <vpc_ip>/20 on "
@@ -310,6 +316,21 @@ def main() -> int:
                                if e.get("path", "").endswith("/result")}
         return 0
     finally:
+        # run 6 lost bd-cp's log to a mid-run kill: always keep it before deleting bd-cp
+        cp_ip = findings.pop("_cp_ip", None)
+        if cp_ip and not (OUT / "cp-log.jsonl").exists():
+            try:
+                log = cp_log(cp_ip)
+                (OUT / "cp-log.jsonl").write_text("\n".join(json.dumps(e) for e in log) + "\n")
+                findings.setdefault("registrations", [
+                    {"src_ip": e["src_ip"], "status": e.get("status"),
+                     "vpc_ip_claimed": (e.get("body") or {}).get("vpc_ip"),
+                     "seal": (e.get("body") or {}).get("seal")}
+                    for e in log if e.get("path") == "/twin/register"])
+                findings.setdefault("results", {e["path"].split("/")[3]: e.get("body") for e in log
+                                                if e.get("path", "").endswith("/result")})
+            except Exception as exc:
+                note(f"saving cp-log failed: {exc}")
         for kind, rid in reversed(created):
             for attempt in range(3):  # run 4: a local DNS blip left the twin running
                 try:
