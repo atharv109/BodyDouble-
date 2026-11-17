@@ -23,7 +23,7 @@ Commit after each item with the item ID in the message.
 
 ## Checklist
 
-- [ ] B0: Port the `RealVultr.request()` allowlist hardening (method+host pin,
+- [x] B0: Port the `RealVultr.request()` allowlist hardening (method+host pin,
       no redirects) from `C:\Users\athar\OneDrive\Desktop\vultr\contracts\vultr.py`
       into this repo's VultrClient so every real call is allowlisted. Done when:
       a unit test proves a disallowed host/method/redirect is refused.
