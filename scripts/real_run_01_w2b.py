@@ -178,7 +178,12 @@ def run_d2(api: Api, fw_id: str, ud: str, created: list) -> None:
              "firewall_group_id": fw_id, "user_data": ud}
     d = api.call("POST", "/v2/instances", dbody, name="D2-create-haltrestore")[1]["instance"]
     created.append(("instances", d["id"]))
-    api.call("POST", f"/v2/instances/{d['id']}/halt", name="D2-halt")
+    # halt while pending -> 409 'Cannot stop server while it is pending' (w2b-d2/try1)
+    api.wait(f"/v2/instances/{d['id']}", "instance", "status", "active", 900, 10)
+    for _ in range(20):
+        if api.call("POST", f"/v2/instances/{d['id']}/halt", name="D2-halt", ok=(409,))[0] < 400:
+            break
+        time.sleep(15)
     for _ in range(30):
         if api.get(f"/v2/instances/{d['id']}")["instance"].get("power_status") == "stopped":
             note("D2: instance stopped; issuing restore")

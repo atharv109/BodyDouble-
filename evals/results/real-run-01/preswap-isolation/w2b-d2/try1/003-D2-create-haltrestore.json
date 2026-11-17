@@ -1,0 +1,61 @@
+{
+  "at": "2026-11-17T22:07:56Z",
+  "method": "POST",
+  "path": "/v2/instances",
+  "request": {
+    "region": "ewr",
+    "plan": "vc2-1c-1gb",
+    "os_id": 2284,
+    "label": "bd-w2b-haltrestore",
+    "hostname": "bd-w2b-haltrestore",
+    "tags": [
+      "body-double"
+    ],
+    "backups": "disabled",
+    "firewall_group_id": "5abc0725-0d81-400c-a489-1dbc760488ec",
+    "user_data": "<redacted>"
+  },
+  "status": 202,
+  "response": {
+    "instance": {
+      "id": "c2b1fe2d-3470-442a-adcd-884482db1f4a",
+      "os": "Ubuntu 24.04 LTS x64",
+      "ram": 1024,
+      "disk": 0,
+      "main_ip": "0.0.0.0",
+      "vcpu_count": 1,
+      "region": "ewr",
+      "plan": "vc2-1c-1gb",
+      "date_created": "2026-11-17T22:07:56+00:00",
+      "status": "pending",
+      "allowed_bandwidth": 1,
+      "netmask_v4": "",
+      "gateway_v4": "0.0.0.0",
+      "power_status": "running",
+      "server_status": "none",
+      "v6_network": "",
+      "v6_main_ip": "",
+      "v6_network_size": 0,
+      "label": "bd-w2b-haltrestore",
+      "internal_ip": "",
+      "kvm": "<redacted>",
+      "hostname": "bd-w2b-haltrestore",
+      "tag": "body-double",
+      "tags": [
+        "body-double"
+      ],
+      "os_id": 2284,
+      "app_id": 0,
+      "image_id": "",
+      "firewall_group_id": "5abc0725-0d81-400c-a489-1dbc760488ec",
+      "features": [],
+      "user_scheme": "root",
+      "vpc_only": false,
+      "enable_memorybacking": "shared",
+      "pending_charges": 0,
+      "default_password": "<redacted>",
+      "cluster_id": "",
+      "attached_block_storages": []
+    }
+  }
+}
