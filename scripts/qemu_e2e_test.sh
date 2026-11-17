@@ -49,6 +49,8 @@ if [ "${UEFI_GRUB:-0}" = 1 ]; then
     mkfs.vfat -C "$W/esp.img" 131072 >/dev/null
     mmd -i "$W/esp.img" ::/EFI ::/EFI/BOOT
     mcopy -i "$W/esp.img" "$W/BOOTX64.EFI" ::/EFI/BOOT/BOOTX64.EFI
+    mmd -i "$W/esp.img" ::/bd
+    mcopy -i "$W/esp.img" "$ISO/bd-oneshot/vmlinuz-lts" "$ISO/bd-oneshot/initramfs-bd" ::/bd/
     truncate -s 255M "$W/part.img"
     mkfs.ext4 -q -d "$W/root" "$W/part.img"
     dd if="$W/esp.img" of="$W/disk.img" bs=1M seek=1 conv=notrunc status=none

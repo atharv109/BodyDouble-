@@ -1,0 +1,20 @@
+{
+  "at": "2026-11-17T04:44:00Z",
+  "method": "POST",
+  "path": "/v2/firewalls",
+  "request": {
+    "description": "bd-twin-fw"
+  },
+  "status": 201,
+  "response": {
+    "firewall_group": {
+      "id": "e4579355-2776-4db1-983a-4a6c5003dd3f",
+      "description": "bd-twin-fw",
+      "date_created": "2026-11-17T04:44:00+00:00",
+      "date_modified": "2026-11-17T04:44:00+00:00",
+      "instance_count": 0,
+      "rule_count": 0,
+      "max_rule_count": 50
+    }
+  }
+}

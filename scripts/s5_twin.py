@@ -101,10 +101,12 @@ def wait_results(ip: str, n_expected: int, timeout_s: float) -> list[dict]:
 # auto-boots a one-shot entry: runs 9 and 10 sat at the menu with bd-iso selected,
 # even with timeout=3 and recordfail unset (run9|run10/checkpoints/*.png). So the
 # clone's UEFI loaders are replaced by a standalone GRUB EFI binary that boots the
-# ISO's kernel from the CD at once (scripts/build_oneshot_efi.sh; verified locally
-# in evals/results/local-e2e/kvm-uefi-esp-oneshot-efi/). Originals are kept as
-# *.bd-orig. Caveat: the clone's own OS runs once, unsealed, to make the swap.
+# ISO's kernel at once (scripts/build_oneshot_efi.sh). The kernel and initramfs are
+# copied onto the ESP (/bd/): Vultr's firmware does not expose the CD, so GRUB
+# could not load them from it (run 11: 'grub>', run11/checkpoints/). Originals are
+# kept as *.bd-orig. Caveat: the clone's own OS runs once, unsealed, to make the swap.
 ONESHOT_EFI = REPO / "iso" / "out" / "bd-oneshot-x64.efi"
+ONESHOT_DIR = REPO / "iso" / "out" / "bd-oneshot"
 ESP_LOADERS = ["/boot/efi/EFI/BOOT/BOOTX64.EFI", "/boot/efi/EFI/ubuntu/shimx64.efi",
                "/boot/efi/EFI/ubuntu/grubx64.efi"]
 
@@ -135,6 +137,9 @@ def esp_swap(cp_ip: str, vpc_ip: str) -> bool:
         ("lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT; ls -d /sys/firmware/efi", None),
         ("sudo efibootmgr -v 2>&1 || true; sudo find /boot/efi -type f -iname '*.efi' -ls", None),
         ("cat > /tmp/bd.efi && sha256sum /tmp/bd.efi", ONESHOT_EFI.read_bytes()),
+        *((f"sudo mkdir -p /boot/efi/bd && sudo tee /boot/efi/bd/{n} >/dev/null && "
+           f"sudo sha256sum /boot/efi/bd/{n}", (ONESHOT_DIR / n).read_bytes())
+          for n in ("vmlinuz-lts", "initramfs-bd")),
         ("sudo mkdir -p /boot/efi/EFI/BOOT; [ -f /boot/efi/EFI/BOOT/BOOTX64.EFI ] || "
          "sudo cp /tmp/bd.efi /boot/efi/EFI/BOOT/BOOTX64.EFI; " + swap
          + "; sync; sudo sha256sum /boot/efi/EFI/*/*.efi", None),
@@ -167,7 +172,7 @@ def main() -> int:
     ap.add_argument("--checkpoint-wait", type=float, default=1200)
     ap.add_argument("--skip-t1a", action="store_true")
     args = ap.parse_args()
-    if not ONESHOT_EFI.is_file():  # fail before any spend
+    if not (ONESHOT_EFI.is_file() and (ONESHOT_DIR / "initramfs-bd").is_file()):  # before any spend
         sys.exit(f"missing {ONESHOT_EFI}: run scripts/build_oneshot_efi.sh")
     global OUT
     if args.batch:  # Api numbers files from 001 per process: never overwrite an older run

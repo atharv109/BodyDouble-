@@ -1,0 +1,61 @@
+$ wait for clone sshd: rc=0 after 42s
+Linux vultr 6.8.0-147-generic #147-Ubuntu SMP PREEMPT_DYNAMIC Thu Sep 24 11:33:16 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+ 04:50:49 up 0 min,  1 user,  load average: 1.43, 0.36, 0.12
+
+$ uname -a; uptime; lsblk -o NAME,SIZE,TYPE,LABEL,MOUNTPOINT
+rc=0
+Linux vultr 6.8.0-147-generic #147-Ubuntu SMP PREEMPT_DYNAMIC Thu Sep 24 11:33:16 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+ 04:50:50 up 0 min,  2 users,  load average: 1.31, 0.36, 0.12
+NAME    SIZE TYPE LABEL MOUNTPOINT
+sr0    1024M rom        
+vda      25G disk       
+├─vda1  512M part       /boot/efi
+└─vda2 24.5G part       /
+
+$ ls -d /sys/firmware/efi 2>&1; mokutil --sb-state 2>&1 || true
+rc=0
+/sys/firmware/efi
+This system doesn't support Secure Boot
+
+$ sudo grep -c custom.cfg /boot/grub/grub.cfg; sudo grep -n -e next_entry -e recordfail -e 'set timeout' /boot/grub/grub.c
+rc=0
+4
+16:   set next_entry="${prev_entry}"
+19:   if [ "${next_entry}" ]; then
+23:if [ "${next_entry}" ] ; then
+24:   set default="${next_entry}"
+25:   set next_entry=
+26:   save_env next_entry
+66:function recordfail {
+67:  set recordfail=1
+68:  if [ -n "${have_grubenv}" ]; then if [ -z "${boot_once}" ]; then save_env recordfail; fi; fi
+77:if [ "${recordfail}" = 1 ] ; then
+78:  set timeout=5
+81:    set timeout_style=menu
+
+$ echo c2V0IHRpbWVvdXQ9MwpzZXQgdGltZW91dF9zdHlsZT1tZW51Cm1lbnVlbnRyeSAnYmQtaXNvJyB7CiAgICBpbnNtb2QgcGFydF9ncHQKICAgIGluc21
+rc=0
+set timeout=3
+set timeout_style=menu
+menuentry 'bd-iso' {
+    insmod part_gpt
+    insmod part_msdos
+    insmod iso9660
+    if [ "$grub_platform" = pc ]; then insmod ahci; insmod ata; fi
+    search --no-floppy --set=root --label BDFORENSICS
+    linux /boot/vmlinuz-lts console=ttyS0,115200 console=tty0
+    initrd /boot/initramfs-bd
+}
+
+$ sudo grep -q custom.cfg /boot/grub/grub.cfg || sudo update-grub 2>&1 | tail -3
+rc=0
+
+$ sudo grub-editenv - unset recordfail; sudo grub-reboot bd-iso && sudo grub-editenv list
+rc=0
+next_entry=bd-iso
+
+$ reboot in 2 s
+rc=0
+Running timer as unit: run-ra7e2c20d255147b1b9dcbe6852ff01c1.timer
+Will run service as unit: run-ra7e2c20d255147b1b9dcbe6852ff01c1.service
+
