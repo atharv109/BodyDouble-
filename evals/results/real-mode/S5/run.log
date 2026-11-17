@@ -2,3 +2,8 @@
 00:12:38 bd-cp b1b706cb-71ae-43ea-b9eb-2f55d7dc58dd public 45.76.0.184 vpc 10.1.96.3; /v1/user-data starts ''
 00:31:57 bd-cp d20070c8-1f8e-478e-bbf8-0e25fd3e56bd: /v1.json user-data served as-stored
 00:49:04 cleanup done; findings.json written
+01:26:13 bd-cp 51a48cf5-1e9f-4d4a-8448-3c6648b2f4d1: /v1.json user-data served as-stored
+01:52:21 bd-cp 56003451-9408-4d86-8aa4-daae6e3ecf35: /v1.json user-data served as-stored
+02:22:29 T1b twin cfbd9590-7c84-486b-ae06-b9b8dba9181f: restore 263s, ISO registered after restore: False
+02:24:29 CHECKPOINT 2: screenshot (orchestrator, CDP): https://my.vultr.com/sub/vps/?id=cfbd9590-7c84-486b-ae06-b9b8dba9181f -- console: OS booted after restore + read-only mount + egress (bd: lines). Continue now.
+02:24:52 cleanup done; findings.json written

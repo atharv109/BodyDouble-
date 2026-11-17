@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-15T05:32:03Z",
+  "at": "2026-11-15T06:52:27Z",
   "method": "POST",
   "path": "/v2/instances",
   "request": {
@@ -12,15 +12,15 @@
     "attach_vpc": [
       "ab6a9e85-029b-4798-8a08-6c365d424508"
     ],
-    "firewall_group_id": "a8754b5f-449c-4c45-ac03-b2b702152316",
+    "firewall_group_id": "cdda070f-e96d-468c-942a-17c05bbcce66",
     "label": "bd-twin-t1b",
-    "iso_id": "5891674a-bfe3-4f25-b2af-da89fecdbadb",
+    "iso_id": "3576db4e-e53c-453d-90a3-255d04faa831",
     "user_data": "<redacted>"
   },
   "status": 202,
   "response": {
     "instance": {
-      "id": "63f6871c-d053-4781-b93e-56caff1ff749",
+      "id": "cfbd9590-7c84-486b-ae06-b9b8dba9181f",
       "os": "Custom Installed",
       "ram": 1024,
       "disk": 0,
@@ -28,7 +28,7 @@
       "vcpu_count": 1,
       "region": "ewr",
       "plan": "vc2-1c-1gb",
-      "date_created": "2026-11-15T05:32:02+00:00",
+      "date_created": "2026-11-15T06:52:27+00:00",
       "status": "pending",
       "allowed_bandwidth": 1,
       "netmask_v4": "",
@@ -49,7 +49,7 @@
       "os_id": 159,
       "app_id": 0,
       "image_id": "",
-      "firewall_group_id": "a8754b5f-449c-4c45-ac03-b2b702152316",
+      "firewall_group_id": "cdda070f-e96d-468c-942a-17c05bbcce66",
       "features": [],
       "user_scheme": "root",
       "vpc_only": false,

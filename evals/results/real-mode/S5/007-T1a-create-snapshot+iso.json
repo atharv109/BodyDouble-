@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-15T05:32:00Z",
+  "at": "2026-11-15T06:52:24Z",
   "method": "POST",
   "path": "/v2/instances",
   "request": {
@@ -12,10 +12,10 @@
     "attach_vpc": [
       "ab6a9e85-029b-4798-8a08-6c365d424508"
     ],
-    "firewall_group_id": "a8754b5f-449c-4c45-ac03-b2b702152316",
+    "firewall_group_id": "cdda070f-e96d-468c-942a-17c05bbcce66",
     "label": "bd-twin-t1a",
     "snapshot_id": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
-    "iso_id": "5891674a-bfe3-4f25-b2af-da89fecdbadb",
+    "iso_id": "3576db4e-e53c-453d-90a3-255d04faa831",
     "user_data": "<redacted>"
   },
   "status": 400,

@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-15T05:50:14Z",
+  "at": "2026-11-15T06:12:47Z",
   "method": "POST",
   "path": "/v2/instances",
   "request": {
@@ -12,12 +12,14 @@
       "body-double"
     ],
     "backups": "disabled",
-    "sshkey_id": "3d48fd20-a445-4177-9da5-7b54c15284d3",
+    "sshkey_id": [
+      "3d48fd20-a445-4177-9da5-7b54c15284d3"
+    ],
     "user_data": "<redacted>"
   },
-  "status": 400,
+  "status": 500,
   "response": {
-    "error": "sshkey_id must be an array",
-    "status": 400
+    "error": "",
+    "status": 500
   }
 }

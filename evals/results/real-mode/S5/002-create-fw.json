@@ -1,5 +1,5 @@
 {
-  "at": "2026-11-15T05:30:00Z",
+  "at": "2026-11-15T06:51:00Z",
   "method": "POST",
   "path": "/v2/firewalls",
   "request": {
@@ -8,10 +8,10 @@
   "status": 201,
   "response": {
     "firewall_group": {
-      "id": "a8754b5f-449c-4c45-ac03-b2b702152316",
+      "id": "cdda070f-e96d-468c-942a-17c05bbcce66",
       "description": "bd-twin-fw",
-      "date_created": "2026-11-15T05:29:59+00:00",
-      "date_modified": "2026-11-15T05:29:59+00:00",
+      "date_created": "2026-11-15T06:50:59+00:00",
+      "date_modified": "2026-11-15T06:50:59+00:00",
       "instance_count": 0,
       "rule_count": 0,
       "max_rule_count": 50
