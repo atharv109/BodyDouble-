@@ -7,12 +7,16 @@ runs 8-12 failed without the detach + attach).
 """
 from __future__ import annotations
 
+import base64
+import json
+
 import pytest
 
-from contracts.models import CaseState
+from contracts.models import CaseState, VultrVPC
 from contracts.vultr import FakeVultr, VultrError
 
 from backend.service import CaseService
+from backend.db import CaseRow
 
 from conftest import open_env
 
@@ -75,3 +79,78 @@ async def test_iso_reinsert_retries_transient_attach_errors(tmp_path, fast_retry
             "instance_id": FakeVultr.SHOP_PROD, "reason": "x"})
         assert r.json()["state"] == CaseState.sealed.value
         assert fake.attach_attempts == 3  # two transient failures, then success
+
+
+REAL_MODE_ENV = {"bd_real_mode": True, "vultr_api_key": "k",
+                 "operator_password": "operator-password-12", "app_secret": "t" * 40,
+                 "investigation_vpc_id": "vpc-shared", "investigation_vpc_subnet": "10.1.96.0/20",
+                 "control_url": "http://10.1.96.4:8000"}
+
+
+def fake_with_shared_vpc() -> FakeVultr:
+    """FakeVultr that knows the shared investigation VPC, so the twin gets an
+    API-assigned internal_ip as real Vultr does (W2-A: create returns it)."""
+    fake = FakeVultr()
+    fake.vpcs["vpc-shared"] = VultrVPC(id="vpc-shared", region="ewr", description="inv",
+                                       v4_subnet="10.1.96.0", v4_subnet_mask=20)
+    return fake
+
+
+@pytest.fixture
+def no_settle(monkeypatch):
+    """Skip the 75 s real-mode restore settle (it is live-run-covered)."""
+    async def instant(self, twin_id):
+        return None
+    monkeypatch.setattr(CaseService, "_wait_restore_settled", instant)
+
+
+async def test_real_mode_reseals_fresh_token_and_assigned_vpc_ip(tmp_path, no_settle):
+    """B3: after the restore, the sealed boot's envelope carries a FRESH token
+    and the API-assigned VPC IP (create-time internal_ip); the case row stores
+    both, and the fake twin registers + seals with the fresh token."""
+    fake = fake_with_shared_vpc()
+    async with open_env(tmp_path, fake=fake, t1_fallback=True, **REAL_MODE_ENV) as (st, client):
+        r = await client.post("/auth/session", json={"operator": "operator",
+                                                     "password": "operator-password-12"})
+        client.headers["X-Human-Session"] = r.json()["session_token"]
+        r = await client.post("/cases", json={
+            "instance_id": FakeVultr.SHOP_PROD, "reason": "x"})
+        case = r.json()
+        assert case["state"] == CaseState.sealed.value, case
+        twin_id = case["twin_instance_id"]
+
+        calls = fake.calls
+        patch = next(c for c in calls if c[:2] == ("PATCH", f"/v2/instances/{twin_id}"))
+        create = next(c for c in calls if c[:2] == ("POST", "/v2/instances"))
+        assert patch[2]["user_data"] != create[2]["user_data"]  # fresh envelope
+        patched = json.loads(base64.b64decode(patch[2]["user_data"]))
+        assert patched["vpc_ip"] == fake.instances[twin_id].internal_ip  # assigned
+        assert patched["vpc_subnet"] == "10.1.96.0/20"
+        with st.sf() as s:
+            row = s.get(CaseRow, case["id"])
+        assert row.reg_token is None          # consumed by the sealed registration
+        assert row.twin_internal_ip == patched["vpc_ip"]
+        # the token the sealed boot presented is the one the row held at register
+        assert create[2]["user_data"] != patch[2]["user_data"]
+        # ISO ends re-inserted (the sealed boot needs its media)
+        assert fake.isos[twin_id] == "iso-bd-forensics"
+
+
+async def test_real_mode_shared_vpc_ip_comes_from_settings_not_free_list(tmp_path, no_settle):
+    """The B3 real-mode twin claims the API-assigned internal_ip, not a
+    self-chosen free address (run-13 T4 finding: chosen IPs never ARP)."""
+    fake = fake_with_shared_vpc()
+    async with open_env(tmp_path, fake=fake, t1_fallback=True, **REAL_MODE_ENV) as (st, client):
+        r = await client.post("/auth/session", json={"operator": "operator",
+                                                     "password": "operator-password-12"})
+        client.headers["X-Human-Session"] = r.json()["session_token"]
+        r = await client.post("/cases", json={
+            "instance_id": FakeVultr.SHOP_PROD, "reason": "x"})
+        case = r.json()
+        assert case["state"] == CaseState.sealed.value
+        twin_id = case["twin_instance_id"]
+        envelope = json.loads(base64.b64decode(next(
+            c for c in fake.calls
+            if c[:2] == ("PATCH", f"/v2/instances/{twin_id}"))[2]["user_data"]))
+        assert envelope["vpc_ip"] == fake.instances[twin_id].internal_ip
+        assert envelope["control_plane"] == "http://10.1.96.4:8000"

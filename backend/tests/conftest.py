@@ -77,7 +77,10 @@ async def open_env(tmp_path, fake=None, **overrides):
     st = build_state(settings, vultr=fake)
     async with httpx.AsyncClient(transport=httpx.ASGITransport(app=st.app),
                                 base_url="http://t") as client:
-        r = await client.post("/auth/session", json={"operator": "operator"})
+        body = {"operator": "operator"}
+        if settings.operator_password:  # real-mode envs require it
+            body["password"] = settings.operator_password
+        r = await client.post("/auth/session", json=body)
         client.headers["X-Human-Session"] = r.json()["session_token"]
         try:
             yield st, client
