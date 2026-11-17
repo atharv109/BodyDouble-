@@ -1,0 +1,1 @@
+﻿released by orchestrator: GRUB one-shot rendered bd-iso selected but Ubuntu's recordfail timeout blocks auto-boot; noVNC synthetic keys refused; script fix (GRUB_RECORDFAIL_TIMEOUT=0 + grub-editenv) queued for run 10; PNGs: console-2-take1/before-Enter, take2/after-attempt-1, take3/after-attempt-2

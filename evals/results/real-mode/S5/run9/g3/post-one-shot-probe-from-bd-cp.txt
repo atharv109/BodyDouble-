@@ -1,0 +1,19 @@
+$ sudo cut -c1-160 /root/cp.jsonl
+{"event": "listening", "bind": "10.1.96.5", "port": 8000, "jobs": 0, "at": "2026-11-17T04:09:07Z"}
+{"src_ip": "10.1.96.6", "method": "POST", "path": "/twin/register", "body": {"case_id": "case-9001", "token": "<redacted>", "vpc_ip": "10.1.96.6", "seal": {"dis
+{"event": "listening", "bind": "10.1.96.5", "port": 8000, "jobs": 3, "at": "2026-11-17T04:10:33Z"}
+
+$ ping -c 3 -W 2 10.1.96.6; ip neigh show 10.1.96.6
+PING 10.1.96.6 (10.1.96.6) 56(84) bytes of data.
+
+--- 10.1.96.6 ping statistics ---
+3 packets transmitted, 0 received, 100% packet loss, time 2076ms
+
+10.1.96.6 dev enp8s0 lladdr 5a:00:07:0e:e3:dc DELAY 
+
+$ for p in 22 8000; do timeout 4 bash -c "echo > /dev/tcp/10.1.96.6/$p" 2>&1 && echo open $p || echo fail $p; done
+fail 22
+bash: connect: No route to host
+bash: line 1: /dev/tcp/10.1.96.6/8000: No route to host
+fail 8000
+

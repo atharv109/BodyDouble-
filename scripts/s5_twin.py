@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import hashlib
 import ipaddress
 import json
 import secrets
@@ -95,60 +96,59 @@ def wait_results(ip: str, n_expected: int, timeout_s: float) -> list[dict]:
         time.sleep(15)
 
 
-# One-shot GRUB entry that boots the forensics ISO's own kernel + initramfs from
-# the CD (found by its volume label; under UEFI the firmware exposes the CD).
-# custom.cfg is sourced last in grub.cfg, so its timeout wins over Ubuntu's: run 9
-# stopped at the menu with bd-iso selected and no countdown (recordfail after the
-# snapshot's unclean shutdown; run9/checkpoints/console-2-take2.png).
-GRUB_ENTRY = """set timeout=3
-set timeout_style=menu
-menuentry 'bd-iso' {
-    insmod part_gpt
-    insmod part_msdos
-    insmod iso9660
-    if [ "$grub_platform" = pc ]; then insmod ahci; insmod ata; fi
-    search --no-floppy --set=root --label BDFORENSICS
-    linux /boot/vmlinuz-lts console=ttyS0,115200 console=tty0
-    initrd /boot/initramfs-bd
-}
-"""
+# The ESP swap (runs 8-10): the restored, bootable disk beats the attached CD
+# (run8/g3/post-restore-probe-from-bd-cp.txt), and the clone's own GRUB menu never
+# auto-boots a one-shot entry: runs 9 and 10 sat at the menu with bd-iso selected,
+# even with timeout=3 and recordfail unset (run9|run10/checkpoints/*.png). So the
+# clone's UEFI loaders are replaced by a standalone GRUB EFI binary that boots the
+# ISO's kernel from the CD at once (scripts/build_oneshot_efi.sh; verified locally
+# in evals/results/local-e2e/kvm-uefi-esp-oneshot-efi/). Originals are kept as
+# *.bd-orig. Caveat: the clone's own OS runs once, unsealed, to make the swap.
+ONESHOT_EFI = REPO / "iso" / "out" / "bd-oneshot-x64.efi"
+ESP_LOADERS = ["/boot/efi/EFI/BOOT/BOOTX64.EFI", "/boot/efi/EFI/ubuntu/shimx64.efi",
+               "/boot/efi/EFI/ubuntu/grubx64.efi"]
 
 
-def clone_ssh(cp_ip: str, vpc_ip: str, cmd: str, timeout: int = 120) -> subprocess.CompletedProcess:
+def clone_ssh(cp_ip: str, vpc_ip: str, cmd: str, timeout: int = 120,
+              data: bytes | None = None) -> subprocess.CompletedProcess:
     """SSH into the restored clone over the VPC, jumping through bd-cp."""
     jump = " ".join(["ssh", *ssh_opts(), "-W", "%h:%p", f"ubuntu@{cp_ip}"])
-    return subprocess.run(["ssh", *ssh_opts(), "-o", f"ProxyCommand={jump}", f"ubuntu@{vpc_ip}", cmd],
-                          capture_output=True, text=True, timeout=timeout)
+    p = subprocess.run(["ssh", *ssh_opts(), "-o", f"ProxyCommand={jump}", f"ubuntu@{vpc_ip}", cmd],
+                       capture_output=True, timeout=timeout, input=data)
+    return subprocess.CompletedProcess(p.args, p.returncode, p.stdout.decode(errors="replace"),
+                                       p.stderr.decode(errors="replace"))
 
 
-def grub_one_shot(cp_ip: str, vpc_ip: str) -> bool:
-    """Make the clone's next boot (only) the ISO: custom.cfg entry + grub-reboot.
-    Evidence (diagnostics, every command's output) -> OUT/grub-one-shot.txt."""
-    log = OUT / "grub-one-shot.txt"
+def esp_swap(cp_ip: str, vpc_ip: str) -> bool:
+    """Make the clone's next boot the ISO: replace its UEFI loaders with the one-shot
+    EFI binary, then reboot. Evidence (every command's output) -> OUT/esp-swap.txt."""
+    log = OUT / "esp-swap.txt"
     t0 = time.monotonic()
     while True:  # the clone boots by itself after the restore
         p = clone_ssh(cp_ip, vpc_ip, "uname -a; uptime")
         if p.returncode == 0 or time.monotonic() - t0 > 600:
             break
         time.sleep(15)
+    swap = "; ".join(f"if [ -f {f} ]; then sudo cp -n {f} {f}.bd-orig && sudo cp /tmp/bd.efi {f}; fi"
+                     for f in ESP_LOADERS)
     steps = [
-        "uname -a; uptime; lsblk -o NAME,SIZE,TYPE,LABEL,MOUNTPOINT",
-        "ls -d /sys/firmware/efi 2>&1; mokutil --sb-state 2>&1 || true",
-        "sudo grep -c custom.cfg /boot/grub/grub.cfg; sudo grep -n -e next_entry -e recordfail"
-        " -e 'set timeout' /boot/grub/grub.cfg | head -12",
-        "echo " + base64.b64encode(GRUB_ENTRY.encode()).decode()
-        + " | base64 -d | sudo tee /boot/grub/custom.cfg >/dev/null && cat /boot/grub/custom.cfg",
-        "sudo grep -q custom.cfg /boot/grub/grub.cfg || sudo update-grub 2>&1 | tail -3",
-        "sudo grub-editenv - unset recordfail; sudo grub-reboot bd-iso && sudo grub-editenv list",
+        ("lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT; ls -d /sys/firmware/efi", None),
+        ("sudo efibootmgr -v 2>&1 || true; sudo find /boot/efi -type f -iname '*.efi' -ls", None),
+        ("cat > /tmp/bd.efi && sha256sum /tmp/bd.efi", ONESHOT_EFI.read_bytes()),
+        ("sudo mkdir -p /boot/efi/EFI/BOOT; [ -f /boot/efi/EFI/BOOT/BOOTX64.EFI ] || "
+         "sudo cp /tmp/bd.efi /boot/efi/EFI/BOOT/BOOTX64.EFI; " + swap
+         + "; sync; sudo sha256sum /boot/efi/EFI/*/*.efi", None),
     ]
     ok = p.returncode == 0
     with open(log, "w", encoding="utf-8") as f:
         f.write(f"$ wait for clone sshd: rc={p.returncode} after {time.monotonic() - t0:.0f}s\n"
                 f"{p.stdout}{p.stderr}\n")
-        for cmd in steps if ok else []:
-            r = clone_ssh(cp_ip, vpc_ip, cmd)
-            f.write(f"$ {cmd[:120]}\nrc={r.returncode}\n{r.stdout}{r.stderr}\n")
-            ok = ok and (r.returncode == 0 or cmd.startswith(("ls -d", "grep -c")))
+        f.write(f"one-shot EFI: {ONESHOT_EFI.name} sha256 "
+                f"{hashlib.sha256(ONESHOT_EFI.read_bytes()).hexdigest()}\n\n")
+        for cmd, data in steps if ok else []:
+            r = clone_ssh(cp_ip, vpc_ip, cmd, data=data)
+            f.write(f"$ {cmd[:200]}\nrc={r.returncode}\n{r.stdout}{r.stderr}\n")
+            ok = ok and r.returncode == 0
         if ok:
             r = clone_ssh(cp_ip, vpc_ip, "sudo systemd-run --on-active=2 systemctl reboot", timeout=60)
             f.write(f"$ reboot in 2 s\nrc={r.returncode}\n{r.stdout}{r.stderr}\n")
@@ -167,6 +167,8 @@ def main() -> int:
     ap.add_argument("--checkpoint-wait", type=float, default=1200)
     ap.add_argument("--skip-t1a", action="store_true")
     args = ap.parse_args()
+    if not ONESHOT_EFI.is_file():  # fail before any spend
+        sys.exit(f"missing {ONESHOT_EFI}: run scripts/build_oneshot_efi.sh")
     global OUT
     if args.batch:  # Api numbers files from 001 per process: never overwrite an older run
         OUT = OUT / args.batch
@@ -343,13 +345,10 @@ def main() -> int:
                     break
                 time.sleep(15)
         findings["t1b_iso_mounted_after_restore"] = iso_state(api, tid, "T1b-iso-mounted") == "isomounted"
-        # Real-mode finding (runs 4, 8): the restored, bootable disk beats the attached
-        # CD even after detach + re-attach (run8/g3/post-restore-probe-from-bd-cp.txt:
-        # sshd open on the twin). Workaround: a GRUB one-shot inside the clone. Caveat:
-        # the clone's own OS runs once, unsealed, to set it.
-        findings["t1b_grub_one_shot"] = grub_one_shot(cp_ip, ip_b)
-        note(f"T1b twin {tid}: restore {findings['t2_restore_s']}s; GRUB one-shot to the ISO: "
-             f"{findings['t1b_grub_one_shot']}; waiting for the post-restore registration")
+        # the restored disk beats the CD (runs 4, 8): swap the clone's UEFI loaders
+        findings["t1b_esp_swap"] = esp_swap(cp_ip, ip_b)
+        note(f"T1b twin {tid}: restore {findings['t2_restore_s']}s; ESP swap to the ISO: "
+             f"{findings['t1b_esp_swap']}; waiting for the post-restore registration")
         regs = wait_register(cp_ip, n_before + 1, 900)
         findings["t1b_after_restore_registered"] = len(regs) > n_before
         if len(regs) > n_before:

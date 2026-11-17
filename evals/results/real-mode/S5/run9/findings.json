@@ -1,0 +1,39 @@
+{
+  "iso_id": "97962862-5336-4daf-8ffa-ab61a7b1f1d7",
+  "snapshot_id": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
+  "vpc": {
+    "id": "ab6a9e85-029b-4798-8a08-6c365d424508",
+    "subnet": "10.1.96.0/20"
+  },
+  "bd_cp": {
+    "id": "55b73d30-f9b6-4fa9-8367-fbc5dc1a6548",
+    "vpc_ip": "10.1.96.5",
+    "vpc_ip_auto_configured": true
+  },
+  "metadata_user_data_is_raw": false,
+  "t1b_iso_active_s": 15,
+  "t4_twin_vpc_ip_from_api": "10.1.96.6",
+  "t1b_blank_disk_registered": true,
+  "t2_restore_s": 251,
+  "t1b_iso_mounted_after_restore": true,
+  "t1b_grub_one_shot": true,
+  "t1b_after_restore_registered": false,
+  "checkpoint_2_go": true,
+  "t3_results_received": 0,
+  "registrations": [
+    {
+      "src_ip": "10.1.96.6",
+      "status": 200,
+      "vpc_ip_claimed": "10.1.96.6",
+      "seal": {
+        "disk_read_only": false,
+        "egress_blocked": true,
+        "detail": {
+          "disk_read_only": "/mnt/disk not found in the mount table",
+          "egress_blocked": "tcp 1.1.1.1:53 failed: TimeoutError: timed out; tcp 8.8.8.8:53 failed: TimeoutError: timed out; tcp 1.1.1.1:443 failed: TimeoutError: timed out; tcp 9.9.9.9:80 failed: TimeoutError: timed out; tcp 208.67.222.222:443 failed: TimeoutError: timed out"
+        }
+      }
+    }
+  ],
+  "results": {}
+}

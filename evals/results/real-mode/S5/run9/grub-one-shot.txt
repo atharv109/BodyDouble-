@@ -1,0 +1,52 @@
+$ wait for clone sshd: rc=0 after 121s
+Linux vultr 6.8.0-147-generic #147-Ubuntu SMP PREEMPT_DYNAMIC Thu Sep 24 11:33:16 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+ 04:16:45 up 0 min,  1 user,  load average: 1.97, 0.51, 0.17
+
+$ uname -a; uptime; lsblk -o NAME,SIZE,TYPE,LABEL,MOUNTPOINT
+rc=0
+Linux vultr 6.8.0-147-generic #147-Ubuntu SMP PREEMPT_DYNAMIC Thu Sep 24 11:33:16 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+ 04:16:47 up 0 min,  2 users,  load average: 1.98, 0.53, 0.18
+NAME    SIZE TYPE LABEL MOUNTPOINT
+sr0    1024M rom        
+vda      25G disk       
+├─vda1  512M part       /boot/efi
+└─vda2 24.5G part       /
+
+$ ls -d /sys/firmware/efi 2>&1; mokutil --sb-state 2>&1 || true
+rc=0
+/sys/firmware/efi
+This system doesn't support Secure Boot
+
+$ grep -c custom.cfg /boot/grub/grub.cfg; grep -n next_entry /boot/grub/grub.cfg | head -3
+rc=0
+grep: /boot/grub/grub.cfg: Permission denied
+grep: /boot/grub/grub.cfg: Permission denied
+
+$ echo bWVudWVudHJ5ICdiZC1pc28nIHsKICAgIGluc21vZCBwYXJ0X2dwdAogICAgaW5zbW9kIHBhcnRfbXNkb3MKICAgIGluc21vZCBpc285NjYwCiAgICB
+rc=0
+menuentry 'bd-iso' {
+    insmod part_gpt
+    insmod part_msdos
+    insmod iso9660
+    if [ "$grub_platform" = pc ]; then insmod ahci; insmod ata; fi
+    search --no-floppy --set=root --label BDFORENSICS
+    linux /boot/vmlinuz-lts console=ttyS0,115200 console=tty0
+    initrd /boot/initramfs-bd
+}
+
+$ grep -q custom.cfg /boot/grub/grub.cfg || sudo update-grub 2>&1 | tail -3
+rc=0
+Check GRUB_DISABLE_OS_PROBER documentation entry.
+Adding boot menu entry for UEFI Firmware Settings ...
+done
+grep: /boot/grub/grub.cfg: Permission denied
+
+$ sudo grub-reboot bd-iso && sudo grub-editenv list
+rc=0
+next_entry=bd-iso
+
+$ reboot in 2 s
+rc=0
+Running timer as unit: run-r9ec9e7564eeb404683caa1a3f4959dc8.timer
+Will run service as unit: run-r9ec9e7564eeb404683caa1a3f4959dc8.service
+

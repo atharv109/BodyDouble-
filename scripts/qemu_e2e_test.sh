@@ -35,7 +35,25 @@ ip link set lo up
 W=/tmp/qt
 rm -rf "$W" && mkdir -p "$W/root"
 truncate -s 256M "$W/disk.img"
-if [ "${BLANK_DISK:-0}" != 1 ]; then
+if [ "${UEFI_GRUB:-0}" = 1 ]; then
+    # UEFI_GRUB=1: the clone as Vultr restores it (S5 run 9/10: UEFI, GPT, ESP vda1
+    # + ext4 root vda2), booted by OVMF. The ESP's fallback loader
+    # \EFI\BOOT\BOOTX64.EFI is a standalone GRUB that boots the ISO's kernel at
+    # once: no menu, no timeout. This is the ESP-swap one-shot.
+    cp -a "$SRC/demo/victim/." "$W/root/"
+    truncate -s 400M "$W/disk.img"
+    printf 'label: gpt\nstart=2048, size=262144, type=U\nstart=264192, size=522240, type=L\n' \
+        | sfdisk -q "$W/disk.img"
+    # the exact binary s5_twin.py installs live (scripts/build_oneshot_efi.sh)
+    cp "$ISO/bd-oneshot-x64.efi" "$W/BOOTX64.EFI"
+    mkfs.vfat -C "$W/esp.img" 131072 >/dev/null
+    mmd -i "$W/esp.img" ::/EFI ::/EFI/BOOT
+    mcopy -i "$W/esp.img" "$W/BOOTX64.EFI" ::/EFI/BOOT/BOOTX64.EFI
+    truncate -s 255M "$W/part.img"
+    mkfs.ext4 -q -d "$W/root" "$W/part.img"
+    dd if="$W/esp.img" of="$W/disk.img" bs=1M seek=1 conv=notrunc status=none
+    dd if="$W/part.img" of="$W/disk.img" bs=1M seek=129 conv=notrunc status=none
+elif [ "${BLANK_DISK:-0}" != 1 ]; then
     cp -a "$SRC/demo/victim/." "$W/root/"
     printf 'label: dos\nstart=2048, type=83\n' | sfdisk -q "$W/disk.img"
     truncate -s 255M "$W/part.img"
@@ -93,8 +111,15 @@ serial=file:"$OUT/serial.log"
 [ "${NO_SERIAL:-0}" = 1 ] && serial=none
 accel=tcg cpu=qemu64
 [ -e /dev/kvm ] && accel=kvm cpu=host
+fw="-boot d"
+if [ "${UEFI_GRUB:-0}" = 1 ]; then
+    cp /usr/share/OVMF/OVMF_VARS_4M.fd "$W/vars.fd"
+    fw="-machine q35 -drive if=pflash,format=raw,readonly=on,file=/usr/share/OVMF/OVMF_CODE_4M.fd
+        -drive if=pflash,format=raw,file=$W/vars.fd"
+fi
+# shellcheck disable=SC2086
 timeout "$BOOT_SECONDS" qemu-system-x86_64 -machine accel=$accel -cpu $cpu -m 1024 -nographic \
-    -cdrom "$ISO/bodydouble-forensics.iso" -boot d \
+    -cdrom "$ISO/bodydouble-forensics.iso" $fw \
     -drive file="$W/disk.img",if=virtio,format=raw \
     -netdev user,id=n0 -device virtio-net-pci,netdev=n0 \
     -netdev tap,id=n1,ifname=tap0,script=no,downscript=no -device virtio-net-pci,netdev=n1 \
