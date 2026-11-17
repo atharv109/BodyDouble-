@@ -168,11 +168,58 @@ def iso_state(api: Api, tid: str, name: str) -> str:
     return api.call("GET", f"/v2/instances/{tid}/iso", name=name)[1]["iso_status"].get("state", "")
 
 
+# W1 (Gate 2): measure egress in the pre-swap window itself. The restored clone
+# is briefly Ubuntu with its public interface (real-mode finding: "the clone's
+# own OS runs once, unsealed"); these probes run from inside it BEFORE the
+# ESP swap modifies the loaders. Contrast: run 13 measured 5/5 egress blocked
+# AFTER the seal — this is the other end of the timeline.
+def preswap_probes(cp_ip: str, vpc_ip: str, out_dir: Path) -> bool:
+    """From the restored clone: timestamped outbound probes (HTTPS 443, HTTP 80,
+    DNS 53, ICMP), each recorded with start / result / end timestamps. Evidence:
+    <out_dir>/probe.txt. Returns True when the probes ran on a reachable clone."""
+    t0 = time.monotonic()
+    p = clone_ssh(cp_ip, vpc_ip, "uname -a; uptime --pretty; ip -4 -brief addr show")
+    reachable = p.returncode == 0
+    cmd = "\n".join([
+        'echo "== preswap egress probes: start $(date -u +%FT%T.%NZ) =="',
+        'echo "iface:"; ip -4 -brief addr show',
+        'echo "$(date -u +%FT%T.%NZ) START https443"',
+        "curl -sS -m 8 -w '\\nRC https443 http=%{http_code} t=%{time_total}s\\n' https://api.ipify.org",
+        'echo "$(date -u +%FT%T.%NZ) END https443 rc=$?"',
+        'echo "$(date -u +%FT%T.%NZ) START http80"',
+        "curl -sS -m 8 -w '\\nRC http80 http=%{http_code} t=%{time_total}s\\n' 'http://ip-api.com/line/?fields=query'",
+        'echo "$(date -u +%FT%T.%NZ) END http80 rc=$?"',
+        'echo "$(date -u +%FT%T.%NZ) START dns53"',
+        "getent hosts example.com",
+        'echo "$(date -u +%FT%T.%NZ) END dns53 rc=$?"',
+        'echo "$(date -u +%FT%T.%NZ) START icmp"',
+        "ping -c 1 -W 3 8.8.8.8 2>&1 | tail -2",
+        'echo "$(date -u +%FT%T.%NZ) END icmp rc=$?"',
+        'echo "== preswap egress probes: end $(date -u +%FT%T.%NZ) =="',
+    ])
+    r = clone_ssh(cp_ip, vpc_ip, cmd, timeout=240)
+    took = time.monotonic() - t0
+    with open(out_dir / "probe.txt", "w", encoding="utf-8") as f:
+        f.write("W1 pre-swap egress probes - from the restored clone (the clone's own "
+                "OS, unsealed, public interface) BEFORE the ESP swap.\n")
+        f.write(f"clone sshd rc={p.returncode}; probe ssh rc={r.returncode}; window +{took:.0f}s\n\n")
+        f.write(f"$ clone uname/uptime/ifaces\n{p.stdout}{p.stderr}\n")
+        f.write(f"$ probes\n{r.stdout}{r.stderr}\n")
+        f.write("\nVERDICT: to be completed by the worker from the results above.\n")
+    with open(out_dir / "probe.rc.json", "w", encoding="utf-8") as f:
+        f.write(json.dumps({"clone_ssh_rc": p.returncode, "probe_rc": r.returncode,
+                            "window_s": round(took)}, indent=2))
+    return reachable and r.returncode == 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--batch", default="", help="evidence subfolder of S5/ (fresh numbering), e.g. run4")
     ap.add_argument("--checkpoint-dir", type=Path, default=None, help="default: S5/checkpoints")
     ap.add_argument("--checkpoint-wait", type=float, default=1200)
+    ap.add_argument("--preswap-probe-dir", type=Path, default=None,
+                    help="W1: run outbound probes from the restored clone before "
+                         "the ESP swap; write probe.txt under this directory")
     ap.add_argument("--skip-t1a", action="store_true")
     args = ap.parse_args()
     if not (ONESHOT_EFI.is_file() and (ONESHOT_DIR / "initramfs-bd").is_file()):  # before any spend
@@ -359,6 +406,12 @@ def main() -> int:
                 break
             time.sleep(15)
         findings["t1b_iso_mounted_after_restore"] = iso_state(api, tid, "T1b-iso-mounted") == "isomounted"
+        # W1: the clone is about to be Ubuntu with its public interface — measure
+        # egress NOW, before the ESP swap (evals/results/real-run-01/preswap-egress/)
+        if args.preswap_probe_dir:
+            args.preswap_probe_dir.mkdir(parents=True, exist_ok=True)
+            findings["preswap_probes_ran"] = preswap_probes(cp_ip, ip_b, args.preswap_probe_dir)
+            note(f"W1 pre-swap probes: ran={findings['preswap_probes_ran']} -> {args.preswap_probe_dir}")
         # the restored disk beats the CD (runs 4, 8): swap the clone's UEFI loaders
         findings["t1b_esp_swap"] = esp_swap(cp_ip, ip_b)
         note(f"T1b twin {tid}: restore {findings['t2_restore_s']}s; ESP swap to the ISO: "

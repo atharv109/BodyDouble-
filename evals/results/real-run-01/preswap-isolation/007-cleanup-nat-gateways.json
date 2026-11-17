@@ -1,0 +1,11 @@
+{
+  "at": "2026-11-17T08:07:02Z",
+  "method": "DELETE",
+  "path": "/v2/nat-gateways/62f6fe13-3bf8-4a4c-b54e-61e9aeee038a",
+  "request": null,
+  "status": 404,
+  "response": {
+    "error": "Not found.",
+    "status": 404
+  }
+}

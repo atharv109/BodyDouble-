@@ -1,0 +1,53 @@
+{
+  "meta": {
+    "total": 3,
+    "links": {
+      "next": "",
+      "prev": ""
+    }
+  },
+  "firewall_rules": [
+    {
+      "id": 1,
+      "type": "v4",
+      "ip_type": "v4",
+      "action": "accept",
+      "protocol": "tcp",
+      "port": "22",
+      "subnet": "0.0.0.0",
+      "subnet_size": 0,
+      "source": "0.0.0.0/0",
+      "notes": "",
+      "direction": "in",
+      "loadbalancer_id": ""
+    },
+    {
+      "id": 2,
+      "type": "v4",
+      "ip_type": "v4",
+      "action": "accept",
+      "protocol": "tcp",
+      "port": "22",
+      "subnet": "10.1.96.0",
+      "subnet_size": 20,
+      "source": "10.1.96.0/20",
+      "notes": "",
+      "direction": "out",
+      "loadbalancer_id": ""
+    },
+    {
+      "id": 3,
+      "type": "v4",
+      "ip_type": "v4",
+      "action": "accept",
+      "protocol": "tcp",
+      "port": "1:65535",
+      "subnet": "0.0.0.0",
+      "subnet_size": 0,
+      "source": "0.0.0.0/0",
+      "notes": "",
+      "direction": "out",
+      "loadbalancer_id": ""
+    }
+  ]
+}

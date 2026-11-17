@@ -571,6 +571,7 @@ class CaseService:
             # Vultr the instance may already be booting in this window — see
             # the day-one T1 decision (halt/attach/boot needs a contracts call).
             await self._restore_snapshot_when_ready(twin.id, row.snapshot_id)
+            await self._after_restore_reinsert(twin.id, str(user_data))
         self.log.append(row.id, "twin_created", {
             "twin_instance_id": twin.id, "vpc_id": vpc_id, "firewall_group_id": fw.id,
             "iso_id": self.settings.iso_id, "iso_attached_in_create": True,
@@ -641,6 +642,47 @@ class CaseService:
                     )
                 await asyncio.sleep(self.settings.poll_interval_s)
             await asyncio.sleep(self.settings.poll_interval_s)
+
+    async def _retry_transient(self, what: str, call, attempts: int = 6,
+                               delay_s: float = 20.0):
+        """Retry a Vultr call past its transient 4xx/5xx (subscription state,
+        ISO attach racing the physical detach). Raises CaseFailure at the end."""
+        last: Exception | None = None
+        for attempt in range(attempts):
+            try:
+                return await call()
+            except VultrError as error:
+                last = error
+                log.warning("%s attempt %s failed (%s %s); retrying in %ss",
+                            what, attempt, error.status_code,
+                            str(error.body)[:120], delay_s)
+                await asyncio.sleep(delay_s)
+        raise CaseFailure(f"{what} failed after {attempts} attempts: {last}")
+
+    async def _after_restore_reinsert(self, twin_id: str, user_data: str) -> None:
+        """Run-13 T1b's post-restore steps (docs/real-mode-findings.md). The
+        restore call returns before the copy finishes, so first wait until the
+        instance is really active again (settled, as in run 13's driver). Then
+        re-patch user_data — the restore reverts it to the snapshot's cloud-init,
+        which would leave the next ISO boot with a stale registration token —
+        and re-insert the ISO: the restore empties the CD drive while the API
+        still reports isomounted, so the ISO boot finds no media (runs 8-12
+        failed without the detach + attach)."""
+        t_restored = utcnow()
+        deadline = t_restored + timedelta(seconds=self.settings.boot_timeout_s)
+        while True:
+            twin = await self.vultr.get_instance(twin_id)
+            settled = (not self.settings.real_mode
+                       or (utcnow() - t_restored) > timedelta(seconds=75))
+            if twin.status == "active" and twin.server_status == "ok" and settled:
+                break
+            if utcnow() > deadline:
+                raise CaseFailure(f"twin {twin_id} restore never completed")
+            await asyncio.sleep(self.settings.poll_interval_s)
+        await self.vultr.update_user_data(twin_id, user_data)
+        await self._retry_transient("iso detach", lambda: self.vultr.detach_iso(twin_id))
+        await self._retry_transient("iso re-attach",
+                                    lambda: self.vultr.attach_iso(twin_id, self.settings.iso_id))
 
     # ------------------------------------------------------------- F9: actions
     async def build_action_menu(self, case_id: str) -> list[Action]:
