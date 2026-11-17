@@ -10,6 +10,12 @@ Deletes ONLY resources marked as ours:
   VPCs, firewalls  description contains "body-double" or starts "bd-"
   object storage   label starts "bd-" (the short-lived bd-iso-upload ISO publisher)
   ISOs             filename contains "body-double" or starts "bd-"
+  NAT gateways     label contains "body-double" or starts "bd-", on ANY VPC (kept
+                   VPCs included: a NAT gateway bills hourly). No flat list exists
+                   (POST/GET /v2/nat-gateways -> 404, W2b evidence); they live under
+                   /v2/vpcs/{vpc}/nat-gateway. List/delete shapes follow the Vultr
+                   docs and are confirmed live in
+                   evals/results/real-run-01/preswap-isolation/findings.md.
 Resources the secrets file points at (VULTR_ISO_ID, BD_VPC_ID) are kept unless
 --include-env-refs is given: they cost $0/hr and the app needs them.
 delete() re-checks owned() itself, so nothing else can be deleted by mistake.
@@ -38,7 +44,36 @@ KINDS = {
     "object_storage": ("/v2/object-storage", "object_storages", "/v2/object-storage"),
     "iso": ("/v2/iso", "isos", "/v2/iso"),
 }
-ORDER = ["instance", "snapshot", "firewall", "vpc", "object_storage", "iso"]  # instances first
+ORDER = ["instance", "snapshot", "firewall", "nat_gateway", "vpc", "object_storage", "iso"]
+# instances first; NAT gateways before their VPC
+
+
+def list_nat_gateways(api: Api) -> list[dict]:
+    """Every NAT gateway on the account: one GET per VPC (404 = none there).
+    Each item gets vpc_id filled in from the VPC it was listed under."""
+    out = []
+    for vpc in api.list_all("/v2/vpcs", "vpcs"):
+        status, data = api.call("GET", f"/v2/vpcs/{vpc['id']}/nat-gateway", ok=(404,))
+        if status == 404 or not isinstance(data, dict):
+            continue
+        items = data.get("nat_gateways")
+        if items is None:  # tolerate a single-object answer
+            items = [data["nat_gateway"]] if data.get("nat_gateway") else []
+        out += [{**i, "vpc_id": i.get("vpc_id") or vpc["id"]} for i in items]
+    return out
+
+
+def list_kind(api: Api, kind: str) -> list[dict]:
+    if kind == "nat_gateway":
+        return list_nat_gateways(api)
+    path, key, _ = KINDS[kind]
+    return api.list_all(path, key)
+
+
+def delete_path(kind: str, item: dict) -> str:
+    if kind == "nat_gateway":
+        return f"/v2/vpcs/{item['vpc_id']}/nat-gateway/{item['id']}"
+    return f"{KINDS[kind][2]}/{item['id']}"
 
 
 class RefusedDelete(Exception):
@@ -59,7 +94,7 @@ def owned(kind: str, item: dict) -> bool:
         return _marked(desc) and not PROTECTED_SNAPSHOT.search(desc)
     if kind in ("firewall", "vpc"):
         return _marked(item.get("description"))
-    if kind == "object_storage":
+    if kind in ("object_storage", "nat_gateway"):
         return _marked(item.get("label"))
     if kind == "iso":
         return _marked(item.get("filename"))
@@ -69,7 +104,7 @@ def owned(kind: str, item: dict) -> bool:
 def delete(api: Api, kind: str, item: dict, keep: set[str] = frozenset()) -> None:
     if not owned(kind, item) or item["id"] in keep:
         raise RefusedDelete(f"{kind} {item.get('id')} is not a deletable body-double resource")
-    path = f"{KINDS[kind][2]}/{item['id']}"
+    path = delete_path(kind, item)
     for attempt in range(8):  # VPC/firewall deletes 4xx until their instances are really gone
         status, _ = api.call("DELETE", path, ok=(400, 404, 409, 412, 500))
         if status < 400 or status == 404:
@@ -86,8 +121,7 @@ def describe(kind: str, item: dict) -> str:
 def sweep(api: Api, dry_run: bool, keep: set[str], out=print) -> dict:
     summary = {}
     for kind in ORDER:
-        path, key, _ = KINDS[kind]
-        items = api.list_all(path, key)
+        items = list_kind(api, kind)
         mine = [i for i in items if owned(kind, i) and i["id"] not in keep]
         for item in mine:
             out(("would delete " if dry_run else "deleting     ") + describe(kind, item))
@@ -134,8 +168,10 @@ def main() -> int:
     left = api.list_all("/v2/instances", "instances")
     print(f"project instances left: {sum(owned('instance', i) for i in left)}")
     print(f"summary: {summary}")
+    n_nat = len(list_nat_gateways(api))
     print(f"burn: ${compute:.4f}/hr compute ({n_inst} instances on the account); "
-          f"snapshot storage ${storage:.4f}/hr ({n_snap} snapshots)")
+          f"snapshot storage ${storage:.4f}/hr ({n_snap} snapshots); "
+          f"{n_nat} NAT gateways on the account (billed hourly, not priced here)")
     return 0
 
 

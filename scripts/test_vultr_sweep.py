@@ -35,11 +35,16 @@ STATE = {
                         {"id": "obs-theirs", "label": "customer-files"}],
     "plans": [{"id": "vc2-1c-1gb", "monthly_cost": 5}],
 }
+# per-VPC NAT gateways (no flat list on Vultr): ours sits on the KEPT VPC, as the
+# W2b leak 62f6fe13 did on ab6a9e85
+NATS = {"v-env": [{"id": "nat-ours", "label": "bd-natgw", "status": "active"}],
+        "v-theirs": [{"id": "nat-theirs", "label": "office-egress", "status": "active"}]}
 
 
 @pytest.fixture
 def fake():
     state = json.loads(json.dumps(STATE))
+    nats = json.loads(json.dumps(NATS))
     deleted: list[str] = []
     key_for = {"instances": "instances", "snapshots": "snapshots", "firewalls": "firewall_groups",
                "vpcs": "vpcs", "iso": "isos", "object-storage": "object_storages",
@@ -47,6 +52,18 @@ def fake():
 
     def handler(req: httpx.Request) -> httpx.Response:
         parts = req.url.path.strip("/").split("/")  # ["v2", kind, id?]
+        if len(parts) >= 4 and parts[1] == "vpcs" and parts[3] == "nat-gateway":
+            vpc = parts[2]
+            if req.method == "GET" and len(parts) == 4:
+                if not nats.get(vpc):
+                    return httpx.Response(404, json={"error": "Not found.", "status": 404})
+                return httpx.Response(200, json={"nat_gateways": nats[vpc],
+                                                 "meta": {"links": {"next": ""}}})
+            if req.method == "DELETE" and len(parts) == 5:
+                deleted.append(parts[4])
+                nats[vpc] = [n for n in nats.get(vpc, []) if n["id"] != parts[4]]
+                return httpx.Response(204)
+            return httpx.Response(405)
         key = key_for[parts[1]]
         if req.method == "GET":
             return httpx.Response(200, json={key: state[key], "meta": {"links": {"next": ""}}})
@@ -64,7 +81,18 @@ def test_sweep_deletes_only_ours(fake):
     api, deleted = fake
     vs.sweep(api, dry_run=False, keep={"v-env"}, out=lambda *_: None)
     assert sorted(deleted) == ["f-ours", "i-bd", "i-ours", "iso-ours", "iso-ours2",
-                               "obs-ours", "s-ours", "v-ours"]
+                               "nat-ours", "obs-ours", "s-ours", "v-ours"]
+
+
+def test_nat_gateway_on_kept_vpc_is_deleted_before_vpcs(fake):
+    """The kept VPC survives, but our NAT gateway on it is billed hourly: delete
+    it (under /v2/vpcs/{vpc}/nat-gateway/{id}), and before any VPC delete."""
+    api, deleted = fake
+    vs.sweep(api, dry_run=False, keep={"v-env"}, out=lambda *_: None)
+    assert "nat-ours" in deleted and "nat-theirs" not in deleted and "v-env" not in deleted
+    assert deleted.index("nat-ours") < deleted.index("v-ours")
+    assert vs.list_nat_gateways(api) == [
+        {"id": "nat-theirs", "label": "office-egress", "status": "active", "vpc_id": "v-theirs"}]
 
 
 def test_case_snapshots_and_env_refs_survive(fake):
@@ -83,6 +111,7 @@ def test_case_snapshots_and_env_refs_survive(fake):
     ("vpc", STATE["vpcs"][2]),
     ("iso", STATE["isos"][2]),
     ("object_storage", STATE["object_storages"][1]),
+    ("nat_gateway", {**NATS["v-theirs"][0], "vpc_id": "v-theirs"}),
 ])
 def test_delete_guard_refuses_foreign(fake, kind, item):
     api, deleted = fake
