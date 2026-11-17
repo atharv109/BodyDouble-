@@ -1,8 +1,9 @@
 """Runtime settings, all from environment variables. No secrets are ever written
 to disk: the Vultr key and inference key live in env on the control plane only.
 
-Defaults assume FakeVultr (demo/test) unless VULTR_API_KEY is set; every timeout
-then switches to production-scale values via env overrides.
+Defaults assume FakeVultr (demo/test). RealVultr requires BOTH BD_REAL_MODE=1
+and VULTR_API_KEY; every timeout then switches to production-scale values via
+env overrides.
 """
 from __future__ import annotations
 
@@ -39,6 +40,7 @@ def _f(name: str, default: float) -> float:
 class Settings:
     database_url: str = ""
     vultr_api_key: str | None = None  # never set by this code; read from env only
+    bd_real_mode: bool = False  # BD_REAL_MODE=1: the explicit gate for RealVultr
     operator_password: str | None = None  # required when vultr_api_key enables real mode
     iso_id: str = "iso-bd-forensics"
     twin_plan: str = "vc2-1c-2gb"
@@ -69,12 +71,18 @@ class Settings:
     app_secret: str = DEV_APP_SECRET  # HMAC key for human sessions (prod: env)
     session_ttl_s: int = 86400
 
+    @property
+    def real_mode(self) -> bool:
+        """True only when the explicit switch AND a key are both set."""
+        return self.bd_real_mode and bool(self.vultr_api_key)
+
 
 def settings_from_env() -> Settings:
     real = bool(os.environ.get("VULTR_API_KEY"))
     settings = Settings(
         database_url=normalize_db_url(os.environ.get("DATABASE_URL") or default_database_url()),
         vultr_api_key=os.environ.get("VULTR_API_KEY") or None,
+        bd_real_mode=os.environ.get("BD_REAL_MODE", "").lower() in ("1", "true", "yes"),
         operator_password=os.environ.get("BD_OPERATOR_PASSWORD") or None,
         iso_id=os.environ.get("VULTR_ISO_ID", "iso-bd-forensics"),
         twin_plan=os.environ.get("TWIN_PLAN", "vc2-1c-2gb"),
@@ -108,6 +116,10 @@ def validate_real_mode(settings: Settings) -> None:
             settings.model_planner and settings.model_solver):
         raise RuntimeError(
             "VULTR_INFERENCE_KEY requires both BD_MODEL_PLANNER and BD_MODEL_SOLVER"
+        )
+    if settings.bd_real_mode and not settings.vultr_api_key:
+        raise RuntimeError(
+            "BD_REAL_MODE=1 requires VULTR_API_KEY (no half-configured real mode)"
         )
     if not settings.vultr_api_key:
         return

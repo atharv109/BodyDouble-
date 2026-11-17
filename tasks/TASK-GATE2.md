@@ -28,7 +28,7 @@ Commit after each item with the item ID in the message.
       into this repo's VultrClient so every real call is allowlisted. Done when:
       a unit test proves a disallowed host/method/redirect is refused.
       Test file: `backend/tests/test_vultr_client_allowlist.py`
-- [ ] B1: `BD_REAL_MODE` env switch: unset = existing fake behavior untouched;
+- [x] B1: `BD_REAL_MODE` env switch: unset = existing fake behavior untouched;
       set = all instances/snapshots/VPC/ISO calls go to the real Vultr API.
       Done when: existing fake-mode tests still pass and real-mode client
       construction is covered by tests (no live calls in tests).
