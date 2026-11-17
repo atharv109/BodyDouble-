@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_w2b.py", line 199, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_w2b.py", line 148, in main
+    api.call("DELETE", f"/v2/vpcs/{vpc_id}/nat-gateway/{nat_id}", name="B3-delete-natgw")
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\bdvultr.py", line 84, in call
+    raise RuntimeError(f"Vultr {method} {path} -> {r.status_code}: {redact(data)}")
+RuntimeError: Vultr DELETE /v2/vpcs/ab6a9e85-029b-4798-8a08-6c365d424508/nat-gateway/f004be28-0695-4a44-8989-c79ff4eb3362 -> 422: {'is_external_error': False, 'error': 'Unable to remove NAT Gateway: please remove all VPC-only instances from this network first', 'status': 422}

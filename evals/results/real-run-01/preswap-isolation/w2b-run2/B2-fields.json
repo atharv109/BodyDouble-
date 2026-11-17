@@ -1,0 +1,7 @@
+{
+  "main_ip": "10.1.96.3",
+  "vpc_ids": null,
+  "internal_ip": "10.1.96.3",
+  "region": "ewr",
+  "plan": "vc2-1c-1gb"
+}

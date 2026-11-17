@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-17T22:05:15Z",
+  "method": "DELETE",
+  "path": "/v2/vpcs/ab6a9e85-029b-4798-8a08-6c365d424508/nat-gateway/f004be28-0695-4a44-8989-c79ff4eb3362",
+  "request": null,
+  "status": 422,
+  "response": {
+    "is_external_error": false,
+    "error": "Unable to remove NAT Gateway: please remove all VPC-only instances from this network first",
+    "status": 422
+  }
+}

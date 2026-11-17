@@ -107,7 +107,7 @@ def delete(api: Api, kind: str, item: dict, keep: set[str] = frozenset()) -> Non
         raise RefusedDelete(f"{kind} {item.get('id')} is not a deletable body-double resource")
     path = delete_path(kind, item)
     for attempt in range(8):  # VPC/firewall deletes 4xx until their instances are really gone
-        status, _ = api.call("DELETE", path, ok=(400, 404, 409, 412, 500))
+        status, _ = api.call("DELETE", path, ok=(400, 404, 409, 412, 422, 500))
         if status < 400 or status == 404:
             return
         time.sleep(15)

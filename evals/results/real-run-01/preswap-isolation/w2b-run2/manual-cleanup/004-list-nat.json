@@ -1,0 +1,17 @@
+{
+  "at": "2026-11-17T22:06:05Z",
+  "method": "GET",
+  "path": "/v2/vpcs/ab6a9e85-029b-4798-8a08-6c365d424508/nat-gateway",
+  "request": null,
+  "status": 200,
+  "response": {
+    "meta": {
+      "total": 0,
+      "links": {
+        "next": "",
+        "prev": ""
+      }
+    },
+    "nat_gateways": []
+  }
+}

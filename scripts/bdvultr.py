@@ -101,14 +101,16 @@ class Api:
     def delete_until_gone(self, path: str, name: str = "cleanup",
                           timeout_s: float = 900, every_s: float = 20) -> int:
         """DELETE until 2xx or 404. 409 'Server is currently locked' (mid-restore),
-        400/412 (firewall still held by an instance) and 5xx / network errors are
-        retried; W2 leaked instance fb0dd8a4 by treating one 409 as done.
+        400/412 (firewall still held by an instance), 422 (NAT gateway: "remove all
+        VPC-only instances from this network first" while a 204'd instance is still
+        going away; W2b run 2) and 5xx / network errors are retried; W2 leaked
+        instance fb0dd8a4 by treating one 409 as done.
         Raises RuntimeError if the resource is still there at timeout_s."""
         t0, last = time.monotonic(), None
         while True:
             try:
                 status, _ = self.call("DELETE", path, name=name,
-                                      ok=(400, 404, 409, 412, 500, 502, 503, 504))
+                                      ok=(400, 404, 409, 412, 422, 500, 502, 503, 504))
                 if status < 400 or status == 404:
                     return status
                 last = status

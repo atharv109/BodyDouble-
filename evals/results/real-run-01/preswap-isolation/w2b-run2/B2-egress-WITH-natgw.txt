@@ -1,0 +1,8 @@
+from VPC-only instance (no public IPv4), NAT gateway present:
+$ curl -sS -m 8 -o /dev/null -w 'https443 http=%{http_code}' https://api.ipify.org; echo " rc=$?"; curl -sS -m 8 https://api.ipify.org; echo; getent hosts example.com >/dev/null; echo "dns53 rc=$?"; ping -c 1 -W 3 8.8.8.8 2>&1 | tail -1
+rc=0
+https443 http=200 rc=0
+45.63.22.247
+dns53 rc=0
+rtt min/avg/max/mdev = 1.407/1.407/1.407/0.000 ms
+
