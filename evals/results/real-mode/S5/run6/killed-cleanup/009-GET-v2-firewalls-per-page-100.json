@@ -1,0 +1,24 @@
+{
+  "at": "2026-11-17T03:18:02Z",
+  "method": "GET",
+  "path": "/v2/firewalls?per_page=100",
+  "request": null,
+  "status": 200,
+  "response": {
+    "meta": {
+      "total": 1,
+      "links": {
+        "next": "",
+        "prev": ""
+      }
+    },
+    "firewall_groups": [
+      {
+        "id": "59f09c35-697c-4bee-ab82-1d7e4339c37c",
+        "description": "bd-twin-fw",
+        "date_created": "2026-11-16 22:09:47",
+        "date_modified": "2026-11-16 22:09:47"
+      }
+    ]
+  }
+}

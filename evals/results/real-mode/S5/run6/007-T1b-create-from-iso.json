@@ -1,0 +1,63 @@
+{
+  "at": "2026-11-17T03:11:15Z",
+  "method": "POST",
+  "path": "/v2/instances",
+  "request": {
+    "region": "ewr",
+    "plan": "vc2-1c-1gb",
+    "tags": [
+      "body-double"
+    ],
+    "backups": "disabled",
+    "attach_vpc": [
+      "ab6a9e85-029b-4798-8a08-6c365d424508"
+    ],
+    "firewall_group_id": "59f09c35-697c-4bee-ab82-1d7e4339c37c",
+    "label": "bd-twin-t1b",
+    "iso_id": "97962862-5336-4daf-8ffa-ab61a7b1f1d7",
+    "user_data": "<redacted>"
+  },
+  "status": 202,
+  "response": {
+    "instance": {
+      "id": "6bdd269c-5488-4791-b69c-f3034e551c30",
+      "os": "Custom Installed",
+      "ram": 1024,
+      "disk": 0,
+      "main_ip": "0.0.0.0",
+      "vcpu_count": 1,
+      "region": "ewr",
+      "plan": "vc2-1c-1gb",
+      "date_created": "2026-11-17T03:11:14+00:00",
+      "status": "pending",
+      "allowed_bandwidth": 1,
+      "netmask_v4": "",
+      "gateway_v4": "0.0.0.0",
+      "power_status": "running",
+      "server_status": "none",
+      "v6_network": "",
+      "v6_main_ip": "",
+      "v6_network_size": 0,
+      "label": "bd-twin-t1b",
+      "internal_ip": "10.1.96.4",
+      "kvm": "<redacted>",
+      "hostname": "vultr.guest",
+      "tag": "body-double",
+      "tags": [
+        "body-double"
+      ],
+      "os_id": 159,
+      "app_id": 0,
+      "image_id": "",
+      "firewall_group_id": "59f09c35-697c-4bee-ab82-1d7e4339c37c",
+      "features": [],
+      "user_scheme": "root",
+      "vpc_only": false,
+      "enable_memorybacking": "shared",
+      "pending_charges": 0,
+      "default_password": "<redacted>",
+      "cluster_id": "",
+      "attached_block_storages": []
+    }
+  }
+}
