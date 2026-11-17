@@ -1,0 +1,10 @@
+17:09:18 W1 listener self-test from bd-cp: rc=28 '' 'curl: (28) Connection timed out after 8002 milliseconds'
+17:09:19 bd-cp 3718aae9-7559-4d27-9cc0-205f46e59033: /v1.json user-data served as-stored
+17:10:59 T1b twin 4320eb6e-f960-4ed3-a6ee-b122b581b3e2 (VPC 10.1.96.4): blank-disk ISO boot registered: True; starting restore
+17:15:13 W1 pre-swap probes: ran=True -> evals\results\real-run-01\preswap-egress
+17:15:28 T1b twin 4320eb6e-f960-4ed3-a6ee-b122b581b3e2: restore 186s; ESP swap to the ISO: True; waiting for the post-restore registration
+17:17:03 T1b twin 4320eb6e-f960-4ed3-a6ee-b122b581b3e2: restore 186s, ISO registered after restore: True
+17:17:03 CHECKPOINT 2: STOP FOR ORCHESTRATOR: https://my.vultr.com/subs/vps/novnc/?id=4320eb6e-f960-4ed3-a6ee-b122b581b3e2 -- Alpine ISO console on tty0 (not Ubuntu login) with boot.sh lines: 'bd: no serial console; boot messages on tty0', 'bd-vpc-up: <vpc_ip>/20 on eth1', 'bd: cloned disk /dev/vda1 mounted inert and read-only at /mnt/disk', 'bd: sandbox image loaded; runtimes: ...runsc...'; waiting up to 15s for C:\Users\athar\OneDrive\Desktop\wt-backend\evals\results\real-mode\S5\real-run-02-w1\checkpoints\go-2
+17:17:23 CHECKPOINT 2: no go-2 after 15s; continuing without screenshot
+17:17:23 T3: 3/3 job results received
+17:17:46 cleanup done; findings.json written

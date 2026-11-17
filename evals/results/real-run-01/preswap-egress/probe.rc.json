@@ -1,5 +1,6 @@
 {
-  "clone_ssh_rc": 255,
-  "probe_rc": 255,
-  "window_s": 14
+  "clone_ssh_rc": 0,
+  "probe_rc": 0,
+  "bg_loop_rc": 0,
+  "window_s": 43
 }

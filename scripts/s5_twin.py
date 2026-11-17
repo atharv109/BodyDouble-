@@ -196,23 +196,23 @@ def preswap_probes(cp_ip: str, vpc_ip: str, out_dir: Path, listener: str | None)
         lst = [line for i in (1, 2, 3) for line in (
             f'ts=$(date -u +%FT%T.%NZ); up=$(cut -d" " -f1 /proc/uptime); echo "$ts START listener fg{i} up=$up"',
             f"curl -sS -m 5 -w ' http=%{{http_code}}\n' \"{listener}/fg{i}?sent=$ts&up=$up\"",
-            f'echo "$(date -u +%FT%T.%NZ) END listener fg{i} rc=$?"')]
+            f'rc=$?; echo "$(date -u +%FT%T.%NZ) END listener fg{i} rc=$rc"')]
     cmd = "\n".join([
         'echo "== preswap egress probes: start $(date -u +%FT%T.%NZ) =="',
         'echo "iface:"; ip -4 -brief addr show',
         *lst,
         'echo "$(date -u +%FT%T.%NZ) START https443"',
         "curl -sS -m 8 -w '\\nRC https443 http=%{http_code} t=%{time_total}s\\n' https://api.ipify.org",
-        'echo "$(date -u +%FT%T.%NZ) END https443 rc=$?"',
+        'rc=$?; echo "$(date -u +%FT%T.%NZ) END https443 rc=$rc"',
         'echo "$(date -u +%FT%T.%NZ) START http80"',
         "curl -sS -m 8 -w '\\nRC http80 http=%{http_code} t=%{time_total}s\\n' 'http://ip-api.com/line/?fields=query'",
-        'echo "$(date -u +%FT%T.%NZ) END http80 rc=$?"',
+        'rc=$?; echo "$(date -u +%FT%T.%NZ) END http80 rc=$rc"',
         'echo "$(date -u +%FT%T.%NZ) START dns53"',
         "getent hosts example.com",
-        'echo "$(date -u +%FT%T.%NZ) END dns53 rc=$?"',
+        'rc=$?; echo "$(date -u +%FT%T.%NZ) END dns53 rc=$rc"',
         'echo "$(date -u +%FT%T.%NZ) START icmp"',
         "ping -c 1 -W 3 8.8.8.8 2>&1 | tail -2",
-        'echo "$(date -u +%FT%T.%NZ) END icmp rc=$?"',
+        'rc=$?; echo "$(date -u +%FT%T.%NZ) END icmp rc=$rc"',
         'echo "== preswap egress probes: end $(date -u +%FT%T.%NZ) =="',
     ])
     r = clone_ssh(cp_ip, vpc_ip, cmd, timeout=240)
