@@ -65,6 +65,12 @@ class VultrClient(Protocol):
     async def delete_firewall_group(self, group_id: str) -> None: ...
     async def create_instance(self, req: CreateTwinRequest) -> VultrInstance: ...
     async def attach_iso(self, instance_id: str, iso_id: str) -> None: ...
+    async def detach_iso(self, instance_id: str) -> None: ...
+    # t1_fallback steps 3-4 (run-13, docs/real-mode-findings.md): restore empties
+    # the CD while the API still reports isomounted (detach + re-attach re-inserts
+    # it), and restore reverts user_data to the snapshot's stale cloud-init
+    # (re-patch before the swap reboot).
+    async def update_user_data(self, instance_id: str, user_data: str) -> None: ...
     async def restore_snapshot(self, instance_id: str, snapshot_id: str) -> None: ...  # T1 fallback
     async def delete_instance(self, instance_id: str) -> None: ...
 
@@ -109,6 +115,7 @@ class FakeVultr:
         }
         self.firewall_rules: dict[str, list[FirewallRule]] = {"fw-shop-web": []}
         self.isos: dict[str, str] = {}  # instance_id -> iso_id
+        self.user_data: dict[str, str] = {}  # instance_id -> user_data (update_user_data)
         self._polls: dict[str, int] = {}
 
     def _id(self, prefix: str) -> str:
@@ -203,6 +210,16 @@ class FakeVultr:
         self._log("POST", f"/v2/instances/{instance_id}/iso/attach", {"iso_id": iso_id})
         self._get(self.instances, instance_id)
         self.isos[instance_id] = iso_id
+
+    async def detach_iso(self, instance_id: str) -> None:
+        self._log("POST", f"/v2/instances/{instance_id}/iso/detach", None)
+        self._get(self.instances, instance_id)
+        self.isos.pop(instance_id, None)  # drive is emptied on detach
+
+    async def update_user_data(self, instance_id: str, user_data: str) -> None:
+        self._log("PATCH", f"/v2/instances/{instance_id}", {"user_data": user_data})
+        self._get(self.instances, instance_id)
+        self.user_data[instance_id] = user_data
 
     async def restore_snapshot(self, instance_id: str, snapshot_id: str) -> None:
         self._log("POST", f"/v2/instances/{instance_id}/restore", {"snapshot_id": snapshot_id})
@@ -303,6 +320,12 @@ class RealVultr:
 
     async def attach_iso(self, instance_id: str, iso_id: str) -> None:
         await self._call("POST", f"/v2/instances/{instance_id}/iso/attach", {"iso_id": iso_id})
+
+    async def detach_iso(self, instance_id: str) -> None:
+        await self._call("POST", f"/v2/instances/{instance_id}/iso/detach")
+
+    async def update_user_data(self, instance_id: str, user_data: str) -> None:
+        await self._call("PATCH", f"/v2/instances/{instance_id}", {"user_data": user_data})
 
     async def restore_snapshot(self, instance_id: str, snapshot_id: str) -> None:
         await self._call("POST", f"/v2/instances/{instance_id}/restore", {"snapshot_id": snapshot_id})

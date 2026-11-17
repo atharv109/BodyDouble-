@@ -128,6 +128,25 @@ async def test_fake_vultr_t1_fallback_and_actions():
     assert r.status_code == 204
 
 
+async def test_fake_vultr_detach_iso_and_update_user_data():
+    # run-13 behavior: restore leaves the "ISO attached" flag but empties the drive,
+    # so the driver detaches and re-attaches; restore also reverts user_data, so the
+    # driver re-patches it (docs/real-mode-findings.md T1b steps 3-4).
+    v = FakeVultr()
+    fw = await v.create_firewall_group("q")
+    twin = await v.create_instance(CreateTwinRequest(region="ewr", plan="p", label="t",
+                                                     iso_id="iso-bd", firewall_group_id=fw.id))
+    await v.detach_iso(twin.id)
+    assert twin.id not in v.isos
+    await v.attach_iso(twin.id, "iso-bd")  # re-insert
+    await v.update_user_data(twin.id, "fresh-bd-token")
+    assert v.user_data[twin.id] == "fresh-bd-token"
+    assert ("POST", f"/v2/instances/{twin.id}/iso/detach", None) in v.calls
+    assert ("PATCH", f"/v2/instances/{twin.id}", {"user_data": "fresh-bd-token"}) in v.calls
+    with pytest.raises(VultrNotFound):
+        await v.detach_iso("inst-nonesuch")
+
+
 @pytest.mark.parametrize("method,path,body", [
     ("GET", "https://evil.example/v2/instances/x", None),       # absolute URL -> key leak
     ("POST", "//evil.example/v2/instances/x/halt", None),        # scheme-relative
