@@ -1,0 +1,12 @@
+{
+  "at": "2026-11-17T06:28:53Z",
+  "method": "POST",
+  "path": "/v2/instances/05e6c603-c089-4147-9ba1-eb3640724bb1/iso/detach",
+  "request": null,
+  "status": 202,
+  "response": {
+    "iso_status": {
+      "state": "isounmounting"
+    }
+  }
+}

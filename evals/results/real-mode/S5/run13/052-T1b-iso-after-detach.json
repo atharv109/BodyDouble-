@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-17T06:28:53Z",
+  "method": "GET",
+  "path": "/v2/instances/05e6c603-c089-4147-9ba1-eb3640724bb1/iso",
+  "request": null,
+  "status": 200,
+  "response": {
+    "iso_status": {
+      "state": "ready",
+      "iso_id": "",
+      "iso_name": ""
+    }
+  }
+}
