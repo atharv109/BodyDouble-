@@ -1,0 +1,11 @@
+W1 pre-swap egress probes - from the restored clone (the clone's own OS, unsealed, public interface) BEFORE the ESP swap.
+clone sshd rc=255; probe ssh rc=255; window +14s
+
+$ clone uname/uptime/ifaces
+Connection timed out during banner exchange
+
+$ probes
+stdio forwarding failed
+
+
+VERDICT: to be completed by the worker from the results above.

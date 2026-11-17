@@ -1,17 +1,12 @@
-03:06:45 N0: POST /v2/nat-gateways -> 404: {"error": "Not found.", "status": 404}
-03:06:45 N1: POST /v2/nat-gateways -> 404: {"error": "Not found.", "status": 404}
-03:06:46 N2: POST /v2/vpcs/ab6a9e85-029b-4798-8a08-6c365d424508/nat-gateway -> 201: {"nat_gateway": {"id": "62f6fe13-3bf8-4a4c-b54e-61e9aeee038a", "vpc_id": "ab6a9e85-029b-4798-8a08-6c365d424508", "date_created": "2026-11-17 03:06:46", "status": "pending", "label": "bd-natgw", "tag":
-03:07:02 W2b probes cleaned up
+03:09:46 N0: POST /v2/nat-gateways -> 404: {"error": "Not found.", "status": 404}
+03:09:46 N1: POST /v2/nat-gateways -> 404: {"error": "Not found.", "status": 404}
+03:09:46 N2: POST /v2/vpcs/ab6a9e85-029b-4798-8a08-6c365d424508/nat-gateway -> 422: {"is_external_error": false, "error": "NAT Gateway already exists for this VPC network", "status": 422}
+03:09:46 W2b probes cleaned up
 Traceback (most recent call last):
-  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_w2b.py", line 198, in <module>
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_w2b.py", line 199, in <module>
     sys.exit(main())
              ~~~~^^
-  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_w2b.py", line 102, in main
-    nat = api.get(f"/v2/nat-gateways/{nat_id}").get("nat_gateway") or {}
-          ~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\bdvultr.py", line 88, in get
-    return self.call("GET", path, **kw)[1]
-           ~~~~~~~~~^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\bdvultr.py", line 84, in call
-    raise RuntimeError(f"Vultr {method} {path} -> {r.status_code}: {redact(data)}")
-RuntimeError: Vultr GET /v2/nat-gateways/62f6fe13-3bf8-4a4c-b54e-61e9aeee038a -> 404: {'error': 'Not found.', 'status': 404}
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_w2b.py", line 94, in main
+    raise RuntimeError("no NAT gateway create endpoint accepted any known body shape; "
+                       "see N*.json for the verbatim errors")
+RuntimeError: no NAT gateway create endpoint accepted any known body shape; see N*.json for the verbatim errors
