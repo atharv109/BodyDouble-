@@ -97,7 +97,12 @@ def wait_results(ip: str, n_expected: int, timeout_s: float) -> list[dict]:
 
 # One-shot GRUB entry that boots the forensics ISO's own kernel + initramfs from
 # the CD (found by its volume label; under UEFI the firmware exposes the CD).
-GRUB_ENTRY = """menuentry 'bd-iso' {
+# custom.cfg is sourced last in grub.cfg, so its timeout wins over Ubuntu's: run 9
+# stopped at the menu with bd-iso selected and no countdown (recordfail after the
+# snapshot's unclean shutdown; run9/checkpoints/console-2-take2.png).
+GRUB_ENTRY = """set timeout=3
+set timeout_style=menu
+menuentry 'bd-iso' {
     insmod part_gpt
     insmod part_msdos
     insmod iso9660
@@ -129,11 +134,12 @@ def grub_one_shot(cp_ip: str, vpc_ip: str) -> bool:
     steps = [
         "uname -a; uptime; lsblk -o NAME,SIZE,TYPE,LABEL,MOUNTPOINT",
         "ls -d /sys/firmware/efi 2>&1; mokutil --sb-state 2>&1 || true",
-        "grep -c custom.cfg /boot/grub/grub.cfg; grep -n next_entry /boot/grub/grub.cfg | head -3",
+        "sudo grep -c custom.cfg /boot/grub/grub.cfg; sudo grep -n -e next_entry -e recordfail"
+        " -e 'set timeout' /boot/grub/grub.cfg | head -12",
         "echo " + base64.b64encode(GRUB_ENTRY.encode()).decode()
         + " | base64 -d | sudo tee /boot/grub/custom.cfg >/dev/null && cat /boot/grub/custom.cfg",
-        "grep -q custom.cfg /boot/grub/grub.cfg || sudo update-grub 2>&1 | tail -3",
-        "sudo grub-reboot bd-iso && sudo grub-editenv list",
+        "sudo grep -q custom.cfg /boot/grub/grub.cfg || sudo update-grub 2>&1 | tail -3",
+        "sudo grub-editenv - unset recordfail; sudo grub-reboot bd-iso && sudo grub-editenv list",
     ]
     ok = p.returncode == 0
     with open(log, "w", encoding="utf-8") as f:

@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-17T03:47:20Z",
+  "method": "POST",
+  "path": "/v2/instances/5d7bea4d-3195-491d-a696-20adf65a959e/iso/attach",
+  "request": {
+    "iso_id": "97962862-5336-4daf-8ffa-ab61a7b1f1d7"
+  },
+  "status": 202,
+  "response": {
+    "iso_status": {
+      "state": "isomounting",
+      "iso_id": "1466624"
+    }
+  }
+}
