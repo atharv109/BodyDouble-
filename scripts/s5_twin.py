@@ -135,6 +135,9 @@ def esp_swap(cp_ip: str, vpc_ip: str) -> bool:
                      for f in ESP_LOADERS)
     steps = [
         ("lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT; ls -d /sys/firmware/efi", None),
+        # the ISO kernel needs the media in the drive (run 12): wait up to 3 min for it
+        ("for i in $(seq 36); do sudo blkid /dev/sr0 | grep -q 'LABEL=\"BDFORENSICS\"' && break; "
+         "sleep 5; done; lsblk -o NAME,SIZE /dev/sr0; sudo blkid /dev/sr0 | grep BDFORENSICS", None),
         ("sudo efibootmgr -v 2>&1 || true; sudo find /boot/efi -type f -iname '*.efi' -ls", None),
         ("cat > /tmp/bd.efi && sha256sum /tmp/bd.efi", ONESHOT_EFI.read_bytes()),
         *((f"sudo mkdir -p /boot/efi/bd && sudo tee /boot/efi/bd/{n} >/dev/null && "
@@ -341,14 +344,20 @@ def main() -> int:
         # re-apply after the restore so the snapshot cannot bring back old user_data
         api.call("PATCH", f"/v2/instances/{tid}", {"user_data": user_data(tokens[2], ip_b)},
                  name="T1b-patch-user-data-after-restore")
-        # The ISO must still be in the CD drive for the one-shot below.
-        # attach is POST /iso/attach: POST /iso -> 405 "Must be one of: GET" (run7/047)
-        if iso_state(api, tid, "T1b-iso-after-restore-check") != "isomounted":
-            api.call("POST", f"/v2/instances/{tid}/iso/attach", {"iso_id": iso_id}, name="T1b-iso-attach")
-            for _ in range(40):
-                if iso_state(api, tid, "T1b-iso-after-attach") == "isomounted":
-                    break
-                time.sleep(15)
+        # The restore empties the CD drive while the API still says "isomounted": the
+        # clone saw sr0 at 1024M (empty) vs the 376 MiB ISO (run9/grub-one-shot.txt,
+        # run12/esp-swap.txt), so the ISO kernel found no media (run 12). Re-insert it:
+        # detach + attach. attach is POST /iso/attach (POST /iso -> 405, run7/047).
+        api.call("POST", f"/v2/instances/{tid}/iso/detach", name="T1b-iso-detach")
+        for _ in range(40):
+            if iso_state(api, tid, "T1b-iso-after-detach") != "isomounted":
+                break
+            time.sleep(15)
+        api.call("POST", f"/v2/instances/{tid}/iso/attach", {"iso_id": iso_id}, name="T1b-iso-attach")
+        for _ in range(40):
+            if iso_state(api, tid, "T1b-iso-after-attach") == "isomounted":
+                break
+            time.sleep(15)
         findings["t1b_iso_mounted_after_restore"] = iso_state(api, tid, "T1b-iso-mounted") == "isomounted"
         # the restored disk beats the CD (runs 4, 8): swap the clone's UEFI loaders
         findings["t1b_esp_swap"] = esp_swap(cp_ip, ip_b)
