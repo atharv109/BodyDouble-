@@ -1,0 +1,1 @@
+﻿captured by orchestrator 01:32: console-2-take1.png shows the live UEFI chain (BdsDxe QEMU DVD-ROM Not Found -> shimx64.efi -> bd-oneshot -> EFI stub loaded initrd). Registration confirmed sealed per worker: /dev/vda2 ro,noexec on /mnt/disk, 5/5 egress probes timed out, os-facts + persistence exit 0. Released.

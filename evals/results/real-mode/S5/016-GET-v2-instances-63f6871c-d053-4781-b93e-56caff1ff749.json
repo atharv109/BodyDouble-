@@ -1,0 +1,64 @@
+{
+  "at": "2026-11-15T05:42:46Z",
+  "method": "GET",
+  "path": "/v2/instances/63f6871c-d053-4781-b93e-56caff1ff749",
+  "request": null,
+  "status": 200,
+  "response": {
+    "instance": {
+      "id": "63f6871c-d053-4781-b93e-56caff1ff749",
+      "os": "Custom Installed",
+      "ram": 1024,
+      "disk": 25,
+      "main_ip": "108.61.156.15",
+      "vcpu_count": 1,
+      "region": "ewr",
+      "plan": "vc2-1c-1gb",
+      "date_created": "2026-11-15T05:32:02+00:00",
+      "status": "active",
+      "allowed_bandwidth": 1,
+      "netmask_v4": "255.255.255.192",
+      "gateway_v4": "108.61.156.1",
+      "power_status": "stopped",
+      "server_status": "locked",
+      "lock_reason": "A snapshot is currently being restored. This process can take up to 60 minutes to complete.",
+      "v6_network": "",
+      "v6_main_ip": "",
+      "v6_network_size": 0,
+      "label": "bd-twin-t1b",
+      "internal_ip": "10.1.96.4",
+      "vpcs": [
+        {
+          "id": "ab6a9e85-029b-4798-8a08-6c365d424508",
+          "version": 1,
+          "subnet": "10.1.96.4"
+        }
+      ],
+      "kvm": "<redacted>",
+      "hostname": "vultr.guest",
+      "tag": "body-double",
+      "tags": [
+        "body-double"
+      ],
+      "os_id": 159,
+      "app_id": 0,
+      "is_os_eol": false,
+      "is_app_eol": false,
+      "image_id": "",
+      "script_id": "",
+      "snapshot_id": "",
+      "firewall_group_id": "a8754b5f-449c-4c45-ac03-b2b702152316",
+      "vpc_only": false,
+      "enable_memorybacking": "shared",
+      "features": [],
+      "user_scheme": "root",
+      "boot_method": "local",
+      "vke_cluster_id": "",
+      "preemptible": false,
+      "preempted": false,
+      "preemptible_sec_terminate": null,
+      "preemptible_date_terminate": null,
+      "pending_charges": 0.01
+    }
+  }
+}

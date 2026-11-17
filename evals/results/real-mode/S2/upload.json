@@ -1,0 +1,8 @@
+{
+  "how": "HEAD presigned",
+  "status": 200,
+  "content_length": "394264576",
+  "url_base": "https://ewr1.vultrobjects.com/bd-iso-upload/forensics/bodydouble-forensics.iso",
+  "expires_s": 604800,
+  "subscription": "9dad724e-514f-4762-8525-d4fba9e1ef51"
+}

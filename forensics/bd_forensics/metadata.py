@@ -2,14 +2,22 @@
 from __future__ import annotations
 
 import base64
+import binascii
 import ipaddress
 import json
 import re
 from pathlib import Path
 from urllib.parse import urlsplit
-from urllib.request import urlopen
+from urllib.request import Request, urlopen
 
-METADATA_URL = "http://169.254.169.254/v1/user-data"
+METADATA_URL = "http://169.254.169.254/v1.json"
+# Real-mode finding (S5 run 1, 2026-11-15, evals/results/real-mode/S5/): the
+# documented http://169.254.169.254/v1/user-data returns 403/404 on live Vultr;
+# the only working endpoint is GET /v1.json with the cloud-init
+# "Metadata-Token: cloudinit" header, whose user-data field holds the DECODED
+# stored user_data. Vultr decodes the create-time value once before serving,
+# so a twin is created with base64(base64(payload)) and this module's
+# decode_bootstrap (which base64-decodes the served bytes) still lines up.
 REQUIRED = {"case_id", "token", "control_plane", "vpc_subnet", "vpc_ip"}
 SAFE_ID = re.compile(r"^[A-Za-z0-9-]{1,128}$")
 NFT_IP_PLACEHOLDER = "__BD_CONTROL_PLANE_IP__"
@@ -51,16 +59,33 @@ def validate_bootstrap(payload: object) -> dict[str, str]:
 
 
 def decode_bootstrap(encoded: bytes) -> dict[str, str]:
-    try:
-        payload = json.loads(base64.b64decode(encoded.strip(), validate=True))
-    except (ValueError, json.JSONDecodeError) as exc:
-        raise ValueError("metadata user_data is not valid base64 JSON") from exc
-    return validate_bootstrap(payload)
+    """Decode base64-until-JSON (max 2 rounds), then strictly validate.
+
+    Live Vultr serves the stored user_data field either DECODED (run 1,
+    evals/results/real-mode/S5/) or AS-STORED (run 2, same folder): measured
+    behavior differs between instances. Unwrapping until the bytes are JSON
+    makes the twin independent of that quirk while still failing closed: only
+    strings that turn into JSON with exactly the five bootstrap keys pass.
+    """
+    data = encoded.strip()
+    for _ in range(3):
+        try:
+            return validate_bootstrap(json.loads(data))
+        except (ValueError, json.JSONDecodeError):
+            pass
+        try:
+            data = base64.b64decode(data, validate=True)
+        except (ValueError, binascii.Error) as exc:
+            break
+    raise ValueError("metadata user_data is not valid base64 JSON")
 
 
 def fetch_bootstrap(url: str = METADATA_URL, timeout_s: float = 5.0) -> dict[str, str]:
-    with urlopen(url, timeout=timeout_s) as response:  # noqa: S310 - fixed link-local URL
-        return decode_bootstrap(response.read())
+    """GET url (Vultr md /v1.json) with the cloud-init token; b64decode user-data."""
+    request = Request(url, headers={"Metadata-Token": "cloudinit"})
+    with urlopen(request, timeout=timeout_s) as response:  # noqa: S310 - fixed link-local URL
+        metadata = json.loads(response.read())
+    return decode_bootstrap(metadata["user-data"].encode())
 
 
 def drop_only_rules(template: str) -> str:

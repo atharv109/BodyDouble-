@@ -1,0 +1,11 @@
+{
+  "at": "2026-11-17T05:23:48Z",
+  "method": "DELETE",
+  "path": "/v2/firewalls/e4579355-2776-4db1-983a-4a6c5003dd3f",
+  "request": null,
+  "status": 404,
+  "response": {
+    "error": "Invalid firewall group ID.",
+    "status": 404
+  }
+}

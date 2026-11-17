@@ -1,0 +1,67 @@
+{
+  "at": "2026-11-17T03:32:50Z",
+  "method": "GET",
+  "path": "/v2/instances/4ddde865-e97a-4e40-9a56-1b4f4bea20cb",
+  "request": null,
+  "status": 200,
+  "response": {
+    "instance": {
+      "id": "4ddde865-e97a-4e40-9a56-1b4f4bea20cb",
+      "os": "Ubuntu 24.04 LTS x64",
+      "ram": 1024,
+      "disk": 25,
+      "main_ip": "66.135.29.78",
+      "vcpu_count": 1,
+      "region": "ewr",
+      "plan": "vc2-1c-1gb",
+      "date_created": "2026-11-17T03:32:39+00:00",
+      "status": "active",
+      "allowed_bandwidth": 1,
+      "netmask_v4": "255.255.254.0",
+      "gateway_v4": "66.135.28.1",
+      "power_status": "stopped",
+      "server_status": "locked",
+      "lock_reason": "Your server is currently being installed.",
+      "v6_network": "",
+      "v6_main_ip": "",
+      "v6_network_size": 0,
+      "label": "bd-cp",
+      "internal_ip": "10.1.96.3",
+      "vpcs": [
+        {
+          "id": "ab6a9e85-029b-4798-8a08-6c365d424508",
+          "version": 1,
+          "subnet": "10.1.96.3"
+        }
+      ],
+      "kvm": "<redacted>",
+      "hostname": "bd-cp",
+      "tag": "body-double",
+      "tags": [
+        "body-double"
+      ],
+      "os_id": 2284,
+      "app_id": 0,
+      "is_os_eol": false,
+      "is_app_eol": false,
+      "image_id": "",
+      "script_id": "",
+      "snapshot_id": "",
+      "firewall_group_id": "",
+      "vpc_only": false,
+      "enable_memorybacking": "shared",
+      "features": [],
+      "user_scheme": "root",
+      "boot_method": "local",
+      "vke_cluster_id": "",
+      "vke_cluster_label": "",
+      "preemptible": false,
+      "preempted": false,
+      "preemptible_sec_terminate": null,
+      "preemptible_date_terminate": null,
+      "max_extra_ipv4": 2,
+      "pending_charges": 0.01,
+      "default_password": "<redacted>"
+    }
+  }
+}

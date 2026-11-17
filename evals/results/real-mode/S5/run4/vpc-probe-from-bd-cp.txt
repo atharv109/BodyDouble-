@@ -1,0 +1,13 @@
+3 packets transmitted, 0 received, 100% packet loss, time 2067ms
+
+10.1.96.12 INCOMPLETE 
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on enp8s0, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+20:55:49.297316 IP6 fe80::5800:7ff:fe0e:9e17 > ff02::2: ICMP6, router solicitation, length 16
+20:55:52.539618 IP6 fe80::5800:7ff:fe0e:9de6 > ff02::2: ICMP6, router solicitation, length 16
+
+2 packets captured
+2 packets received by filter
+0 packets dropped by kernel
+10.1.96.12 FAILED 
+

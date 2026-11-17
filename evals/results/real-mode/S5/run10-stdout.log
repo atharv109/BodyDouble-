@@ -1,0 +1,8 @@
+23:45:16 bd-cp 88f1a6b5-dff8-4609-8475-e11a91c1f2f1: /v1.json user-data served as-stored
+23:46:27 T1b twin 227d4bd9-137f-4010-87c7-185a7ae8f5c4 (VPC 10.1.96.4): blank-disk ISO boot registered: True; starting restore
+23:50:59 T1b twin 227d4bd9-137f-4010-87c7-185a7ae8f5c4: restore 217s; GRUB one-shot to the ISO: True; waiting for the post-restore registration
+00:06:02 T1b twin 227d4bd9-137f-4010-87c7-185a7ae8f5c4: restore 217s, ISO registered after restore: False
+00:06:02 CHECKPOINT 2: STOP FOR ORCHESTRATOR: https://my.vultr.com/subs/vps/novnc/?id=227d4bd9-137f-4010-87c7-185a7ae8f5c4 -- Alpine ISO console on tty0 (not Ubuntu login) with boot.sh lines: 'bd: no serial console; boot messages on tty0', 'bd-vpc-up: <vpc_ip>/20 on eth1', 'bd: cloned disk /dev/vda1 mounted inert and read-only at /mnt/disk', 'bd: sandbox image loaded; runtimes: ...runsc...'; waiting up to 1200s for C:\Users\athar\OneDrive\Desktop\wt-infra\evals\results\real-mode\S5\run10\checkpoints\go-2
+00:08:22 CHECKPOINT 2: go-2 found after 140s; continuing
+00:23:25 T3: 0/3 job results received
+00:23:48 cleanup done; findings.json written

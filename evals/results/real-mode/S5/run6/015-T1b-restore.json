@@ -1,0 +1,16 @@
+{
+  "at": "2026-11-17T03:13:10Z",
+  "method": "POST",
+  "path": "/v2/instances/6bdd269c-5488-4791-b69c-f3034e551c30/restore",
+  "request": {
+    "snapshot_id": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70"
+  },
+  "status": 202,
+  "response": {
+    "status": {
+      "restore_type": "snapshot",
+      "restore_id": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
+      "status": "inprogress"
+    }
+  }
+}

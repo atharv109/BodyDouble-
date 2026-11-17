@@ -1,0 +1,22 @@
+{
+  "iso_id": "3576db4e-e53c-453d-90a3-255d04faa831",
+  "snapshot_id": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
+  "vpc": {
+    "id": "ab6a9e85-029b-4798-8a08-6c365d424508",
+    "subnet": "10.1.96.0/20"
+  },
+  "bd_cp": {
+    "id": "56003451-9408-4d86-8aa4-daae6e3ecf35",
+    "vpc_ip": "10.1.96.3",
+    "vpc_ip_auto_configured": true
+  },
+  "metadata_user_data_is_raw": false,
+  "t1a_create_status": 400,
+  "t1a_create_error": "please provide one app_id, image_id, iso_id, os_id, or snapshot_id",
+  "t1b_iso_active_s": 15,
+  "t1b_blank_disk_registered": false,
+  "t2_restore_s": 263,
+  "t1b_after_restore_registered": false,
+  "registrations": [],
+  "results": {}
+}

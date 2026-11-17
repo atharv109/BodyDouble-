@@ -1,0 +1,15 @@
+S2 done-when: curl -I on the presigned HEAD URL (schannel needs 2 tries on this host; signed URL itself kept out of the repo in .bd-secrets.env:BD_ISO_URL_HEAD; content-length 393216000 matches iso/out/bodydouble-forensics.iso)
+HTTP/1.1 200 OK
+content-length: 393216000
+bucket: bd-iso-upload
+accept-ranges: bytes
+last-modified: Sun, 15 Nov 2026 05:08:04 GMT
+x-rgw-object-type: Normal
+x-amz-mp-parts-count: 6
+etag: "5b95209d14f6d0b16c1ed5940b54ff35-6"
+x-amz-request-id: tx0000030adb77ef71dbcf0-006af93e4c-1970272478-ewr1
+content-type: binary/octet-stream
+server: Ceph Object Gateway (tentacle)
+date: Sun, 15 Nov 2026 05:08:28 GMT
+strict-transport-security: max-age=31536000; includeSubDomains
+

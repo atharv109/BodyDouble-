@@ -1,0 +1,21 @@
+{
+  "iso_id": "c84d165a-029e-40e8-8d86-29d0f2fadafd",
+  "snapshot_id": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
+  "vpc": {
+    "id": "ab6a9e85-029b-4798-8a08-6c365d424508",
+    "subnet": "10.1.96.0/20"
+  },
+  "bd_cp": {
+    "id": "e918ad40-7c8d-40e4-8182-f1251f5791ee",
+    "vpc_ip": "10.1.96.3",
+    "vpc_ip_auto_configured": true
+  },
+  "metadata_user_data_is_raw": false,
+  "t1b_iso_active_s": 15,
+  "t1b_blank_disk_registered": false,
+  "t2_restore_s": 217,
+  "t1b_after_restore_registered": false,
+  "checkpoint_2_go": false,
+  "registrations": [],
+  "results": {}
+}

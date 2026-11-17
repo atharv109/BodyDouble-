@@ -1,0 +1,27 @@
+$ sudo timeout 15 busybox udhcpc -i enp8s0 -n -q -t 3 -T 2 -s /bin/true 2>&1; echo rc=$?
+udhcpc: started, v1.36.1
+udhcpc: broadcasting discover
+udhcpc: broadcasting discover
+udhcpc: broadcasting discover
+udhcpc: no lease, failing
+rc=1
+
+$ sudo timeout 6 tcpdump -eni enp8s0 -c 4 'host 10.1.96.4 and tcp' 2>&1 & sleep 1; timeout 3 bash -c 'echo > /dev/tcp/10.1.96.4/8000'; wait
+tcpdump: verbose output suppressed, use -v[v]... for full protocol decode
+listening on enp8s0, link-type EN10MB (Ethernet), snapshot length 262144 bytes
+23:52:46.897048 5a:00:07:0e:a7:d9 > 5a:00:07:0e:a8:31, ethertype IPv4 (0x0800), length 74: 10.1.96.3.40990 > 10.1.96.4.8000: Flags [S], seq 665814084, win 42300, options [mss 1410,sackOK,TS val 1233399927 ecr 0,nop,wscale 10], length 0
+23:52:46.899657 5a:00:07:0e:a8:31 > 5a:00:07:0e:a7:d9, ethertype IPv4 (0x0800), length 54: 10.1.96.4.8000 > 10.1.96.3.40990: Flags [R.], seq 0, ack 665814085, win 0, length 0
+
+2 packets captured
+2 packets received by filter
+0 packets dropped by kernel
+
+$ ping -c 2 -W 2 10.1.96.4
+PING 10.1.96.4 (10.1.96.4) 56(84) bytes of data.
+64 bytes from 10.1.96.4: icmp_seq=1 ttl=64 time=0.679 ms
+64 bytes from 10.1.96.4: icmp_seq=2 ttl=64 time=0.641 ms
+
+--- 10.1.96.4 ping statistics ---
+2 packets transmitted, 2 received, 0% packet loss, time 1053ms
+rtt min/avg/max/mdev = 0.641/0.660/0.679/0.019 ms
+

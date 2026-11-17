@@ -1,0 +1,5 @@
+{
+  "create_to_active_s": 10.319862099997408,
+  "reboot_to_ssh_s": 52.188838599999144,
+  "snapshot_create_to_complete_s": 506.98972219999996
+}

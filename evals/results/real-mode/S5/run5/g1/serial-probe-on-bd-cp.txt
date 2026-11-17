@@ -1,0 +1,54 @@
+$ sudo dmesg | grep -i -E 'ttyS|serial|8250|console' | head
+[    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-6.8.0-149-generic root=UUID=1d9bf0e6-c105-4e50-9349-ae257213333a ro quiet vultr consoleblank=0 mpt3sas.max_queue_depth=1000 ds=vultr console=ttyS1,115200n8 console=tty0
+[    0.048613] Kernel command line: BOOT_IMAGE=/boot/vmlinuz-6.8.0-149-generic root=UUID=1d9bf0e6-c105-4e50-9349-ae257213333a ro quiet vultr consoleblank=0 mpt3sas.max_queue_depth=1000 ds=vultr console=ttyS1,115200n8 console=tty0
+[    0.081150] Console: colour dummy device 80x25
+[    0.081156] printk: legacy console [tty0] enabled
+[    0.081404] printk: legacy console [ttyS1] enabled
+[    3.416459] Serial: 8250/16550 driver, 32 ports, IRQ sharing enabled
+[    3.525112] fbcon: Deferring console take-over
+[    4.270322] usb usb1: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[    4.270331] usb usb1: SerialNumber: 0000:04:00.0
+[    4.273894] bochs-drm 0000:00:01.0: vgaarb: deactivate vga console
+
+$ sudo cat /proc/tty/driver/serial
+serinfo:1.0 driver revision:
+0: uart:unknown port:000003F8 irq:4
+1: uart:unknown port:000002F8 irq:3
+2: uart:unknown port:000003E8 irq:4
+3: uart:unknown port:000002E8 irq:3
+4: uart:unknown port:00000000 irq:0
+5: uart:unknown port:00000000 irq:0
+6: uart:unknown port:00000000 irq:0
+7: uart:unknown port:00000000 irq:0
+8: uart:unknown port:00000000 irq:0
+9: uart:unknown port:00000000 irq:0
+10: uart:unknown port:00000000 irq:0
+11: uart:unknown port:00000000 irq:0
+12: uart:unknown port:00000000 irq:0
+13: uart:unknown port:00000000 irq:0
+14: uart:unknown port:00000000 irq:0
+15: uart:unknown port:00000000 irq:0
+16: uart:unknown port:00000000 irq:0
+17: uart:unknown port:00000000 irq:0
+18: uart:unknown port:00000000 irq:0
+19: uart:unknown port:00000000 irq:0
+20: uart:unknown port:00000000 irq:0
+21: uart:unknown port:00000000 irq:0
+22: uart:unknown port:00000000 irq:0
+23: uart:unknown port:00000000 irq:0
+24: uart:unknown port:00000000 irq:0
+25: uart:unknown port:00000000 irq:0
+26: uart:unknown port:00000000 irq:0
+27: uart:unknown port:00000000 irq:0
+28: uart:unknown port:00000000 irq:0
+29: uart:unknown port:00000000 irq:0
+30: uart:unknown port:00000000 irq:0
+31: uart:unknown port:00000000 irq:0
+
+$ sudo sh -c 'echo probe > /dev/ttyS0'; echo rc=$?
+rc=1
+
+$ sudo python3 -c "open('/dev/ttyS0','w').write('x
+')"; echo rc=$?
+rc=1
+

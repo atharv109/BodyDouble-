@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-16T21:39:15Z",
+  "method": "POST",
+  "path": "/v2/instances/4199e9ad-91a0-4d4b-9c41-ca8f826e3945/reboot",
+  "request": null,
+  "status": 200,
+  "response": {
+    "instance": {
+      "id": "4199e9ad-91a0-4d4b-9c41-ca8f826e3945",
+      "status": "active"
+    }
+  }
+}

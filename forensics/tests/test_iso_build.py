@@ -12,7 +12,7 @@ import threading
 
 import pytest
 
-from bd_forensics.metadata import configure_boot, fetch_bootstrap
+from bd_forensics.metadata import configure_boot, decode_bootstrap, fetch_bootstrap
 
 REPO = Path(__file__).resolve().parents[2]
 NFT_TEMPLATE = REPO / "iso/rootfs/etc/bd/egress.nft"
@@ -20,14 +20,20 @@ NFT_TEMPLATE = REPO / "iso/rootfs/etc/bd/egress.nft"
 
 @contextmanager
 def metadata_server(payload):
-    body = base64.b64encode(json.dumps(payload).encode())
+    # what live Vultr serves on GET /v1.json (header Metadata-Token: cloudinit):
+    # JSON whose user-data field the ISO agent base64-decodes. Vultr decodes the
+    # create-time value once, so create-time user_data = b64(b64(payload)).
+    served = base64.b64encode(json.dumps(payload).encode()).decode()
 
     class Handler(BaseHTTPRequestHandler):
         def do_GET(self):
-            assert self.path == "/v1/user-data"
+            if self.path != "/v1.json" or self.headers.get("Metadata-Token") != "cloudinit":
+                self.send_response(404)
+                self.end_headers()
+                return
             self.send_response(200)
             self.end_headers()
-            self.wfile.write(body)
+            self.wfile.write(json.dumps({"user-data": served}).encode())
 
         def log_message(self, *args):
             pass
@@ -35,7 +41,7 @@ def metadata_server(payload):
     server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     try:
-        yield f"http://127.0.0.1:{server.server_port}/v1/user-data"
+        yield f"http://127.0.0.1:{server.server_port}/v1.json"
     finally:
         server.shutdown()
 
@@ -62,6 +68,32 @@ def test_valid_user_data_allows_only_control_plane_ip_and_port(tmp_path) -> None
     assert "ip daddr 10.20.0.20" not in rules
     assert "tcp dport 8001" not in rules
     assert json.loads(bootstrap.read_text()) == valid_payload()
+
+
+def test_double_base64_user_data_roundtrip() -> None:
+    """Real-mode finding (S5): create-time value must be b64(b64(payload)).
+
+    Vultr decodes stored user_data once before serving it in /v1.json, so the
+    ISO agent's decode_bootstrap (which b64decodes the served bytes) receives
+    exactly the create-time value decoded once.
+    """
+    payload_json = json.dumps(valid_payload()).encode()
+    create_time = base64.b64encode(base64.b64encode(payload_json)).decode()
+    served = base64.b64decode(create_time)  # one decode, done by Vultr
+    assert decode_bootstrap(served) == valid_payload()
+
+
+def test_decode_bootstrap_accepts_decoded_or_as_stored_serving() -> None:
+    """Live Vultr serves the user-data field either DECODED (S5 run 1) or
+    AS-STORED (S5 run 2); the twin passes both and fails closed otherwise."""
+    raw = json.dumps(valid_payload()).encode()
+    assert decode_bootstrap(raw) == valid_payload()  # served decoded (run 1)
+    assert decode_bootstrap(base64.b64encode(raw)) == valid_payload()  # as stored (run 2)
+    # every non-bootstrap or non-decodable input still fails closed
+    with pytest.raises(ValueError):
+        decode_bootstrap(base64.b64encode(json.dumps({"case_id": "x"}).encode()))
+    with pytest.raises(ValueError):
+        decode_bootstrap(b"not json, not base64!")
 
 
 @pytest.mark.parametrize("change", [

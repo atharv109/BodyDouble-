@@ -102,7 +102,7 @@ stage() {
 
 full() {
     log "installing ISO build tooling"
-    apk add --no-cache xorriso syslinux squashfs-tools kmod busybox-static zstd
+    apk add --no-cache xorriso syslinux squashfs-tools kmod busybox-static zstd skopeo
 
     ROOT="$WORK/rootfs"
     ISOROOT="$WORK/iso"
@@ -114,9 +114,11 @@ full() {
     mkdir -p "$ROOT/etc/apk"
     cp -a /etc/apk/keys "$ROOT/etc/apk/keys"
     cp /etc/apk/repositories "$ROOT/etc/apk/repositories"
+    # iproute2: bd-vpc-up needs `ip -j` (JSON); busybox ip rejects -j, which left
+    # the VPC NIC unconfigured on Vultr (S5 run 3: zero requests reached bd-cp)
     apk add --root "$ROOT" --initdb --no-progress --clean-protected \
-        alpine-base linux-lts python3 py3-httpx py3-pydantic docker nftables \
-        ca-certificates
+        alpine-base linux-lts linux-firmware-none python3 py3-httpx py3-pydantic docker nftables \
+        ca-certificates iproute2
 
     log "gVisor runsc runtime (official release tarball + checksum)"
     GVISOR_URL=https://storage.googleapis.com/gvisor/releases/release/latest/x86_64
@@ -125,6 +127,13 @@ full() {
     ( cd "$WORK" && sha512sum -c gvisor.tar.zstd.sha512 )
     zstd -q -d -c "$WORK/gvisor.tar.zstd" | tar -xf - -C "$ROOT/usr/bin"
     chmod 755 "$ROOT/usr/bin/runsc"
+
+    log "sandbox image (the twin has no internet, so it can never docker pull)"
+    # must match forensics/bd_forensics/sandbox.py IMAGE; boot.sh docker-loads it
+    mkdir -p "$ROOT/usr/share/bd"
+    skopeo copy --override-os linux --override-arch amd64 \
+        docker://docker.io/library/python:3.12-slim \
+        "docker-archive:$ROOT/usr/share/bd/sandbox-image.tar:python:3.12-slim"
 
     log "overlay: boot service, egress rules, inittab, agent packages"
     cp -a "$OVERLAY/." "$ROOT/"
@@ -138,10 +147,14 @@ full() {
         "$INITRD/dev" "$INITRD/run" "$INITRD/tmp" "$INITRD/media" "$INITRD/newroot"
     cp /bin/busybox.static "$INITRD/bin/busybox"
     chmod 755 "$INITRD/bin/busybox"
+    # /init's "#!/bin/sh" must resolve before busybox --install runs, else the
+    # kernel panics "Failed to execute /init (error -2)" (seen in QEMU)
+    ln -s busybox "$INITRD/bin/sh"
 
     # the modules the initramfs needs, dependency-first as resolved by kmod;
     # /modules lists the .ko paths, init insmods them in that order
-    MODULES="loop squashfs isofs cdrom sr_mod virtio_blk virtio_scsi virtio_pci"
+    # ata_piix/ahci: KVM (QEMU, Vultr) attaches the ISO as an IDE/SATA CD-ROM
+    MODULES="loop squashfs overlay isofs cdrom sr_mod ata_piix ahci virtio_blk virtio_scsi virtio_pci"
     : > "$INITRD/modules"
     for m in $MODULES; do
         modprobe -d "$ROOT" -S "$KVER" --show-depends "$m" 2>/dev/null \
@@ -165,6 +178,9 @@ full() {
 
     log "boot loader"
     cp /usr/share/syslinux/isolinux.bin "$ISOROOT/boot/isolinux/"
+    # ISOLINUX 6.x cannot boot without ldlinux.c32 beside it ("Failed to load
+    # ldlinux.c32" - found by scripts/qemu_boot_test.sh before any Vultr run)
+    cp /usr/share/syslinux/ldlinux.c32 "$ISOROOT/boot/isolinux/"
     cp "$BOOTFILES/isolinux.cfg" "$ISOROOT/boot/isolinux/"
 
     log "xorriso -> $ISO_NAME"

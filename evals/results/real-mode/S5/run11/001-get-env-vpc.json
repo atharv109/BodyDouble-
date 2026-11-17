@@ -1,0 +1,21 @@
+{
+  "at": "2026-11-17T05:27:03Z",
+  "method": "GET",
+  "path": "/v2/vpcs/ab6a9e85-029b-4798-8a08-6c365d424508",
+  "request": null,
+  "status": 200,
+  "response": {
+    "vpc": {
+      "id": "ab6a9e85-029b-4798-8a08-6c365d424508",
+      "date_created": "2026-11-15T00:11:34+00:00",
+      "region": "ewr",
+      "description": "bd-vpc",
+      "v4_subnet": "10.1.96.0",
+      "v4_subnet_mask": 20,
+      "internet": {
+        "connectivity": false,
+        "types": []
+      }
+    }
+  }
+}

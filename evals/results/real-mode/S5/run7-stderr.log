@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "C:\Users\athar\OneDrive\Desktop\wt-infra\scripts\s5_twin.py", line 351, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\athar\OneDrive\Desktop\wt-infra\scripts\s5_twin.py", line 286, in main
+    api.call("POST", f"/v2/instances/{tid}/iso", {"iso_id": iso_id}, name="T1b-iso-attach")
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\athar\OneDrive\Desktop\wt-infra\scripts\bdvultr.py", line 84, in call
+    raise RuntimeError(f"Vultr {method} {path} -> {r.status_code}: {redact(data)}")
+RuntimeError: Vultr POST /v2/instances/9e95349e-7a18-44a6-9c51-bf99322503a7/iso -> 405: {'error': 'Method not allowed. Must be one of: GET', 'status': 405}

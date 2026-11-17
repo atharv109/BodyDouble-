@@ -1,0 +1,50 @@
+{
+  "at": "2026-11-17T03:35:43Z",
+  "method": "PATCH",
+  "path": "/v2/instances/9e95349e-7a18-44a6-9c51-bf99322503a7",
+  "request": {
+    "user_data": "<redacted>"
+  },
+  "status": 202,
+  "response": {
+    "instance": {
+      "id": "9e95349e-7a18-44a6-9c51-bf99322503a7",
+      "os": "Custom Installed",
+      "ram": 1024,
+      "disk": 0,
+      "main_ip": "108.61.87.219",
+      "vcpu_count": 1,
+      "region": "ewr",
+      "plan": "vc2-1c-1gb",
+      "date_created": "2026-11-17T03:34:20+00:00",
+      "status": "active",
+      "allowed_bandwidth": 1,
+      "netmask_v4": "255.255.254.0",
+      "gateway_v4": "108.61.86.1",
+      "power_status": "running",
+      "server_status": "installingbooting",
+      "v6_network": "",
+      "v6_main_ip": "",
+      "v6_network_size": 0,
+      "label": "bd-twin-t1b",
+      "internal_ip": "10.1.96.4",
+      "kvm": "<redacted>",
+      "hostname": "vultr.guest",
+      "tag": "body-double",
+      "tags": [
+        "body-double"
+      ],
+      "os_id": 159,
+      "app_id": 0,
+      "image_id": "",
+      "firewall_group_id": "0aabe815-c88d-4fd6-8695-402050a7a6ac",
+      "features": [],
+      "user_scheme": "root",
+      "vpc_only": false,
+      "enable_memorybacking": "shared",
+      "pending_charges": 0.01,
+      "cluster_id": "",
+      "attached_block_storages": []
+    }
+  }
+}

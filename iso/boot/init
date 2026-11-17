@@ -27,27 +27,41 @@ if [ -f /modules ]; then
 fi
 
 # find the BDFORENSICS boot media (holds /rootfs.squashfs)
+# (block devices appear asynchronously after the drivers load: retry ~15 s)
 media=
-for d in /dev/sr0 /dev/vd[a-z] /dev/sd[a-z]; do
-    if [ -b "$d" ]; then
-        if $BB mount -o ro "$d" /media 2>/dev/null; then
-            if [ -f /media/rootfs.squashfs ]; then
-                media=$d
-                echo "bd-init: boot media $d"
-                break
+for _try in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do
+    for d in /dev/sr[0-9] /dev/vd[a-z] /dev/sd[a-z]; do
+        if [ -b "$d" ]; then
+            if $BB mount -t iso9660 -o ro "$d" /media 2>/dev/null; then
+                if [ -f /media/rootfs.squashfs ]; then
+                    media=$d
+                    echo "bd-init: boot media $d"
+                    break
+                fi
+                $BB umount /media
             fi
-            $BB umount /media
         fi
-    fi
+    done
+    [ -n "$media" ] && break
+    $BB sleep 1
 done
 if [ -z "$media" ]; then
     echo "bd-init: no BDFORENSICS boot media found - dropping to a shell" >&2
     exec $BB sh
 fi
 
-# the root filesystem, read-only
-if ! $BB mount -o ro,loop -t squashfs /media/rootfs.squashfs /newroot; then
+# the root filesystem: read-only squashfs under a RAM-only (tmpfs) overlay, so
+# the live system can write /mnt, /var, /etc/resolv.conf... while the image
+# itself stays immutable. The cloned disk is a separate device (boot.sh).
+$BB mkdir -p /ro /rw
+if ! $BB mount -o ro,loop -t squashfs /media/rootfs.squashfs /ro; then
     echo "bd-init: squashfs mount failed - dropping to a shell" >&2
+    exec $BB sh
+fi
+$BB mount -t tmpfs -o mode=0755 tmpfs /rw
+$BB mkdir -p /rw/upper /rw/work
+if ! $BB mount -t overlay overlay -o lowerdir=/ro,upperdir=/rw/upper,workdir=/rw/work /newroot; then
+    echo "bd-init: overlay mount failed - dropping to a shell" >&2
     exec $BB sh
 fi
 

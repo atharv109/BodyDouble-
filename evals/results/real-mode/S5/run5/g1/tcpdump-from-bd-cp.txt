@@ -1,0 +1,200 @@
+reading from file /tmp/g1.pcap, link-type EN10MB (Ethernet), snapshot length 262144
+22:16:06.031882 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 2, length 64
+22:16:06.032396 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 2, length 64
+22:16:07.056112 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 3, length 64
+22:16:07.056902 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 3, length 64
+22:16:08.079909 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 4, length 64
+22:16:08.080487 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 4, length 64
+22:16:09.103884 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 5, length 64
+22:16:09.104357 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 5, length 64
+22:16:10.127808 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:10.127959 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 6, length 64
+22:16:10.128235 ARP, Reply 10.1.96.4 is-at 5a:00:07:0e:a8:31, length 28
+22:16:10.128302 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 6, length 64
+22:16:10.187467 ARP, Request who-has 10.1.96.3 tell 10.1.96.4, length 28
+22:16:10.187496 ARP, Reply 10.1.96.3 is-at 5a:00:07:0e:a7:d9, length 28
+22:16:11.151877 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 7, length 64
+22:16:12.175965 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 8, length 64
+22:16:13.199961 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 9, length 64
+22:16:14.223920 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 10, length 64
+22:16:15.248060 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 11, length 64
+22:16:16.271997 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 12, length 64
+22:16:17.295987 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 13, length 64
+22:16:18.319930 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 14, length 64
+22:16:19.344020 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 15, length 64
+22:16:20.368026 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 16, length 64
+22:16:21.392397 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 17, length 64
+22:16:22.415921 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 18, length 64
+22:16:23.439958 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 19, length 64
+22:16:24.463942 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 20, length 64
+22:16:25.487930 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 21, length 64
+22:16:26.512076 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 22, length 64
+22:16:27.536038 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 23, length 64
+22:16:28.559905 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 24, length 64
+22:16:29.583900 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 25, length 64
+22:16:30.607974 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 26, length 64
+22:16:31.631765 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:31.631998 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 27, length 64
+22:16:32.655843 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:32.656057 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 28, length 64
+22:16:33.679877 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:33.680114 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 29, length 64
+22:16:34.703994 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:35.727842 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:36.751796 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:37.776158 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:38.799820 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:39.823814 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:40.848020 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:41.871920 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:42.895832 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:43.920517 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:44.943843 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:45.967825 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:46.992061 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:48.015817 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:49.039987 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:16:49.040458 ARP, Reply 10.1.96.4 is-at 5a:00:07:0e:a8:31, length 28
+22:16:49.040469 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 42, length 64
+22:16:49.040479 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 43, length 64
+22:16:49.040481 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 44, length 64
+22:16:49.040967 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 42, length 64
+22:16:49.040967 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 43, length 64
+22:16:49.041005 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 44, length 64
+22:16:50.063887 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 45, length 64
+22:16:50.064426 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 45, length 64
+22:16:51.087953 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 46, length 64
+22:16:51.088638 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 46, length 64
+22:16:52.112127 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 47, length 64
+22:16:52.112740 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 47, length 64
+22:16:53.135903 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 48, length 64
+22:16:53.136409 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 48, length 64
+22:16:54.137137 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 49, length 64
+22:16:54.137769 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 49, length 64
+22:16:54.239489 ARP, Request who-has 10.1.96.3 tell 10.1.96.4, length 28
+22:16:54.239513 ARP, Reply 10.1.96.3 is-at 5a:00:07:0e:a7:d9, length 28
+22:16:55.183896 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 50, length 64
+22:16:55.184484 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 50, length 64
+22:16:56.207944 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 51, length 64
+22:16:56.208669 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 51, length 64
+22:16:57.231895 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 52, length 64
+22:16:57.232430 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 52, length 64
+22:16:58.255956 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 53, length 64
+22:16:58.256605 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 53, length 64
+22:16:59.257045 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 54, length 64
+22:16:59.257803 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 54, length 64
+22:17:00.304077 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 55, length 64
+22:17:00.304852 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 55, length 64
+22:17:01.328045 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 56, length 64
+22:17:01.328656 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 56, length 64
+22:17:02.351919 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 57, length 64
+22:17:02.352476 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 57, length 64
+22:17:03.375897 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 58, length 64
+22:17:03.376448 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 58, length 64
+22:17:04.399909 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 59, length 64
+22:17:04.400467 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 59, length 64
+22:17:05.423999 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 60, length 64
+22:17:05.424537 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 60, length 64
+22:17:06.447905 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 61, length 64
+22:17:06.448461 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 61, length 64
+22:17:07.471912 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 62, length 64
+22:17:07.472576 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 62, length 64
+22:17:08.495917 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 63, length 64
+22:17:08.496522 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 63, length 64
+22:17:09.519896 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 64, length 64
+22:17:09.520477 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 64, length 64
+22:17:10.543812 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:17:10.544047 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 65, length 64
+22:17:10.544347 ARP, Reply 10.1.96.4 is-at 5a:00:07:0e:a8:31, length 28
+22:17:10.544480 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 65, length 64
+22:17:11.567973 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 66, length 64
+22:17:11.568542 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 66, length 64
+22:17:12.591918 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 67, length 64
+22:17:12.592577 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 67, length 64
+22:17:13.615879 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 68, length 64
+22:17:13.616437 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 68, length 64
+22:17:14.639912 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 69, length 64
+22:17:14.640579 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 69, length 64
+22:17:15.664088 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 70, length 64
+22:17:15.664685 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 70, length 64
+22:17:16.687942 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 71, length 64
+22:17:16.688571 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 71, length 64
+22:17:17.711937 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 72, length 64
+22:17:17.712420 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 72, length 64
+22:17:18.735962 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 73, length 64
+22:17:18.736511 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 73, length 64
+22:17:19.759932 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 74, length 64
+22:17:19.760513 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 74, length 64
+22:17:20.783981 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 75, length 64
+22:17:20.784683 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 75, length 64
+22:17:21.808329 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 76, length 64
+22:17:21.809147 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 76, length 64
+22:17:22.809522 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 77, length 64
+22:17:22.810119 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 77, length 64
+22:17:23.856102 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 78, length 64
+22:17:23.856715 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 78, length 64
+22:17:24.879949 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 79, length 64
+22:17:24.880522 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 79, length 64
+22:17:25.904017 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 80, length 64
+22:17:25.904684 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 80, length 64
+22:17:26.905402 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 81, length 64
+22:17:26.905925 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 81, length 64
+22:17:27.946222 ARP, Request who-has 10.1.96.3 tell 10.1.96.4, length 28
+22:17:27.946272 ARP, Reply 10.1.96.3 is-at 5a:00:07:0e:a7:d9, length 28
+22:17:27.951970 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 82, length 64
+22:17:27.952471 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 82, length 64
+22:17:28.975981 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 83, length 64
+22:17:28.978495 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 83, length 64
+22:17:29.977828 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 84, length 64
+22:17:29.978406 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 84, length 64
+22:17:31.024141 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 85, length 64
+22:17:31.024766 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 85, length 64
+22:17:32.025423 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 86, length 64
+22:17:32.026117 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 86, length 64
+22:17:33.071807 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:17:33.072127 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 87, length 64
+22:17:33.072214 ARP, Reply 10.1.96.4 is-at 5a:00:07:0e:a8:31, length 28
+22:17:33.072573 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 87, length 64
+22:17:34.095986 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 88, length 64
+22:17:34.096586 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 88, length 64
+22:17:35.120085 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 89, length 64
+22:17:35.120702 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 89, length 64
+22:17:36.144100 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 90, length 64
+22:17:36.144655 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 90, length 64
+22:17:37.167932 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 91, length 64
+22:17:37.168473 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 91, length 64
+22:17:38.191964 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 92, length 64
+22:17:38.192883 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 92, length 64
+22:17:39.193296 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 93, length 64
+22:17:39.193938 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 93, length 64
+22:17:40.239978 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 94, length 64
+22:17:40.240600 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 94, length 64
+22:17:41.264002 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 95, length 64
+22:17:41.264701 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 95, length 64
+22:17:42.265444 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 96, length 64
+22:17:42.266014 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 96, length 64
+22:17:43.312044 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 97, length 64
+22:17:43.312549 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 97, length 64
+22:17:44.336860 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 98, length 64
+22:17:44.337410 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 98, length 64
+22:17:45.360010 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 99, length 64
+22:17:45.360553 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 99, length 64
+22:17:46.383977 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 100, length 64
+22:17:46.384861 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 100, length 64
+22:17:47.385269 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 101, length 64
+22:17:47.385831 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 101, length 64
+22:17:48.431977 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 102, length 64
+22:17:48.432583 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 102, length 64
+22:17:49.456070 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 103, length 64
+22:17:49.456867 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 103, length 64
+22:17:50.457148 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 104, length 64
+22:17:50.457699 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 104, length 64
+22:17:51.503978 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 105, length 64
+22:17:51.504673 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 105, length 64
+22:17:52.528098 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 106, length 64
+22:17:52.528726 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 106, length 64
+22:17:53.551891 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 107, length 64
+22:17:53.552428 IP 10.1.96.4 > 10.1.96.3: ICMP echo reply, id 3404, seq 107, length 64
+22:17:54.575818 ARP, Request who-has 10.1.96.4 tell 10.1.96.3, length 28
+22:17:54.576203 IP 10.1.96.3 > 10.1.96.4: ICMP echo request, id 3404, seq 108, length 64
+22:17:54.576513 ARP, Reply 10.1.96.4 is-at 5a:00:07:0e:a8:31, length 28

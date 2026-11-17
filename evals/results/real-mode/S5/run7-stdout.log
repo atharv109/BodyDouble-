@@ -1,0 +1,3 @@
+22:34:14 bd-cp 4ddde865-e97a-4e40-9a56-1b4f4bea20cb: /v1.json user-data served as-stored
+22:35:41 T1b twin 9e95349e-7a18-44a6-9c51-bf99322503a7 (VPC 10.1.96.4): blank-disk ISO boot registered: True; starting restore
+22:39:32 cleanup done; findings.json written

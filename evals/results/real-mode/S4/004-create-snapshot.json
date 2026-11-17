@@ -1,0 +1,23 @@
+{
+  "at": "2026-11-15T03:46:57Z",
+  "method": "POST",
+  "path": "/v2/snapshots",
+  "request": {
+    "instance_id": "fd703da3-ece9-43db-8e30-7cfa66d3779f",
+    "description": "body-double shop-prod planted"
+  },
+  "status": 201,
+  "response": {
+    "snapshot": {
+      "id": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
+      "date_created": "2026-11-15T03:46:57+00:00",
+      "date_expires": "-0001-11-30T04:56:02+00:00",
+      "description": "body-double shop-prod planted",
+      "size": 0,
+      "compressed_size": 0,
+      "status": "pending",
+      "os_id": 2284,
+      "app_id": 0
+    }
+  }
+}

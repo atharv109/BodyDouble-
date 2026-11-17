@@ -1,0 +1,17 @@
+{
+  "at": "2026-11-17T03:18:03Z",
+  "method": "GET",
+  "path": "/v2/firewalls?per_page=100",
+  "request": null,
+  "status": 200,
+  "response": {
+    "meta": {
+      "total": 0,
+      "links": {
+        "next": "",
+        "prev": ""
+      }
+    },
+    "firewall_groups": []
+  }
+}

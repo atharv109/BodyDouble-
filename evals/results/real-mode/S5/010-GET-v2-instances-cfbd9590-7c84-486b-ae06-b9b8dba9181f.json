@@ -1,0 +1,65 @@
+{
+  "at": "2026-11-15T06:52:42Z",
+  "method": "GET",
+  "path": "/v2/instances/cfbd9590-7c84-486b-ae06-b9b8dba9181f",
+  "request": null,
+  "status": 200,
+  "response": {
+    "instance": {
+      "id": "cfbd9590-7c84-486b-ae06-b9b8dba9181f",
+      "os": "Custom Installed",
+      "ram": 1024,
+      "disk": 25,
+      "main_ip": "140.82.61.91",
+      "vcpu_count": 1,
+      "region": "ewr",
+      "plan": "vc2-1c-1gb",
+      "date_created": "2026-11-15T06:52:27+00:00",
+      "status": "active",
+      "allowed_bandwidth": 1,
+      "netmask_v4": "255.255.254.0",
+      "gateway_v4": "140.82.60.1",
+      "power_status": "running",
+      "server_status": "ok",
+      "lock_reason": "",
+      "v6_network": "",
+      "v6_main_ip": "",
+      "v6_network_size": 0,
+      "label": "bd-twin-t1b",
+      "internal_ip": "10.1.96.4",
+      "vpcs": [
+        {
+          "id": "ab6a9e85-029b-4798-8a08-6c365d424508",
+          "version": 1,
+          "subnet": "10.1.96.4"
+        }
+      ],
+      "kvm": "<redacted>",
+      "hostname": "vultr.guest",
+      "tag": "body-double",
+      "tags": [
+        "body-double"
+      ],
+      "os_id": 159,
+      "app_id": 0,
+      "is_os_eol": false,
+      "is_app_eol": false,
+      "image_id": "",
+      "script_id": "",
+      "snapshot_id": "",
+      "firewall_group_id": "cdda070f-e96d-468c-942a-17c05bbcce66",
+      "vpc_only": false,
+      "enable_memorybacking": "shared",
+      "features": [],
+      "user_scheme": "root",
+      "boot_method": "local",
+      "vke_cluster_id": "",
+      "preemptible": false,
+      "preempted": false,
+      "preemptible_sec_terminate": null,
+      "preemptible_date_terminate": null,
+      "pending_charges": 0.01,
+      "default_password": "<redacted>"
+    }
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-15T07:04:16Z",
+  "method": "GET",
+  "path": "/v2/instances/cfbd9590-7c84-486b-ae06-b9b8dba9181f/iso",
+  "request": null,
+  "status": 200,
+  "response": {
+    "iso_status": {
+      "state": "isomounted",
+      "iso_id": "3576db4e-e53c-453d-90a3-255d04faa831"
+    }
+  }
+}
