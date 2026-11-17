@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-17T06:00:02Z",
+  "method": "POST",
+  "path": "/v2/instances/75548598-f6c6-4231-b15f-921c237403bb/reboot",
+  "request": null,
+  "status": 200,
+  "response": {
+    "instance": {
+      "id": "75548598-f6c6-4231-b15f-921c237403bb",
+      "status": "active"
+    }
+  }
+}

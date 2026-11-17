@@ -1,0 +1,1 @@
+﻿released by orchestrator 01:22: take1 shows the ESP GRUB -> EFI stub loaded the forensics initrd -> ISO kernel booted (screen quiet: Alpine has no efifb). Worker diagnosis (accepted): restore empties the CD while API still reports isomounted; initramfs found no BDFORENSICS media. Fix in run 13: detach+attach after restore + blkid /dev/sr0=BDFORENSICS guard. PNGs archived.
