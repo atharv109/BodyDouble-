@@ -16,7 +16,8 @@ Deletes ONLY resources marked as ours:
                    /v2/vpcs/{vpc}/nat-gateway. List/delete shapes follow the Vultr
                    docs and are confirmed live in
                    evals/results/real-run-01/preswap-isolation/findings.md.
-Resources the secrets file points at (VULTR_ISO_ID, BD_VPC_ID) are kept unless
+Resources the secrets file points at (VULTR_ISO_ID, BD_VPC_ID) and the shop-prod
+snapshot the twin is restored from (evals/results/real-mode/S4/result.json) are kept unless
 --include-env-refs is given: they cost $0/hr and the app needs them.
 delete() re-checks owned() itself, so nothing else can be deleted by mistake.
 """
@@ -28,7 +29,7 @@ import sys
 import time
 
 sys.path.insert(0, __import__("os").path.dirname(__file__))
-from bdvultr import Api, load_secrets  # noqa: E402
+from bdvultr import REPO, Api, load_secrets  # noqa: E402
 
 TAG = "body-double"
 PROTECTED_SNAPSHOT = re.compile(r"\bcase-\d{4}\b")
@@ -159,6 +160,9 @@ def main() -> int:
     env = load_secrets()
     keep = set() if args.include_env_refs else {v for k, v in env.items()
                                                if k in ("VULTR_ISO_ID", "BD_VPC_ID") and v}
+    shop = REPO / "evals/results/real-mode/S4/result.json"
+    if not args.include_env_refs and shop.is_file():  # Gate 1/2: snapshot ef199a06
+        keep.add(__import__("json").loads(shop.read_text())["snapshot_id"])
     keep |= set(args.keep)
     api = Api(env["VULTR_API_KEY"])
     summary = sweep(api, args.dry_run, keep)

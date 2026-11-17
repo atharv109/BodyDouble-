@@ -193,14 +193,10 @@ def main() -> int:
         return 0
     finally:
         for kind, rid in reversed(created):
-            for attempt in range(3):
-                try:
-                    api.call("DELETE", f"/v2/{kind}/{rid}", name=f"cleanup-{kind}",
-                             ok=(404, 400, 409, 412))
-                    break
-                except Exception as exc:
-                    note(f"cleanup {kind} {rid} attempt {attempt} failed: {exc}")
-                    time.sleep(20)
+            try:  # retries 409 'locked' (mid-restore): one 409 leaked fb0dd8a4
+                api.delete_until_gone(f"/v2/{kind}/{rid}", name=f"cleanup-{kind}")
+            except Exception as exc:
+                note(f"CLEANUP FAILED {kind} {rid}: {exc} -- run scripts/vultr_sweep.py")
         note("W2 probes cleaned up")
 
 

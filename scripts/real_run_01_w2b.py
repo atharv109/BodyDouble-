@@ -99,7 +99,9 @@ def main() -> int:
         t0 = time.monotonic()
         while nat_status not in ("active", "enabled", None) and time.monotonic() - t0 < 600:
             time.sleep(15)
-            nat = api.get(f"/v2/nat-gateways/{nat_id}").get("nat_gateway") or {}
+            # the NAT gateway lives under the VPC (POST /v2/nat-gateways is 404)
+            nat = next((n for n in api.get(f"/v2/vpcs/{vpc_id}/nat-gateway").get("nat_gateways", [])
+                        if n["id"] == nat_id), {})
             nat_status = nat.get("gateway_status") or nat.get("status")
         note(f"NAT gateway {nat_id} status={nat_status!r} after {time.monotonic()-t0:.0f}s")
 
@@ -143,7 +145,7 @@ def main() -> int:
         note(f"B2: egress WITH natgw rc={e1.returncode}: {e1.stdout.strip()[:200]!r}")
 
         # ------------------------------ the isolation question: delete NATGW
-        api.call("DELETE", f"/v2/nat-gateways/{nat_id}", name="B3-delete-natgw")
+        api.call("DELETE", f"/v2/vpcs/{vpc_id}/nat-gateway/{nat_id}", name="B3-delete-natgw")
         created = [(k, r) for k, r in created if r != nat_id]
         nat_id = None
         time.sleep(30)  # route teardown
@@ -183,14 +185,13 @@ def main() -> int:
         return 0
     finally:
         for kind, rid in reversed(created):
-            for attempt in range(3):
-                try:
-                    api.call("DELETE", f"/v2/{kind}/{rid}", name=f"cleanup-{kind}",
-                             ok=(404, 400, 409, 412))
-                    break
-                except Exception as exc:
-                    note(f"cleanup {kind} {rid} attempt {attempt} failed: {exc}")
-                    time.sleep(20)
+            # NAT gateways live under their VPC: /v2/nat-gateways/{id} is 404 (leaked 62f6fe13)
+            path = (f"/v2/vpcs/{vpc_id}/nat-gateway/{rid}" if kind == "nat-gateways"
+                    else f"/v2/{kind}/{rid}")
+            try:  # retries 409 'locked' (mid-restore): one 409 leaked fb0dd8a4
+                api.delete_until_gone(path, name=f"cleanup-{kind}")
+            except Exception as exc:
+                note(f"CLEANUP FAILED {kind} {rid}: {exc} -- run scripts/vultr_sweep.py")
         note("W2b probes cleaned up")
 
 

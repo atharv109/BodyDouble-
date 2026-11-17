@@ -523,13 +523,10 @@ def main() -> int:
             except Exception as exc:
                 note(f"saving cp-log failed: {exc}")
         for kind, rid in reversed(created):
-            for attempt in range(3):  # run 4: a local DNS blip left the twin running
-                try:
-                    api.call("DELETE", f"/v2/{kind}/{rid}", name=f"cleanup-{kind}", ok=(404, 400, 409, 412))
-                    break
-                except Exception as exc:  # keep cleaning the rest
-                    note(f"cleanup {kind} {rid} attempt {attempt + 1} failed: {exc}")
-                    time.sleep(20)
+            try:  # retries network blips (run 4) and 409 'locked' (W2 leaked fb0dd8a4)
+                api.delete_until_gone(f"/v2/{kind}/{rid}", name=f"cleanup-{kind}")
+            except Exception as exc:  # keep cleaning the rest
+                note(f"CLEANUP FAILED {kind} {rid}: {exc} -- run scripts/vultr_sweep.py")
         time.sleep(20)
         for kind, rid in created:
             if kind == "firewalls":  # firewall deletes fail while instances still hold it
