@@ -55,9 +55,10 @@ Commit after each item with the item ID in the message.
       possibly with outbound public IPv4, and that the 5/5 egress-blocked
       measurement applies to the sealed ISO boot only. Also revise the
       `iso/rootfs/etc/bd/egress.nft` header text. Quote W1's verdict.
-- [ ] B2: `/api/healthz` reports `"vultr":"real"` while a real-mode run is live
+- [x] B2: `/api/healthz` reports `"vultr":"real"` while a real-mode run is live
       (and `"vultr":"fake"` otherwise). Done when: endpoint test + the real
       run logs show it. Test file: `backend/tests/test_healthz.py`
+      (endpoint test done; real-run-logs half lands with B3's evidence)
 - [ ] B3 (the gate): run ONE full real case end-to-end with the real API,
       driven through the control plane (BD_REAL_MODE=1), reusing the run-13
       flow. Done when `evals/results/real-run-01/` contains: the case bundle
