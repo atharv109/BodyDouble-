@@ -95,6 +95,61 @@ def wait_results(ip: str, n_expected: int, timeout_s: float) -> list[dict]:
         time.sleep(15)
 
 
+# One-shot GRUB entry that boots the forensics ISO's own kernel + initramfs from
+# the CD (found by its volume label; under UEFI the firmware exposes the CD).
+GRUB_ENTRY = """menuentry 'bd-iso' {
+    insmod part_gpt
+    insmod part_msdos
+    insmod iso9660
+    if [ "$grub_platform" = pc ]; then insmod ahci; insmod ata; fi
+    search --no-floppy --set=root --label BDFORENSICS
+    linux /boot/vmlinuz-lts console=ttyS0,115200 console=tty0
+    initrd /boot/initramfs-bd
+}
+"""
+
+
+def clone_ssh(cp_ip: str, vpc_ip: str, cmd: str, timeout: int = 120) -> subprocess.CompletedProcess:
+    """SSH into the restored clone over the VPC, jumping through bd-cp."""
+    jump = " ".join(["ssh", *ssh_opts(), "-W", "%h:%p", f"ubuntu@{cp_ip}"])
+    return subprocess.run(["ssh", *ssh_opts(), "-o", f"ProxyCommand={jump}", f"ubuntu@{vpc_ip}", cmd],
+                          capture_output=True, text=True, timeout=timeout)
+
+
+def grub_one_shot(cp_ip: str, vpc_ip: str) -> bool:
+    """Make the clone's next boot (only) the ISO: custom.cfg entry + grub-reboot.
+    Evidence (diagnostics, every command's output) -> OUT/grub-one-shot.txt."""
+    log = OUT / "grub-one-shot.txt"
+    t0 = time.monotonic()
+    while True:  # the clone boots by itself after the restore
+        p = clone_ssh(cp_ip, vpc_ip, "uname -a; uptime")
+        if p.returncode == 0 or time.monotonic() - t0 > 600:
+            break
+        time.sleep(15)
+    steps = [
+        "uname -a; uptime; lsblk -o NAME,SIZE,TYPE,LABEL,MOUNTPOINT",
+        "ls -d /sys/firmware/efi 2>&1; mokutil --sb-state 2>&1 || true",
+        "grep -c custom.cfg /boot/grub/grub.cfg; grep -n next_entry /boot/grub/grub.cfg | head -3",
+        "echo " + base64.b64encode(GRUB_ENTRY.encode()).decode()
+        + " | base64 -d | sudo tee /boot/grub/custom.cfg >/dev/null && cat /boot/grub/custom.cfg",
+        "grep -q custom.cfg /boot/grub/grub.cfg || sudo update-grub 2>&1 | tail -3",
+        "sudo grub-reboot bd-iso && sudo grub-editenv list",
+    ]
+    ok = p.returncode == 0
+    with open(log, "w", encoding="utf-8") as f:
+        f.write(f"$ wait for clone sshd: rc={p.returncode} after {time.monotonic() - t0:.0f}s\n"
+                f"{p.stdout}{p.stderr}\n")
+        for cmd in steps if ok else []:
+            r = clone_ssh(cp_ip, vpc_ip, cmd)
+            f.write(f"$ {cmd[:120]}\nrc={r.returncode}\n{r.stdout}{r.stderr}\n")
+            ok = ok and (r.returncode == 0 or cmd.startswith(("ls -d", "grep -c")))
+        if ok:
+            r = clone_ssh(cp_ip, vpc_ip, "sudo systemd-run --on-active=2 systemctl reboot", timeout=60)
+            f.write(f"$ reboot in 2 s\nrc={r.returncode}\n{r.stdout}{r.stderr}\n")
+            ok = r.returncode == 0
+    return ok
+
+
 def iso_state(api: Api, tid: str, name: str) -> str:
     return api.call("GET", f"/v2/instances/{tid}/iso", name=name)[1]["iso_status"].get("state", "")
 
@@ -273,39 +328,38 @@ def main() -> int:
         # re-apply after the restore so the snapshot cannot bring back old user_data
         api.call("PATCH", f"/v2/instances/{tid}", {"user_data": user_data(tokens[2], ip_b)},
                  name="T1b-patch-user-data-after-restore")
-        # Real-mode finding (run 4): after restore the API still says "isomounted"
-        # (run4/044) but the console shows the Ubuntu clone booted from disk
-        # (S5/checkpoints/console-2-take1.png): a bootable disk wins the boot order.
-        # Detach + re-attach the ISO; attach reboots the instance from the ISO.
-        api.call("POST", f"/v2/instances/{tid}/iso/detach", name="T1b-iso-detach")
-        for _ in range(40):
-            if iso_state(api, tid, "T1b-iso-after-detach") != "isomounted":
-                break
-            time.sleep(15)
+        # The ISO must still be in the CD drive for the one-shot below.
         # attach is POST /iso/attach: POST /iso -> 405 "Must be one of: GET" (run7/047)
-        api.call("POST", f"/v2/instances/{tid}/iso/attach", {"iso_id": iso_id}, name="T1b-iso-attach")
-        for _ in range(40):
-            if iso_state(api, tid, "T1b-iso-after-attach") == "isomounted":
-                break
-            time.sleep(15)
-        findings["t1b_iso_reattached"] = iso_state(api, tid, "T1b-iso-reattached") == "isomounted"
-        note(f"T1b twin {tid}: restore {findings['t2_restore_s']}s; ISO re-attached: "
-             f"{findings['t1b_iso_reattached']}; waiting for the post-restore registration")
+        if iso_state(api, tid, "T1b-iso-after-restore-check") != "isomounted":
+            api.call("POST", f"/v2/instances/{tid}/iso/attach", {"iso_id": iso_id}, name="T1b-iso-attach")
+            for _ in range(40):
+                if iso_state(api, tid, "T1b-iso-after-attach") == "isomounted":
+                    break
+                time.sleep(15)
+        findings["t1b_iso_mounted_after_restore"] = iso_state(api, tid, "T1b-iso-mounted") == "isomounted"
+        # Real-mode finding (runs 4, 8): the restored, bootable disk beats the attached
+        # CD even after detach + re-attach (run8/g3/post-restore-probe-from-bd-cp.txt:
+        # sshd open on the twin). Workaround: a GRUB one-shot inside the clone. Caveat:
+        # the clone's own OS runs once, unsealed, to set it.
+        findings["t1b_grub_one_shot"] = grub_one_shot(cp_ip, ip_b)
+        note(f"T1b twin {tid}: restore {findings['t2_restore_s']}s; GRUB one-shot to the ISO: "
+             f"{findings['t1b_grub_one_shot']}; waiting for the post-restore registration")
         regs = wait_register(cp_ip, n_before + 1, 900)
         findings["t1b_after_restore_registered"] = len(regs) > n_before
         if len(regs) > n_before:
             findings["t2_restore_to_register_s"] = round(time.monotonic() - t_restore)
         note(f"T1b twin {tid}: restore {findings['t2_restore_s']}s, ISO registered after restore: "
              f"{findings['t1b_after_restore_registered']}")
-        res = wait_results(cp_ip, len(JOBS), 900)  # the agent runs the 3 queued jobs
-        findings["t3_results_received"] = len(res)
-        note(f"T3: {len(res)}/{len(JOBS)} job results received")
+        # checkpoint as soon as the ISO is up; the agent keeps running jobs meanwhile
         findings["checkpoint_2_go"] = checkpoint(
             2, "Alpine ISO console on tty0 (not Ubuntu login) with boot.sh lines: 'bd: no serial "
                "console; boot messages on tty0', 'bd-vpc-up: <vpc_ip>/20 on "
                "eth1', 'bd: cloned disk /dev/vda1 mounted inert and read-only at /mnt/disk', "
                "'bd: sandbox image loaded; runtimes: ...runsc...'",
             args.checkpoint_dir, args.checkpoint_wait, twin_id=tid)
+        res = wait_results(cp_ip, len(JOBS), 900)  # the agent runs the 3 queued jobs
+        findings["t3_results_received"] = len(res)
+        note(f"T3: {len(res)}/{len(JOBS)} job results received")
         log = cp_log(cp_ip)
         (OUT / "cp-log.jsonl").write_text("\n".join(json.dumps(e) for e in log) + "\n")
         findings["registrations"] = [{"src_ip": e["src_ip"], "status": e.get("status"),
