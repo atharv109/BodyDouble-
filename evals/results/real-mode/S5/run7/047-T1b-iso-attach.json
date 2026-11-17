@@ -1,0 +1,13 @@
+{
+  "at": "2026-11-17T03:39:09Z",
+  "method": "POST",
+  "path": "/v2/instances/9e95349e-7a18-44a6-9c51-bf99322503a7/iso",
+  "request": {
+    "iso_id": "97962862-5336-4daf-8ffa-ab61a7b1f1d7"
+  },
+  "status": 405,
+  "response": {
+    "error": "Method not allowed. Must be one of: GET",
+    "status": 405
+  }
+}

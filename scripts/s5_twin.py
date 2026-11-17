@@ -282,8 +282,8 @@ def main() -> int:
             if iso_state(api, tid, "T1b-iso-after-detach") != "isomounted":
                 break
             time.sleep(15)
-        # attach is POST /iso (only detach has a /detach suffix)
-        api.call("POST", f"/v2/instances/{tid}/iso", {"iso_id": iso_id}, name="T1b-iso-attach")
+        # attach is POST /iso/attach: POST /iso -> 405 "Must be one of: GET" (run7/047)
+        api.call("POST", f"/v2/instances/{tid}/iso/attach", {"iso_id": iso_id}, name="T1b-iso-attach")
         for _ in range(40):
             if iso_state(api, tid, "T1b-iso-after-attach") == "isomounted":
                 break
