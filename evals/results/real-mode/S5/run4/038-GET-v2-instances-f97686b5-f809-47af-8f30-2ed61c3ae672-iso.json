@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-16T20:36:52Z",
+  "method": "GET",
+  "path": "/v2/instances/f97686b5-f809-47af-8f30-2ed61c3ae672/iso",
+  "request": null,
+  "status": 200,
+  "response": {
+    "iso_status": {
+      "state": "isomounted",
+      "iso_id": "c84d165a-029e-40e8-8d86-29d0f2fadafd",
+      "iso_name": "bodydouble-forensics.iso"
+    }
+  }
+}

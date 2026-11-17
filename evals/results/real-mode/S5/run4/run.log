@@ -1,0 +1,7 @@
+15:23:11 bd-cp e918ad40-7c8d-40e4-8182-f1251f5791ee: /v1.json user-data served as-stored
+15:52:28 T1b twin f97686b5-f809-47af-8f30-2ed61c3ae672: restore 217s, ISO registered after restore: False
+15:54:28 CHECKPOINT 2: STOP FOR ORCHESTRATOR: https://my.vultr.com/subs/vps/novnc/?id=f97686b5-f809-47af-8f30-2ed61c3ae672 -- Alpine ISO console (not Ubuntu login) with boot.sh lines: 'bd-vpc-up: <vpc_ip>/20 on eth1', 'bd: cloned disk /dev/vda1 mounted inert and read-only at /mnt/disk', 'bd: sandbox image loaded; runtimes: ...runsc...'; waiting up to 900s for C:\Users\athar\OneDrive\Desktop\wt-infra\evals\results\real-mode\S5\checkpoints\go-2
+16:10:51 CHECKPOINT 2: no go-2 after 900s; continuing without screenshot
+16:11:05 cleanup instances f97686b5-f809-47af-8f30-2ed61c3ae672 failed: [Errno 11001] getaddrinfo failed
+16:11:28 cleanup done; findings.json written
+16:12:39 cleanup retry: twin f97686b5 deleted manually after the in-script DELETE failed on a local DNS error

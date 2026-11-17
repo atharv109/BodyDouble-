@@ -1,0 +1,17 @@
+{
+  "at": "2026-11-16T21:12:39Z",
+  "method": "GET",
+  "path": "/v2/instances?per_page=100",
+  "request": null,
+  "status": 200,
+  "response": {
+    "instances": [],
+    "meta": {
+      "total": 0,
+      "links": {
+        "next": "",
+        "prev": ""
+      }
+    }
+  }
+}
