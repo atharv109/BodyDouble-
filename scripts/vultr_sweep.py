@@ -119,10 +119,13 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--include-env-refs", action="store_true",
                     help="also delete the ISO/VPC named by VULTR_ISO_ID/BD_VPC_ID")
+    ap.add_argument("--keep", action="append", default=[], metavar="ID",
+                    help="never delete this resource id (repeatable)")
     args = ap.parse_args()
     env = load_secrets()
     keep = set() if args.include_env_refs else {v for k, v in env.items()
                                                if k in ("VULTR_ISO_ID", "BD_VPC_ID") and v}
+    keep |= set(args.keep)
     api = Api(env["VULTR_API_KEY"])
     summary = sweep(api, args.dry_run, keep)
     if not args.dry_run:
