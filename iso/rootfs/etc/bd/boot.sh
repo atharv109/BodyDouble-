@@ -4,6 +4,16 @@
 # No configuration is ever read from the attacker-controlled cloned disk.
 set -eu
 
+# Real-mode finding (S5 run 5, evals/results/real-mode/S5/run5/G1-diagnosis.md):
+# Vultr VMs have no UART, so /dev/console (ttyS0, the last console= in
+# isolinux.cfg) returns EIO. Under set -e the first message - bd-vpc-up's -
+# killed this script before the egress walls and the agent. Probe the console
+# once; if it is dead, write everything to tty0 (the VNC screen) instead.
+if ! echo "bd: boot.sh starting" 2>/dev/null; then
+    exec >/dev/tty0 2>&1
+    echo "bd: no serial console; boot messages on tty0"
+fi
+
 BD_RUN=/run/bd
 BD_MOUNT=/mnt/disk
 mkdir -p "$BD_RUN" "$BD_MOUNT"

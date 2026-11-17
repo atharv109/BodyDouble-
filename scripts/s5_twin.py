@@ -8,8 +8,10 @@ Creates (all tagged body-double / described bd-*):
   bd-twin-fw   firewall group with no accept rules = inbound deny (deleted)
   bd-cp        Ubuntu VM in the VPC running scripts/cp_stub.py (deleted)
   bd-twin-t1a  T1: ONE create call with snapshot_id AND iso_id (deleted)
-  bd-twin-t1b  T1 fallback: create from iso_id, then restore the snapshot
-               with the ISO still attached (deleted)
+  bd-twin-t1b  T1 fallback: create from iso_id, set the API-assigned VPC IP
+               in user_data + reboot (ISO boot registers), restore the snapshot,
+               then detach + re-attach the ISO so the post-restore boot is the
+               ISO agent with the clone mounted inert (deleted)
 At each CHECKPOINT the script waits (up to --checkpoint-wait s) for a file
 <checkpoint-dir>/go-<n> so the operator can take console screenshots, then
 continues. Evidence: evals/results/real-mode/S5/.
@@ -84,18 +86,31 @@ def wait_register(ip: str, n_expected: int, timeout_s: float) -> list[dict]:
     return [e for e in cp_log(ip) if e.get("path") == "/twin/register"]
 
 
+def wait_results(ip: str, n_expected: int, timeout_s: float) -> list[dict]:
+    t0 = time.monotonic()
+    while True:
+        res = [e for e in cp_log(ip) if e.get("path", "").endswith("/result")]
+        if len(res) >= n_expected or time.monotonic() - t0 > timeout_s:
+            return res
+        time.sleep(15)
+
+
+def iso_state(api: Api, tid: str, name: str) -> str:
+    return api.call("GET", f"/v2/instances/{tid}/iso", name=name)[1]["iso_status"].get("state", "")
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--batch", default="", help="evidence subfolder of S5/ (fresh numbering), e.g. run4")
     ap.add_argument("--checkpoint-dir", type=Path, default=None, help="default: S5/checkpoints")
-    ap.add_argument("--checkpoint-wait", type=float, default=900)
+    ap.add_argument("--checkpoint-wait", type=float, default=1200)
     ap.add_argument("--skip-t1a", action="store_true")
     args = ap.parse_args()
     global OUT
-    args.checkpoint_dir = args.checkpoint_dir or OUT / "checkpoints"
     if args.batch:  # Api numbers files from 001 per process: never overwrite an older run
         OUT = OUT / args.batch
         OUT.mkdir(parents=True, exist_ok=True)
+    args.checkpoint_dir = args.checkpoint_dir or OUT / "checkpoints"
     args.checkpoint_dir.mkdir(parents=True, exist_ok=True)
     for stale in args.checkpoint_dir.glob("go-*"):  # a go-file must come from THIS run
         stale.unlink()
@@ -161,12 +176,20 @@ def main() -> int:
 
         tokens = [secrets.token_hex(16) for _ in range(3)]
         (OUT / "jobs.json").write_text(json.dumps(JOBS, indent=2))
+        (OUT / "jobs-none.json").write_text("[]\n")
         subprocess.run(["scp", *ssh_opts(), "-q", str(REPO / "scripts/cp_stub.py"), str(OUT / "jobs.json"),
-                        f"ubuntu@{cp_ip}:/tmp/"], check=True, timeout=120)
+                        str(OUT / "jobs-none.json"), f"ubuntu@{cp_ip}:/tmp/"], check=True, timeout=120)
         ssh(cp_ip, f"sudo ufw allow from {net} to any port 8000 proto tcp >/dev/null 2>&1 || true")
-        ssh(cp_ip, "sudo sh -c 'nohup python3 /tmp/cp_stub.py --bind {ip} --port 8000 --case {case} "
-                   "--token {tok} --jobs /tmp/jobs.json --log /root/cp.jsonl >/root/cp.err 2>&1 &'"
-            .format(ip=cp_vpc_ip, case=CASE, tok=",".join(tokens)))
+
+        def start_stub(toks: list[str], jobs_file: str) -> None:
+            # restart = fresh tokens, sessions and queue; the JSONL log is appended
+            ssh(cp_ip, "sudo pkill -f cp_stub.py; sleep 1", check=False)
+            ssh(cp_ip, "sudo sh -c 'nohup python3 /tmp/cp_stub.py --bind {ip} --port 8000 --case {case} "
+                       "--token {tok} --jobs /tmp/{jobs} --log /root/cp.jsonl >>/root/cp.err 2>&1 &'"
+                .format(ip=cp_vpc_ip, case=CASE, tok=",".join(toks), jobs=jobs_file))
+
+        # phase 1 (blank-disk ISO boots): no jobs, so nothing is spent on an empty disk
+        start_stub(tokens[:2], "jobs-none.json")
 
         def user_data(token: str, vpc_ip: str) -> str:
             payload = json.dumps({"case_id": CASE, "token": token,
@@ -212,10 +235,21 @@ def main() -> int:
         t0 = time.monotonic()
         api.wait(f"/v2/instances/{tid}", "instance", "status", "active", 1800, 15)
         findings["t1b_iso_active_s"] = round(time.monotonic() - t0)
+        # Real-mode finding (run 4): Vultr assigns the twin's VPC IP itself and the VPC
+        # only delivers to that IP; a self-chosen hosts[11] never answered ARP
+        # (run4/vpc-probe-from-bd-cp.txt). The IP is only known after create, so
+        # write it into user_data and reboot; the blank disk falls through to the CD.
+        ip_b = api.call("GET", f"/v2/instances/{tid}/vpcs", name="T1b-twin-vpcs")[1]["vpcs"][0]["ip_address"]
+        findings["t4_twin_vpc_ip_from_api"] = ip_b
+        api.call("PATCH", f"/v2/instances/{tid}", {"user_data": user_data(tokens[1], ip_b)},
+                 name="T1b-patch-user-data-blank")
+        api.call("POST", f"/v2/instances/{tid}/reboot", name="T1b-reboot-blank")
         regs = wait_register(cp_ip, n_before + 1, 600)
         findings["t1b_blank_disk_registered"] = len(regs) > n_before
         n_before = len(regs)
-        api.call("GET", f"/v2/instances/{tid}/iso", name="T1b-iso-before-restore")
+        iso_state(api, tid, "T1b-iso-before-restore")
+        # phase 2: only the post-restore boot's token is valid and the 3 jobs wait for it
+        start_stub(tokens[2:], "jobs.json")
         # fresh one-time token for the post-restore boot
         api.call("PATCH", f"/v2/instances/{tid}", {"user_data": user_data(tokens[2], ip_b)},
                  name="T1b-patch-user-data")
@@ -233,15 +267,36 @@ def main() -> int:
                 break
             time.sleep(15)
         findings["t2_restore_s"] = round(restore_done) if restore_done else None
+        # re-apply after the restore so the snapshot cannot bring back old user_data
+        api.call("PATCH", f"/v2/instances/{tid}", {"user_data": user_data(tokens[2], ip_b)},
+                 name="T1b-patch-user-data-after-restore")
+        # Real-mode finding (run 4): after restore the API still says "isomounted"
+        # (run4/044) but the console shows the Ubuntu clone booted from disk
+        # (S5/checkpoints/console-2-take1.png): a bootable disk wins the boot order.
+        # Detach + re-attach the ISO; attach reboots the instance from the ISO.
+        api.call("POST", f"/v2/instances/{tid}/iso/detach", name="T1b-iso-detach")
+        for _ in range(40):
+            if iso_state(api, tid, "T1b-iso-after-detach") != "isomounted":
+                break
+            time.sleep(15)
+        # attach is POST /iso (only detach has a /detach suffix)
+        api.call("POST", f"/v2/instances/{tid}/iso", {"iso_id": iso_id}, name="T1b-iso-attach")
+        for _ in range(40):
+            if iso_state(api, tid, "T1b-iso-after-attach") == "isomounted":
+                break
+            time.sleep(15)
+        findings["t1b_iso_reattached"] = iso_state(api, tid, "T1b-iso-reattached") == "isomounted"
         regs = wait_register(cp_ip, n_before + 1, 900)
         findings["t1b_after_restore_registered"] = len(regs) > n_before
         if len(regs) > n_before:
             findings["t2_restore_to_register_s"] = round(time.monotonic() - t_restore)
         note(f"T1b twin {tid}: restore {findings['t2_restore_s']}s, ISO registered after restore: "
              f"{findings['t1b_after_restore_registered']}")
-        time.sleep(120)  # let the agent run the queued jobs
+        res = wait_results(cp_ip, len(JOBS), 900)  # the agent runs the 3 queued jobs
+        findings["t3_results_received"] = len(res)
         findings["checkpoint_2_go"] = checkpoint(
-            2, "Alpine ISO console (not Ubuntu login) with boot.sh lines: 'bd-vpc-up: <vpc_ip>/20 on "
+            2, "Alpine ISO console on tty0 (not Ubuntu login) with boot.sh lines: 'bd: no serial "
+               "console; boot messages on tty0', 'bd-vpc-up: <vpc_ip>/20 on "
                "eth1', 'bd: cloned disk /dev/vda1 mounted inert and read-only at /mnt/disk', "
                "'bd: sandbox image loaded; runtimes: ...runsc...'",
             args.checkpoint_dir, args.checkpoint_wait, twin_id=tid)
@@ -256,10 +311,13 @@ def main() -> int:
         return 0
     finally:
         for kind, rid in reversed(created):
-            try:
-                api.call("DELETE", f"/v2/{kind}/{rid}", name=f"cleanup-{kind}", ok=(404, 400, 409, 412))
-            except Exception as exc:  # keep cleaning the rest
-                note(f"cleanup {kind} {rid} failed: {exc}")
+            for attempt in range(3):  # run 4: a local DNS blip left the twin running
+                try:
+                    api.call("DELETE", f"/v2/{kind}/{rid}", name=f"cleanup-{kind}", ok=(404, 400, 409, 412))
+                    break
+                except Exception as exc:  # keep cleaning the rest
+                    note(f"cleanup {kind} {rid} attempt {attempt + 1} failed: {exc}")
+                    time.sleep(20)
         time.sleep(20)
         for kind, rid in created:
             if kind == "firewalls":  # firewall deletes fail while instances still hold it
