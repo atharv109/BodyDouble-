@@ -245,6 +245,9 @@ def main() -> int:
         save("healthz-before.json", {"status": hz.status_code, "body": hz.json()})
         note(f"healthz via tunnel: {hz.json()}")
         shop, _ = api.wait(f"/v2/instances/{shop['id']}", "instance", "status", "active", 900, 10)
+        # a snapshot-created instance is 'active' while still restoring (server_status
+        # locked/installingbooting): POST /v2/snapshots then 400s "server is locked" (run 3)
+        shop, _ = api.wait(f"/v2/instances/{shop['id']}", "instance", "server_status", "ok", 1800, 15)
         findings["shop_prod"] = {"id": shop["id"], "main_ip": shop["main_ip"]}
 
         # ------------------------------------------------------------- the case
