@@ -65,8 +65,9 @@ def ssh_in(ip: str, cmd: str, data: bytes, timeout: int = 600) -> subprocess.Com
 
 
 def allowlisted_from(cp_ip: str, key: str) -> int:
-    """HTTP status of an authenticated GET from bd-cp (header via stdin)."""
-    p = ssh_in(cp_ip, "curl -s -o /dev/null -w '%{http_code}' -H @- https://api.vultr.com/v2/regions",
+    """HTTP status of an authenticated GET from bd-cp (header via stdin). /v2/account
+    needs a valid key from an allowlisted IP; /v2/regions is public (always 200)."""
+    p = ssh_in(cp_ip, "curl -s -o /dev/null -w '%{http_code}' -H @- https://api.vultr.com/v2/account",
                f"Authorization: Bearer {key}\n".encode(), timeout=60)
     try:
         return int(p.stdout.decode().strip() or 0)
@@ -141,9 +142,12 @@ def deploy_backend(cp_ip: str, cp_vpc_ip: str, subnet: str, env: dict) -> None:
         cp_ip, "sudo journalctl -u bd-backend --no-pager | tail -20", check=False))
 
 
-def find_twin(api: Api, t_start: float, timeout_s: float = 1800) -> dict:
+def find_twin(api: Api, case_thread: threading.Thread, timeout_s: float = 1800) -> dict | None:
+    """The case's twin, or None once POST /cases has returned without one (failed early)."""
     t0 = time.monotonic()
     while time.monotonic() - t0 < timeout_s:
+        if not case_thread.is_alive():
+            return None
         for i in api.list_all("/v2/instances", "instances"):
             if (i.get("label") or "").startswith("bd-twin-"):
                 return i
@@ -263,7 +267,9 @@ def main() -> int:
         th = threading.Thread(target=open_case, daemon=True)
         th.start()
         note(f"POST /cases for shop-prod {shop['id']} (runs the whole pipeline)")
-        twin = find_twin(api, t_case)
+        twin = find_twin(api, th)
+        if twin is None:
+            raise RuntimeError(f"POST /cases returned before any twin existed: {json.dumps(result)[:300]}")
         findings["twin_id"] = twin["id"]
         created.append(("instances", twin["id"]))  # teardown should delete it; finally double-checks
         findings["esp_swap_out_of_band"] = swap_when_post_attach_boot(api, cp_ip, twin["id"])
