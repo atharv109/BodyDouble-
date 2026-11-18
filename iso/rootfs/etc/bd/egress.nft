@@ -2,9 +2,11 @@
 # Body Double forensics ISO - egress ruleset (PRD "Network walls", F5).
 #
 # Vultr Firewall filters only inbound traffic, so the ISO itself default-DROPs
-# all egress and allows only the case control plane. This is trustworthy because
-# the attacker's OS never runs - this ISO boots instead of the cloned one
-# (PRD). nftables semantics make the drop robust: a packet is finally
+# all egress and allows only the case control plane. This ruleset covers the
+# sealed ISO boot only. On real Vultr the restored clone's own OS runs once
+# before this ISO (about 39-61 s, public IPv4, outbound open: Gate 2 W1,
+# evals/results/real-run-01/preswap-egress/probe.txt), and nothing here
+# applies to that window. nftables semantics make the drop robust: a packet is finally
 # accepted only when every base chain in every table accepts it, so rules
 # that another component (e.g. dockerd's iptables shims) adds to a different
 # table can only tighten these drops, never loosen them.

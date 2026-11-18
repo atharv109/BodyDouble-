@@ -76,6 +76,12 @@ because the GRUB image did not autoload its partition and FAT drivers.
   - It had its public interface during that window. The PRD premise that
     "the attacker's OS never runs" (header of `iso/rootfs/etc/bd/egress.nft`)
     therefore holds only after the swap.
+  - Gate 2 W1 measured that window directly: at 23-39 s uptime, before the
+    swap, the clone reached HTTPS, HTTP, DNS and ICMP from its public IPv4,
+    and ran unsealed for about 61 s in total
+    (`evals/results/real-run-01/preswap-egress/probe.txt`). Gate 2 W2 found
+    no API option that removes the window
+    (`evals/results/real-run-01/preswap-isolation/findings.md`).
   - The SSH login uses the snapshot's cloud-init key, which only works on our
     own demo snapshot.
 - **The swap modifies the clone's ESP.** The original loaders are kept as
