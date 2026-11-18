@@ -1,0 +1,64 @@
+{
+  "at": "2026-11-18T02:50:32Z",
+  "method": "POST",
+  "path": "/v2/instances",
+  "request": {
+    "region": "ewr",
+    "plan": "vc2-1c-1gb",
+    "os_id": 2284,
+    "label": "bd-cp",
+    "hostname": "bd-cp",
+    "tags": [
+      "body-double"
+    ],
+    "attach_vpc": [
+      "ab6a9e85-029b-4798-8a08-6c365d424508"
+    ],
+    "backups": "disabled",
+    "reserved_ipv4": "b062913e-dfe9-4c6e-bca3-017c458bd9be",
+    "user_data": "<redacted>"
+  },
+  "status": 202,
+  "response": {
+    "instance": {
+      "id": "8319a523-3c32-4da0-a793-908b9a03957b",
+      "os": "Ubuntu 24.04 LTS x64",
+      "ram": 1024,
+      "disk": 0,
+      "main_ip": "207.246.91.37",
+      "vcpu_count": 1,
+      "region": "ewr",
+      "plan": "vc2-1c-1gb",
+      "date_created": "2026-11-18T02:50:31+00:00",
+      "status": "pending",
+      "allowed_bandwidth": 1,
+      "netmask_v4": "255.255.254.0",
+      "gateway_v4": "207.246.90.1",
+      "power_status": "running",
+      "server_status": "none",
+      "v6_network": "",
+      "v6_main_ip": "",
+      "v6_network_size": 0,
+      "label": "bd-cp",
+      "internal_ip": "10.1.96.3",
+      "kvm": "<redacted>",
+      "hostname": "bd-cp",
+      "tag": "body-double",
+      "tags": [
+        "body-double"
+      ],
+      "os_id": 2284,
+      "app_id": 0,
+      "image_id": "",
+      "firewall_group_id": "",
+      "features": [],
+      "user_scheme": "root",
+      "vpc_only": false,
+      "enable_memorybacking": "shared",
+      "pending_charges": 0,
+      "default_password": "<redacted>",
+      "cluster_id": "",
+      "attached_block_storages": []
+    }
+  }
+}

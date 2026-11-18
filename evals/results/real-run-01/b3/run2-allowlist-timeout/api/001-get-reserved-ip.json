@@ -1,0 +1,20 @@
+{
+  "at": "2026-11-18T02:50:31Z",
+  "method": "GET",
+  "path": "/v2/reserved-ips/b062913e-dfe9-4c6e-bca3-017c458bd9be",
+  "request": null,
+  "status": 200,
+  "response": {
+    "reserved_ip": {
+      "id": "b062913e-dfe9-4c6e-bca3-017c458bd9be",
+      "region": "ewr",
+      "ip_type": "v4",
+      "subnet": "207.246.91.37",
+      "subnet_size": 32,
+      "label": "bd-cp-ip",
+      "instance_id": "",
+      "instance_label": "",
+      "pending_charges": 0.11
+    }
+  }
+}

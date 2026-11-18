@@ -1,0 +1,23 @@
+{
+  "at": "2026-11-18T05:13:46Z",
+  "method": "GET",
+  "path": "/v2/instances/459adb38-d53d-4647-bcf8-9229658687bb/vpcs",
+  "request": null,
+  "status": 200,
+  "response": {
+    "vpcs": [
+      {
+        "id": "ab6a9e85-029b-4798-8a08-6c365d424508",
+        "mac_address": "5a:00:07:0f:e0:a6",
+        "ip_address": "10.1.96.3"
+      }
+    ],
+    "meta": {
+      "total": 1,
+      "links": {
+        "next": "",
+        "prev": ""
+      }
+    }
+  }
+}

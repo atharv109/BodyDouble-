@@ -1,0 +1,67 @@
+2026-11-18T04:28:55+00:00 bd-cp systemd[1]: Started bd-backend.service - /usr/local/bin/uv run --no-dev uvicorn backend.app:app --host 0.0.0.0 --port 8000.
+2026-11-18T04:28:59+00:00 bd-cp uv[2009]: INFO:     Started server process [2009]
+2026-11-18T04:28:59+00:00 bd-cp uv[2009]: INFO:     Waiting for application startup.
+2026-11-18T04:28:59+00:00 bd-cp uv[2009]: INFO:     Application startup complete.
+2026-11-18T04:28:59+00:00 bd-cp uv[2009]: INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-11-18T04:29:01+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:49922 - "GET /healthz HTTP/1.1" 200 OK
+2026-11-18T04:29:06+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:49926 - "GET /healthz HTTP/1.1" 200 OK
+2026-11-18T04:31:55+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:34398 - "POST /auth/session HTTP/1.1" 200 OK
+2026-11-18T04:38:17+00:00 bd-cp uv[2009]: twin c515827e-74b6-4bfd-9412-5e556033e035 not ready for snapshot restore; polling
+2026-11-18T04:43:57+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:54276 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:44:27+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:44972 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:44:57+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:43186 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:45:27+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:50784 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:45:58+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:44590 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:46:28+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:38616 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:46:58+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:60810 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:47:28+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:51974 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:47:58+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:58250 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:48:28+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:38214 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:48:58+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:36284 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:49:28+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:54496 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:49:59+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:47004 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:50:29+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:53592 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:50:59+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:54282 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:51:29+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:41414 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:51:59+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:56692 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:52:29+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:43440 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:53:00+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:43432 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:53:30+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:52284 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:54:00+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:34668 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:54:30+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:48856 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:55:00+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:54566 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:55:30+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:36946 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:56:00+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:47194 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:56:30+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:50374 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:57:01+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:42088 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:57:31+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:59296 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:58:01+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:58744 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:58:31+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:43650 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:59:01+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:56840 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:59:31+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:39098 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:00:02+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:34146 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:00:32+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:36434 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:01:02+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:51630 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:01:32+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:38952 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:02:02+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:33508 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:02:32+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:39358 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:03:03+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:54458 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:03:33+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:54112 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:04:03+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:39978 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:04:33+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:59136 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:05:03+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:58086 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:05:33+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:49870 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:06:03+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:44804 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:06:34+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:50750 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:07:04+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:46068 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:07:34+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:56638 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:08:04+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:41162 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:08:34+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:60866 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:09:04+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:36838 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:09:34+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:40166 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:10:05+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:46516 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:10:35+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:45004 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:11:05+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:51258 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:11:34+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:34398 - "POST /cases HTTP/1.1" 201 Created
+2026-11-18T05:11:35+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:59532 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:11:35+00:00 bd-cp uv[2009]: INFO:     127.0.0.1:34398 - "GET /cases/case-0001 HTTP/1.1" 200 OK

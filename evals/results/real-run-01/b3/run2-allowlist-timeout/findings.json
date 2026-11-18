@@ -1,0 +1,15 @@
+{
+  "snapshot_source": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
+  "planner": "glm-5.3-flash",
+  "solver": "glm-5.3",
+  "reserved_ip": {
+    "id": "b062913e-dfe9-4c6e-bca3-017c458bd9be",
+    "ip": "207.246.91.37"
+  },
+  "bd_cp": {
+    "id": "8319a523-3c32-4da0-a793-908b9a03957b",
+    "main_ip": "207.246.91.37",
+    "is_reserved_ip": true,
+    "vpc_ip": "10.1.96.3"
+  }
+}

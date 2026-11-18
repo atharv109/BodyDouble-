@@ -1,0 +1,13 @@
+2026-11-18T03:55:33+00:00 bd-cp systemd[1]: Started bd-backend.service - /usr/local/bin/uv run --no-dev uvicorn backend.app:app --host 0.0.0.0 --port 8000.
+2026-11-18T03:55:38+00:00 bd-cp uv[2008]: INFO:     Started server process [2008]
+2026-11-18T03:55:38+00:00 bd-cp uv[2008]: INFO:     Waiting for application startup.
+2026-11-18T03:55:38+00:00 bd-cp uv[2008]: INFO:     Application startup complete.
+2026-11-18T03:55:38+00:00 bd-cp uv[2008]: INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-11-18T03:55:40+00:00 bd-cp uv[2008]: INFO:     127.0.0.1:38546 - "GET /healthz HTTP/1.1" 200 OK
+2026-11-18T03:55:45+00:00 bd-cp uv[2008]: INFO:     127.0.0.1:38560 - "GET /healthz HTTP/1.1" 200 OK
+2026-11-18T03:58:33+00:00 bd-cp uv[2008]: INFO:     127.0.0.1:45180 - "POST /auth/session HTTP/1.1" 200 OK
+2026-11-18T04:04:59+00:00 bd-cp uv[2008]: twin 326b1dc6-b65f-405d-a2d5-e9def716c6e9 not ready for snapshot restore; polling
+2026-11-18T04:13:11+00:00 bd-cp uv[2008]: INFO:     127.0.0.1:45180 - "POST /cases HTTP/1.1" 201 Created
+2026-11-18T04:24:39+00:00 bd-cp uv[2008]: INFO:     127.0.0.1:54210 - "POST /auth/session HTTP/1.1" 200 OK
+2026-11-18T04:24:39+00:00 bd-cp uv[2008]: INFO:     127.0.0.1:54216 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T04:24:39+00:00 bd-cp uv[2008]: INFO:     127.0.0.1:54230 - "GET /cases/case-0001/log HTTP/1.1" 404 Not Found

@@ -1,0 +1,11 @@
+22:53:46 reserved IP b062913e-dfe9-4c6e-bca3-017c458bd9be = 207.246.91.37
+22:55:22 bd-cp 8b256f23-5e39-4aec-880c-c1bcc372c87a public 207.246.91.37 (reserved: True), VPC 10.1.96.3
+22:55:24 allowlist check from bd-cp 207.246.91.37: HTTP 200
+22:55:25 backend code uploaded: git archive ba59b2a35c6f7d0279e3fa54d96ad541a2055685
+22:55:32 uv sync on bd-cp: synced
+22:55:41 backend up on bd-cp :8000
+22:55:46 healthz via tunnel: {'ok': True, 'vultr': 'real'}
+22:58:34 POST /cases for shop-prod 4c8e8d5f-05f8-4c49-91b2-f8a6e4ce47eb (runs the whole pipeline)
+23:05:11 twin 326b1dc6-b65f-405d-a2d5-e9def716c6e9 VPC IP 10.1.96.4: waiting for its post-ISO-attach boot
+23:10:08 clone in its post-attach boot (7a27a4d4), sr0 labelled; ESP swap now
+23:10:33 ESP swap (driver, out-of-band): True

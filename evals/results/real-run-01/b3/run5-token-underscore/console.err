@@ -1,0 +1,7 @@
+Traceback (most recent call last):
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_b3.py", line 387, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_b3.py", line 317, in main
+    raise RuntimeError(f"case {case_id} failed; see backend-journal.txt, case-detail.json")
+RuntimeError: case case-0001 failed; see backend-journal.txt, case-detail.json

@@ -1,0 +1,10 @@
+keeping      snapshot 8b5f79c3-ff4f-46fc-9fcd-88d9915a2749  'body-double case case-0001'
+keeping      snapshot e6cb532a-da5e-47a9-af0e-c8cc8d255364  'body-double case case-0002'
+keeping      snapshot ef199a06-6054-4cd4-bd42-70ae3c3a8b70  'body-double shop-prod planted'
+keeping      firewall b4d15ab5-4dc1-480d-a721-ff14f2624e2a  'bd quarantine case-0001'
+keeping      vpc      ab6a9e85-029b-4798-8a08-6c365d424508  'bd-vpc'
+keeping      iso      97962862-5336-4daf-8ffa-ab61a7b1f1d7  'bodydouble-forensics.iso'
+keeping      reserved_ip b062913e-dfe9-4c6e-bca3-017c458bd9be  'bd-cp-ip'
+project instances left: 0
+summary: {'instance': {'project': 0, 'other': 0}, 'snapshot': {'project': 0, 'other': 3}, 'firewall': {'project': 0, 'other': 1}, 'nat_gateway': {'project': 0, 'other': 0}, 'vpc': {'project': 0, 'other': 1}, 'object_storage': {'project': 0, 'other': 0}, 'iso': {'project': 0, 'other': 1}, 'reserved_ip': {'project': 0, 'other': 1}}
+burn: $0.0000/hr compute (0 instances on the account); snapshot storage $0.0003/hr (3 snapshots); 0 NAT gateways on the account (billed hourly, not priced here)

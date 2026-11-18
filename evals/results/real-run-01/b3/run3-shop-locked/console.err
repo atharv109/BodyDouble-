@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_b3.py", line 354, in <module>
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_b3.py", line 272, in main
+    note(f"POST /cases for shop-prod {shop['id']} (runs the whole pipeline)")
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RuntimeError: POST /cases returned before any twin existed: {"status": 201, "body": {"id": "case-0001", "instance_id": "c4e804fe-8bc9-4a71-aac0-110751ee2993", "instance_label": "bd-shop-prod", "reason": "Gate 2 B3: real case end-to-end", "state": "failed", "snapshot_id": null, "twin_instance_id": null, "vpc_id": null, "firewall_group_id": null, "alert_id": n

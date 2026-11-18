@@ -1,0 +1,60 @@
+2026-11-18T05:36:44+00:00 bd-cp systemd[1]: Started bd-backend.service - /usr/local/bin/uv run --no-dev uvicorn backend.app:app --host 0.0.0.0 --port 8000.
+2026-11-18T05:36:49+00:00 bd-cp uv[2003]: INFO:     Started server process [2003]
+2026-11-18T05:36:49+00:00 bd-cp uv[2003]: INFO:     Waiting for application startup.
+2026-11-18T05:36:49+00:00 bd-cp uv[2003]: INFO:     Application startup complete.
+2026-11-18T05:36:49+00:00 bd-cp uv[2003]: INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-11-18T05:36:51+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:43570 - "GET /healthz HTTP/1.1" 200 OK
+2026-11-18T05:36:56+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:43572 - "GET /healthz HTTP/1.1" 200 OK
+2026-11-18T05:40:00+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:43680 - "POST /auth/session HTTP/1.1" 200 OK
+2026-11-18T05:47:04+00:00 bd-cp uv[2003]: twin a65420d5-7fe1-447f-a328-9cbcc42d018f not ready for snapshot restore; polling
+2026-11-18T05:52:11+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:49314 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:52:41+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:54394 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:53:11+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:52052 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:53:15+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "POST /twin/register HTTP/1.1" 200 OK
+2026-11-18T05:53:18+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "GET /twin/jobs/next HTTP/1.1" 200 OK
+2026-11-18T05:53:18+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "POST /twin/heartbeat HTTP/1.1" 204 No Content
+2026-11-18T05:53:21+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "POST /twin/jobs/job-01/result HTTP/1.1" 204 No Content
+2026-11-18T05:53:24+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "GET /twin/jobs/next HTTP/1.1" 200 OK
+2026-11-18T05:53:24+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "POST /twin/heartbeat HTTP/1.1" 204 No Content
+2026-11-18T05:53:27+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "POST /twin/jobs/job-02/result HTTP/1.1" 204 No Content
+2026-11-18T05:53:30+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "GET /twin/jobs/next HTTP/1.1" 200 OK
+2026-11-18T05:53:30+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "POST /twin/heartbeat HTTP/1.1" 204 No Content
+2026-11-18T05:53:33+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "POST /twin/jobs/job-03/result HTTP/1.1" 204 No Content
+2026-11-18T05:53:36+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "GET /twin/jobs/next HTTP/1.1" 200 OK
+2026-11-18T05:53:36+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "POST /twin/heartbeat HTTP/1.1" 204 No Content
+2026-11-18T05:53:39+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "POST /twin/jobs/job-04/result HTTP/1.1" 204 No Content
+2026-11-18T05:53:41+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:39638 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:53:55+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "GET /twin/jobs/next HTTP/1.1" 200 OK
+2026-11-18T05:53:55+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:43734 - "POST /twin/heartbeat HTTP/1.1" 204 No Content
+2026-11-18T05:54:07+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:40374 - "POST /twin/jobs/job-05/result HTTP/1.1" 204 No Content
+2026-11-18T05:54:11+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:34410 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:54:16+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:40374 - "GET /twin/jobs/next HTTP/1.1" 200 OK
+2026-11-18T05:54:16+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:40374 - "POST /twin/heartbeat HTTP/1.1" 204 No Content
+2026-11-18T05:54:28+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:56666 - "POST /twin/jobs/job-06/result HTTP/1.1" 204 No Content
+2026-11-18T05:54:33+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:56666 - "GET /twin/jobs/next HTTP/1.1" 200 OK
+2026-11-18T05:54:34+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:56666 - "POST /twin/heartbeat HTTP/1.1" 204 No Content
+2026-11-18T05:54:37+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:56666 - "POST /twin/jobs/job-07/result HTTP/1.1" 204 No Content
+2026-11-18T05:54:41+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:60852 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:55:04+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:56666 - "GET /twin/jobs/next HTTP/1.1" 200 OK
+2026-11-18T05:55:04+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:56666 - "POST /twin/heartbeat HTTP/1.1" 204 No Content
+2026-11-18T05:55:08+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:56666 - "POST /twin/jobs/job-08/result HTTP/1.1" 204 No Content
+2026-11-18T05:55:12+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:40084 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:55:19+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:56666 - "GET /twin/jobs/next HTTP/1.1" 200 OK
+2026-11-18T05:55:19+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:56666 - "POST /twin/heartbeat HTTP/1.1" 204 No Content
+2026-11-18T05:55:42+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:49300 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:55:59+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:38378 - "POST /twin/jobs/job-09/result HTTP/1.1" 204 No Content
+2026-11-18T05:56:12+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:56522 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:56:27+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:38378 - "GET /twin/jobs/next HTTP/1.1" 204 No Content
+2026-11-18T05:56:27+00:00 bd-cp uv[2003]: INFO:     10.1.96.4:38378 - "POST /twin/heartbeat HTTP/1.1" 204 No Content
+2026-11-18T05:56:42+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:54802 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:56:49+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:43680 - "POST /cases HTTP/1.1" 201 Created
+2026-11-18T05:57:12+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:39880 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:57:43+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:41814 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:58:13+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:36462 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:58:43+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:58544 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:59:13+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:43652 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:59:13+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:43654 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:59:15+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:43654 - "POST /cases/case-0001/close HTTP/1.1" 200 OK
+2026-11-18T05:59:15+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:43654 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:59:15+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:43654 - "GET /cases/case-0001/bundle HTTP/1.1" 200 OK
+2026-11-18T05:59:16+00:00 bd-cp uv[2003]: INFO:     127.0.0.1:43670 - "GET /healthz HTTP/1.1" 200 OK

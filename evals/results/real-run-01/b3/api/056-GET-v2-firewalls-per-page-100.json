@@ -1,0 +1,24 @@
+{
+  "at": "2026-11-18T05:59:19Z",
+  "method": "GET",
+  "path": "/v2/firewalls?per_page=100",
+  "request": null,
+  "status": 200,
+  "response": {
+    "meta": {
+      "total": 1,
+      "links": {
+        "next": "",
+        "prev": ""
+      }
+    },
+    "firewall_groups": [
+      {
+        "id": "b4d15ab5-4dc1-480d-a721-ff14f2624e2a",
+        "description": "bd quarantine case-0001",
+        "date_created": "2026-11-18 00:56:49",
+        "date_modified": "2026-11-18 00:56:49"
+      }
+    ]
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "snapshot_source": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
+  "planner": "glm-5.3-flash",
+  "solver": "glm-5.3",
+  "reserved_ip": {
+    "id": "b062913e-dfe9-4c6e-bca3-017c458bd9be",
+    "ip": "207.246.91.37"
+  },
+  "bd_cp": {
+    "id": "7653e279-f994-4892-8f16-a440ecbc5b70",
+    "main_ip": "207.246.91.37",
+    "is_reserved_ip": true,
+    "vpc_ip": "10.1.96.3"
+  },
+  "shop_prod": {
+    "id": "6e54b55e-f7fb-4052-8005-b2f4365a5a5c",
+    "main_ip": "45.76.5.62"
+  },
+  "twin_id": "c515827e-74b6-4bfd-9412-5e556033e035",
+  "esp_swap_out_of_band": true,
+  "post_cases": {
+    "status": 201,
+    "error": null,
+    "seconds": 2380,
+    "polled_state": "failed"
+  },
+  "case_snapshot_deleted": "379714b3-1191-4480-8195-ae7348d0c90f"
+}

@@ -1,0 +1,11 @@
+{
+  "at": "2026-11-18T05:11:37Z",
+  "method": "DELETE",
+  "path": "/v2/instances/c515827e-74b6-4bfd-9412-5e556033e035",
+  "request": null,
+  "status": 404,
+  "response": {
+    "error": "Instance not found",
+    "status": 404
+  }
+}
