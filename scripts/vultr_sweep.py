@@ -98,7 +98,14 @@ def owned(kind: str, item: dict) -> bool:
     if kind == "snapshot":
         desc = item.get("description") or ""
         return _marked(desc) and not PROTECTED_SNAPSHOT.search(desc)
-    if kind in ("firewall", "vpc"):
+    if kind == "firewall":
+        desc = (item.get("description") or "").strip()
+        if desc.startswith(("bd twin ", "bd quarantine ")):
+            # the backend's own groups. An ATTACHED quarantine group is live
+            # containment on production: never ours to sweep (B3 run 7 leak)
+            return not item.get("instance_count")
+        return _marked(desc)
+    if kind == "vpc":
         return _marked(item.get("description"))
     if kind in ("object_storage", "nat_gateway", "reserved_ip"):
         return _marked(item.get("label"))

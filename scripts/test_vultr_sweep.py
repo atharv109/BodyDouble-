@@ -152,3 +152,18 @@ def test_burn_counts_remaining_instances(fake):
     assert n_inst == 3 and n_snap == 4
     assert compute == pytest.approx(3 * 5 / 730)
     assert storage == pytest.approx(100 * 0.05 / 730)
+
+
+@pytest.mark.parametrize("item,ours", [
+    # the backend's own groups: "bd twin <case>" / "bd quarantine <case>" (space, not "bd-")
+    ({"id": "q-unused", "description": "bd quarantine case-0001", "instance_count": 0}, True),
+    ({"id": "q-none", "description": "bd quarantine case-0001", "instance_count": None}, True),
+    ({"id": "t-twin", "description": "bd twin case-0003", "instance_count": 0}, True),
+    # a quarantine group still ATTACHED is live containment on production: never swept
+    ({"id": "q-live", "description": "bd quarantine case-0002", "instance_count": 1}, False),
+    ({"id": "x", "description": "bdrv backup", "instance_count": 0}, False),
+])
+def test_backend_firewall_groups_are_ours_unless_attached(item, ours):
+    """B3 run 7 left 'bd quarantine case-0001' (created at proposal, never applied):
+    the old marker check (body-double / bodydouble / 'bd-') kept it as 'other'."""
+    assert vs.owned("firewall", item) is ours

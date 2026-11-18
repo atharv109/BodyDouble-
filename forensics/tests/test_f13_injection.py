@@ -16,7 +16,7 @@ async def test_ai_note_becomes_flagged_finding_without_changing_analyst_findings
     planner = [prop("extract", {"path": path}, f"collect {path}") for path in PATHS]
     planner.append(prop(done=True))
     model = StubModel(planner + [
-        analyst_reply([f"ev-{i:03d}" for i in range(1, 6)]),
+        analyst_reply([f"ev-{i:03d}" for i in range(2, 7)]),
         json.dumps({"summary": "Five planted indicators confirmed.", "ranked_actions": []}),
     ])
     recorder = FakeRecorder()

@@ -41,7 +41,7 @@ async def test_victim_run_yields_five_evidence_linked_findings_and_timeline() ->
     planner = [prop("extract", {"path": path}, f"collect {path}") for path in PATHS]
     planner.append(prop(done=True))
     model = StubModel(planner + [
-        analyst_reply([f"ev-{i:03d}" for i in range(1, 6)]),
+        analyst_reply([f"ev-{i:03d}" for i in range(2, 7)]),
         json.dumps({"summary": "Five planted indicators confirmed.",
                     "ranked_actions": ["quarantine_firewall", "invented_action"]}),
     ])

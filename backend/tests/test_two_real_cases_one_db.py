@@ -1,7 +1,8 @@
 """Security review item 3 (orchestrator option a): the real InvestigatorImpl mints
 case-scoped ids, so two real cases recorded into ONE control-plane database keep
 disjoint steps/evidence/findings/jobs. Unscoped "step-01"/"ev-001" made the second
-case collide with the first (IntegrityError) or attach to the first case's rows."""
+case collide with the first (IntegrityError) or attach to the first case's rows; and
+the investigator's evidence must start after the control plane's snapshot record."""
 from __future__ import annotations
 
 import json
@@ -10,7 +11,7 @@ from datetime import datetime, timezone
 from sqlalchemy import select
 
 from bd_forensics.investigator import REQUIRED_TRIAGE, InvestigatorImpl
-from contracts.models import Artifact, Case, ToolCall, ToolResult
+from contracts.models import Artifact, Case, Evidence, ToolCall, ToolResult
 from contracts.vultr import FakeVultr
 
 from backend.config import test_settings as make_test_settings
@@ -29,9 +30,9 @@ class ScriptedModel:
                         "rationale": "read the cron entry", "done": False}),
             json.dumps({"done": True}),
             json.dumps({"findings": [{"title": "cron persistence", "severity": "high",
-                                      "summary": "/etc/cron.d/x", "evidence_ids": ["ev-001"]}],
+                                      "summary": "/etc/cron.d/x", "evidence_ids": ["ev-002"]}],
                         "timeline": [{"ts": "unknown", "what": "cron written",
-                                      "evidence_ids": ["ev-001"]}]}),
+                                      "evidence_ids": ["ev-002"]}]}),
             json.dumps({"summary": "one finding", "ranked_actions": []}),
         ]
 
@@ -61,6 +62,11 @@ async def test_two_real_cases_share_one_database_without_id_collisions(tmp_path)
     state = build_state(settings, vultr=FakeVultr())
     reports, runners = {}, {}
     for case_id in ("case-0001", "case-0002"):
+        # the snapshot record first, through the control plane's own id path, exactly
+        # as _snapshot_phase does before the investigator starts ("<case>-ev-001")
+        state.service._add_evidence(Evidence(
+            id=state.service._next_id(EvidenceRow, case_id, "ev"), case_id=case_id,
+            step_id=None, path="snapshot:snap-1", sha256="cd" * 32, excerpt="snapshot"))
         runners[case_id] = Runner()
         reports[case_id] = await InvestigatorImpl(ScriptedModel()).investigate(
             _case(case_id), runners[case_id], DbCaseRecorder(state.sf, state.log))
@@ -74,9 +80,10 @@ async def test_two_real_cases_share_one_database_without_id_collisions(tmp_path)
                 select(FindingRow).where(FindingRow.case_id == case_id)).scalars().all()
             assert len(steps) == 1 + len(REQUIRED_TRIAGE)  # extract + code-run triage
             assert all(row.id.startswith(f"{case_id}-step-") for row in steps)
-            assert [row.id for row in evidence] == [f"{case_id}-ev-001"]
+            # snapshot evidence + the investigator's own, which starts AFTER it
+            assert sorted(row.id for row in evidence) == [f"{case_id}-ev-001", f"{case_id}-ev-002"]
             assert len(findings) == 1 and findings[0].id == f"{case_id}-finding-001"
-            # the prefix-less "ev-001" the model cited resolved to THIS case's evidence
-            assert list(findings[0].evidence_ids) == [f"{case_id}-ev-001"]
+            # the prefix-less "ev-002" the model cited resolved to THIS case's evidence
+            assert list(findings[0].evidence_ids) == [f"{case_id}-ev-002"]
             assert all(j.startswith(f"{case_id}-job-") for j in runners[case_id].job_ids)
-            assert reports[case_id].timeline[0].evidence_ids == [f"{case_id}-ev-001"]
+            assert reports[case_id].timeline[0].evidence_ids == [f"{case_id}-ev-002"]

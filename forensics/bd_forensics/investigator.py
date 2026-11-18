@@ -49,6 +49,11 @@ SINKHOLE_IP = "0.0.0.0"  # the fake resolver answers every lookup with this
 MAX_CONTEXT_STEPS = 12  # how much recent output the planner sees next turn
 
 
+# evidence item #1 is the control plane's snapshot record ("<case>-ev-001", PRD
+# "Preserve"), exactly as ScriptedInvestigator reserves it: start after it, or the
+# first real artifact collides with it (UNIQUE evidence.id) and the case fails
+EVIDENCE_SEQ_START = 2
+
 REQUIRED_TRIAGE: tuple[ToolName, ...] = (ToolName.os_facts, ToolName.persistence_scan)
 
 _DNS_LABEL = re.compile(r"(?!-)[A-Za-z0-9_-]{1,63}(?<!-)")
@@ -126,7 +131,7 @@ class InvestigatorImpl:
                 excerpt, injection_flag = prepare_excerpt(encode_path(artifact.path)[1:-1],
                                                           artifact.excerpt)
                 ev = Evidence(
-                    id=f"{case.id}-ev-{len(evidence) + 1:03d}",
+                    id=f"{case.id}-ev-{len(evidence) + EVIDENCE_SEQ_START:03d}",
                     case_id=case.id,
                     step_id=step.id,
                     path=artifact.path,
@@ -155,7 +160,7 @@ class InvestigatorImpl:
                 )
                 excerpt, injection_flag = prepare_excerpt(f"dns:{query}", dns_text)
                 ev = Evidence(
-                    id=f"{case.id}-ev-{len(evidence) + 1:03d}",
+                    id=f"{case.id}-ev-{len(evidence) + EVIDENCE_SEQ_START:03d}",
                     case_id=case.id,
                     step_id=step.id,
                     path=f"dns:{query}",
