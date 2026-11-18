@@ -1,0 +1,22 @@
+2026-11-18T02:19:25+00:00 bd-cp systemd[1]: Started bd-backend.service - /usr/local/bin/uv run --no-dev uvicorn backend.app:app --host 0.0.0.0 --port 8000.
+2026-11-18T02:19:31+00:00 bd-cp uv[2006]: INFO:     Started server process [2006]
+2026-11-18T02:19:31+00:00 bd-cp uv[2006]: INFO:     Waiting for application startup.
+2026-11-18T02:19:31+00:00 bd-cp uv[2006]: INFO:     Application startup complete.
+2026-11-18T02:19:31+00:00 bd-cp uv[2006]: INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-11-18T02:19:32+00:00 bd-cp uv[2006]: INFO:     127.0.0.1:59172 - "GET /healthz HTTP/1.1" 200 OK
+2026-11-18T02:19:37+00:00 bd-cp uv[2006]: INFO:     127.0.0.1:59174 - "GET /healthz HTTP/1.1" 200 OK
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]: INFO:     127.0.0.1:44310 - "POST /auth/session HTTP/1.1" 200 OK
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]: vultr error in case case-0001
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]: Traceback (most recent call last):
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]:   File "/srv/bd/backend/backend/service.py", line 278, in run_case
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]:     await self._snapshot_phase(row)
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]:   File "/srv/bd/backend/backend/service.py", line 426, in _snapshot_phase
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]:     snap = await self.vultr.create_snapshot(
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]:   File "/srv/bd/contracts/vultr.py", line 294, in create_snapshot
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]:     data = await self._call("POST", "/v2/snapshots", {"instance_id": instance_id, "description": description})
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]:   File "/srv/bd/contracts/vultr.py", line 278, in _call
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]:     raise VultrError(r.status_code, r.text)
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]: contracts.vultr.VultrError: Vultr API 401: {"error":"Unauthorized IP address: 207.246.91.37","status":401}
+2026-11-18T02:19:38+00:00 bd-cp uv[2006]: INFO:     127.0.0.1:44310 - "POST /cases HTTP/1.1" 201 Created

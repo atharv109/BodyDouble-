@@ -16,7 +16,7 @@ PLANNER_SYSTEM = """You investigate a copy of a possibly compromised Linux serve
 
 Choose one tool per turn from the list. Say why in one sentence. Stop when you can explain how the attacker got in, how they persist, and what they reach out to, or when the budget runs out.
 
-Tools: os_facts, persistence_scan, auth_scan, recent_files, binary_integrity, listener_config, extract (needs path), detonate (needs path), custom_script (needs code).
+Tools: os_facts, persistence_scan, auth_scan, recent_files, binary_integrity, listener_config, extract (needs path), detonate (needs path), custom_script (needs code: a Python 3 script, not shell, run as `python3 script.py /mnt` with the read-only disk at /mnt).
 
 Reply with ONLY a JSON object, no markdown: either
 {"tool": "<tool name>", "args": {...}, "rationale": "<one sentence>"}

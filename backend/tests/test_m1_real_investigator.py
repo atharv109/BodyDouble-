@@ -61,12 +61,11 @@ def test_real_factory_builds_distinct_planner_and_solver_models(monkeypatch):
         def __init__(self, api_key, model):
             configured.append((api_key, model))
 
-    class FakeRealInvestigator:
-        def __init__(self, **kwargs):
-            self.kwargs = kwargs
+    # the REAL InvestigatorImpl (its constructor only stores the models): a faked
+    # **kwargs class let the factory call planner=/solver= while forensics had
+    # landed planner_model/solver_model - real run 6 crashed right after sealing
+    from bd_forensics.investigator import InvestigatorImpl
 
-    monkeypatch.setitem(sys.modules, "bd_forensics.investigator", SimpleNamespace(
-        InvestigatorImpl=FakeRealInvestigator))
     monkeypatch.setitem(sys.modules, "bd_forensics.model", SimpleNamespace(
         OpenAIModel=FakeModel))
     settings = make_test_settings("sqlite://")
@@ -78,8 +77,9 @@ def test_real_factory_builds_distinct_planner_and_solver_models(monkeypatch):
         ("fake-key-never-sent", "planner-id"),
         ("fake-key-never-sent", "solver-id"),
     ]
-    assert set(investigator.kwargs) == {"planner", "solver"}
-    assert investigator.kwargs["planner"] is not investigator.kwargs["solver"]
+    assert isinstance(investigator, InvestigatorImpl)
+    assert investigator.planner_model is not investigator.solver_model
+    assert investigator.planner_model.__class__.__name__ == "FakeModel"
 
 
 async def test_without_inference_key_keeps_scripted_investigator(

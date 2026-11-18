@@ -1,0 +1,59 @@
+{
+  "at": "2026-11-18T05:13:49Z",
+  "method": "POST",
+  "path": "/v2/instances",
+  "request": {
+    "region": "ewr",
+    "plan": "vc2-1c-1gb",
+    "snapshot_id": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
+    "label": "bd-shop-prod",
+    "hostname": "shop-prod",
+    "tags": [
+      "body-double"
+    ],
+    "backups": "disabled"
+  },
+  "status": 202,
+  "response": {
+    "instance": {
+      "id": "50b099ab-fa1e-4865-a538-791b8bf88764",
+      "os": "Ubuntu 24.04 LTS x64",
+      "ram": 1024,
+      "disk": 0,
+      "main_ip": "0.0.0.0",
+      "vcpu_count": 1,
+      "region": "ewr",
+      "plan": "vc2-1c-1gb",
+      "date_created": "2026-11-18T05:13:48+00:00",
+      "status": "pending",
+      "allowed_bandwidth": 1,
+      "netmask_v4": "",
+      "gateway_v4": "0.0.0.0",
+      "power_status": "running",
+      "server_status": "none",
+      "v6_network": "",
+      "v6_main_ip": "",
+      "v6_network_size": 0,
+      "label": "bd-shop-prod",
+      "internal_ip": "",
+      "kvm": "<redacted>",
+      "hostname": "shop-prod",
+      "tag": "body-double",
+      "tags": [
+        "body-double"
+      ],
+      "os_id": 2284,
+      "app_id": 0,
+      "image_id": "",
+      "firewall_group_id": "",
+      "features": [],
+      "user_scheme": "root",
+      "vpc_only": false,
+      "enable_memorybacking": "shared",
+      "pending_charges": 0,
+      "default_password": "<redacted>",
+      "cluster_id": "",
+      "attached_block_storages": []
+    }
+  }
+}

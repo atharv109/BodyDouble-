@@ -168,11 +168,111 @@ def iso_state(api: Api, tid: str, name: str) -> str:
     return api.call("GET", f"/v2/instances/{tid}/iso", name=name)[1]["iso_status"].get("state", "")
 
 
+# W1 (Gate 2): measure egress in the pre-swap window itself. The restored clone
+# is briefly Ubuntu with its public interface (real-mode finding: "the clone's
+# own OS runs once, unsealed"); these probes run from inside it BEFORE the
+# ESP swap modifies the loaders. Contrast: run 13 measured 5/5 egress blocked
+# AFTER the seal — this is the other end of the timeline.
+def preswap_probes(cp_ip: str, vpc_ip: str, out_dir: Path, listener: str | None) -> bool:
+    """From the restored clone: timestamped outbound probes (HTTPS 443, HTTP 80,
+    DNS 53, ICMP), each recorded with start / result / end timestamps, plus 3 to
+    the W1 listener outside Vultr (scripts/w1_listener.py; `listener` is its
+    http://IP:PORT/w1/<nonce> URL). Then a background loop on the clone keeps
+    probing the listener every ~2 s until the ESP-swap reboot kills it, so the
+    listener's log pins the end of the unsealed window from outside Vultr.
+    Each listener probe carries the clone's send time and /proc/uptime.
+    Evidence: <out_dir>/probe.txt. Returns True when the probes ran."""
+    t0 = time.monotonic()
+    first = "uname -a; uptime -s; cat /proc/uptime; ip -4 -brief addr show"
+    p = clone_ssh(cp_ip, vpc_ip, first)
+    while p.returncode != 0 and time.monotonic() - t0 < 600:
+        # the ISO detach/attach reboots the clone (W1 try 1: 'up 0 min' at the
+        # swap, run-01-w1/esp-swap.txt): wait for its sshd
+        time.sleep(10)
+        p = clone_ssh(cp_ip, vpc_ip, first)
+    reachable = p.returncode == 0
+    lst = []
+    if listener:
+        lst = [line for i in (1, 2, 3) for line in (
+            f'ts=$(date -u +%FT%T.%NZ); up=$(cut -d" " -f1 /proc/uptime); echo "$ts START listener fg{i} up=$up"',
+            f"curl -sS -m 5 -w ' http=%{{http_code}}\n' \"{listener}/fg{i}?sent=$ts&up=$up\"",
+            f'rc=$?; echo "$(date -u +%FT%T.%NZ) END listener fg{i} rc=$rc"')]
+    cmd = "\n".join([
+        'echo "== preswap egress probes: start $(date -u +%FT%T.%NZ) =="',
+        'echo "iface:"; ip -4 -brief addr show',
+        *lst,
+        'echo "$(date -u +%FT%T.%NZ) START https443"',
+        "curl -sS -m 8 -w '\\nRC https443 http=%{http_code} t=%{time_total}s\\n' https://api.ipify.org",
+        'rc=$?; echo "$(date -u +%FT%T.%NZ) END https443 rc=$rc"',
+        'echo "$(date -u +%FT%T.%NZ) START http80"',
+        "curl -sS -m 8 -w '\\nRC http80 http=%{http_code} t=%{time_total}s\\n' 'http://ip-api.com/line/?fields=query'",
+        'rc=$?; echo "$(date -u +%FT%T.%NZ) END http80 rc=$rc"',
+        'echo "$(date -u +%FT%T.%NZ) START dns53"',
+        "getent hosts example.com",
+        'rc=$?; echo "$(date -u +%FT%T.%NZ) END dns53 rc=$rc"',
+        'echo "$(date -u +%FT%T.%NZ) START icmp"',
+        "ping -c 1 -W 3 8.8.8.8 2>&1 | tail -2",
+        'rc=$?; echo "$(date -u +%FT%T.%NZ) END icmp rc=$rc"',
+        'echo "== preswap egress probes: end $(date -u +%FT%T.%NZ) =="',
+    ])
+    r = clone_ssh(cp_ip, vpc_ip, cmd, timeout=240)
+    bg = None
+    if listener and reachable:
+        loop = ("i=0\nwhile [ $i -lt 450 ]; do i=$((i+1))\n"
+                '  ts=$(date -u +%FT%T.%NZ); up=$(cut -d" " -f1 /proc/uptime)\n'
+                f'  curl -s -m 2 -o /dev/null "{listener}/bg$i?sent=$ts&up=$up"\n'
+                "  sleep 2\ndone\n")
+        bg = clone_ssh(cp_ip, vpc_ip, "cat > /tmp/bd-w1-loop.sh && sudo systemd-run "
+                       "--unit bd-w1-loop --collect /bin/sh /tmp/bd-w1-loop.sh",
+                       data=loop.encode())
+    took = time.monotonic() - t0
+    with open(out_dir / "probe.txt", "w", encoding="utf-8") as f:
+        f.write("W1 pre-swap egress probes - from the restored clone (the clone's own "
+                "OS, unsealed, public interface) BEFORE the ESP swap.\n")
+        f.write(f"clone sshd rc={p.returncode}; probe ssh rc={r.returncode}; window +{took:.0f}s\n\n")
+        f.write(f"$ clone uname / boot time (uptime -s) / /proc/uptime / ifaces\n{p.stdout}{p.stderr}\n")
+        f.write(f"$ probes\n{r.stdout}{r.stderr}\n")
+        if bg is not None:
+            f.write(f"$ background listener loop (until the swap reboot): rc={bg.returncode}\n"
+                    f"{bg.stdout}{bg.stderr}\n")
+    with open(out_dir / "probe.rc.json", "w", encoding="utf-8") as f:
+        f.write(json.dumps({"clone_ssh_rc": p.returncode, "probe_rc": r.returncode,
+                            "bg_loop_rc": None if bg is None else bg.returncode,
+                            "window_s": round(took)}, indent=2))
+    return reachable and r.returncode == 0
+
+
+def append_listener_capture(out_dir: Path, listener_log: Path, t_swap_reboot: str) -> int:
+    """After the swap: append the listener-side capture (probe lines only) to
+    probe.txt, next to the driver's own time for the swap's reboot command.
+    Returns the number of probes the listener received."""
+    lines = []
+    if listener_log.is_file():
+        for raw in listener_log.read_text(encoding="utf-8").splitlines():
+            e = json.loads(raw)
+            if e.get("probe"):
+                lines.append(f"{e['recv_utc']}  from {e['src_ip']}:{e['src_port']}  {e['path']}")
+    with open(out_dir / "probe.txt", "a", encoding="utf-8") as f:
+        f.write(f"\n$ listener-side capture ({listener_log.name}, operator machine, outside Vultr): "
+                f"{len(lines)} probes\n")
+        f.write(f"driver: swap reboot command sent at {t_swap_reboot} (UTC)\n")
+        f.write("\n".join(lines) + "\n")
+        f.write("\nVERDICT: to be completed by the worker from the results above.\n")
+    return len(lines)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--batch", default="", help="evidence subfolder of S5/ (fresh numbering), e.g. run4")
     ap.add_argument("--checkpoint-dir", type=Path, default=None, help="default: S5/checkpoints")
     ap.add_argument("--checkpoint-wait", type=float, default=1200)
+    ap.add_argument("--preswap-probe-dir", type=Path, default=None,
+                    help="W1: run outbound probes from the restored clone before "
+                         "the ESP swap; write probe.txt under this directory")
+    ap.add_argument("--w1-listener-url", default=None,
+                    help="W1: http://IP:PORT/w1/<nonce> of scripts/w1_listener.py (outside Vultr)")
+    ap.add_argument("--w1-listener-log", type=Path, default=None,
+                    help="W1: that listener's --log file, merged into probe.txt after the swap")
     ap.add_argument("--skip-t1a", action="store_true")
     args = ap.parse_args()
     if not (ONESHOT_EFI.is_file() and (ONESHOT_DIR / "initramfs-bd").is_file()):  # before any spend
@@ -230,6 +330,13 @@ def main() -> int:
         if cp_vpc_ip not in have:  # Vultr VPC has no DHCP; set it from the API's answer
             iface = ssh(cp_ip, f"ip -o link | grep -i {cp_vpc['mac_address']} | cut -d: -f2").strip()
             ssh(cp_ip, f"sudo ip link set {iface} up && sudo ip addr add {cp_vpc_ip}/{net.prefixlen} dev {iface}")
+        if args.w1_listener_url:  # W1: is the listener reachable from inside Vultr at all?
+            st = subprocess.run(["ssh", *ssh_opts(), f"ubuntu@{cp_ip}",
+                                 f"curl -sS -m 8 '{args.w1_listener_url}/selftest-from-bd-cp'"],
+                                capture_output=True, text=True, timeout=60)
+            findings["w1_listener_reachable_from_vultr"] = st.returncode == 0 and "bd-w1 ok" in st.stdout
+            note(f"W1 listener self-test from bd-cp: rc={st.returncode} {st.stdout.strip()[:80]!r} "
+                 f"{st.stderr.strip()[:120]!r}")
         findings["bd_cp"] = {"id": cp["id"], "vpc_ip": cp_vpc_ip,
                              "vpc_ip_auto_configured": cp_vpc_ip in have}
         # how does the metadata service hand back user_data? Real-mode finding
@@ -359,11 +466,22 @@ def main() -> int:
                 break
             time.sleep(15)
         findings["t1b_iso_mounted_after_restore"] = iso_state(api, tid, "T1b-iso-mounted") == "isomounted"
+        # W1: the clone is about to be Ubuntu with its public interface — measure
+        # egress NOW, before the ESP swap (evals/results/real-run-01/preswap-egress/)
+        if args.preswap_probe_dir:
+            args.preswap_probe_dir.mkdir(parents=True, exist_ok=True)
+            findings["preswap_probes_ran"] = preswap_probes(cp_ip, ip_b, args.preswap_probe_dir,
+                                                            args.w1_listener_url)
+            note(f"W1 pre-swap probes: ran={findings['preswap_probes_ran']} -> {args.preswap_probe_dir}")
         # the restored disk beats the CD (runs 4, 8): swap the clone's UEFI loaders
         findings["t1b_esp_swap"] = esp_swap(cp_ip, ip_b)
+        t_swap_reboot = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
         note(f"T1b twin {tid}: restore {findings['t2_restore_s']}s; ESP swap to the ISO: "
              f"{findings['t1b_esp_swap']}; waiting for the post-restore registration")
         regs = wait_register(cp_ip, n_before + 1, 900)
+        if args.preswap_probe_dir and args.w1_listener_log:  # the window is over: merge
+            findings["w1_listener_probes"] = append_listener_capture(
+                args.preswap_probe_dir, args.w1_listener_log, t_swap_reboot)
         findings["t1b_after_restore_registered"] = len(regs) > n_before
         if len(regs) > n_before:
             findings["t2_restore_to_register_s"] = round(time.monotonic() - t_restore)
@@ -405,13 +523,10 @@ def main() -> int:
             except Exception as exc:
                 note(f"saving cp-log failed: {exc}")
         for kind, rid in reversed(created):
-            for attempt in range(3):  # run 4: a local DNS blip left the twin running
-                try:
-                    api.call("DELETE", f"/v2/{kind}/{rid}", name=f"cleanup-{kind}", ok=(404, 400, 409, 412))
-                    break
-                except Exception as exc:  # keep cleaning the rest
-                    note(f"cleanup {kind} {rid} attempt {attempt + 1} failed: {exc}")
-                    time.sleep(20)
+            try:  # retries network blips (run 4) and 409 'locked' (W2 leaked fb0dd8a4)
+                api.delete_until_gone(f"/v2/{kind}/{rid}", name=f"cleanup-{kind}")
+            except Exception as exc:  # keep cleaning the rest
+                note(f"CLEANUP FAILED {kind} {rid}: {exc} -- run scripts/vultr_sweep.py")
         time.sleep(20)
         for kind, rid in created:
             if kind == "firewalls":  # firewall deletes fail while instances still hold it

@@ -1,0 +1,13 @@
+Traceback (most recent call last):
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_w2b.py", line 217, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_w2b.py", line 83, in main
+    run_d2(api, fw_id, ud, created)
+    ~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_w2b.py", line 181, in run_d2
+    api.call("POST", f"/v2/instances/{d['id']}/halt", name="D2-halt")
+    ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\bdvultr.py", line 84, in call
+    raise RuntimeError(f"Vultr {method} {path} -> {r.status_code}: {redact(data)}")
+RuntimeError: Vultr POST /v2/instances/c2b1fe2d-3470-442a-adcd-884482db1f4a/halt -> 409: {'error': 'Unable to stop server: Cannot stop server while it is pending', 'status': 409}

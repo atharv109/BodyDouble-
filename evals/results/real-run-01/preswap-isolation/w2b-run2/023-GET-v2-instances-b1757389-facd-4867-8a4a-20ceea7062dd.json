@@ -1,0 +1,67 @@
+{
+  "at": "2026-11-17T22:03:45Z",
+  "method": "GET",
+  "path": "/v2/instances/b1757389-facd-4867-8a4a-20ceea7062dd",
+  "request": null,
+  "status": 200,
+  "response": {
+    "instance": {
+      "id": "b1757389-facd-4867-8a4a-20ceea7062dd",
+      "os": "Ubuntu 24.04 LTS x64",
+      "ram": 1024,
+      "disk": 25,
+      "main_ip": "140.82.60.129",
+      "vcpu_count": 1,
+      "region": "ewr",
+      "plan": "vc2-1c-1gb",
+      "date_created": "2026-11-17T22:03:33+00:00",
+      "status": "active",
+      "allowed_bandwidth": 1,
+      "netmask_v4": "255.255.254.0",
+      "gateway_v4": "140.82.60.1",
+      "power_status": "stopped",
+      "server_status": "locked",
+      "lock_reason": "Your server is currently being installed.",
+      "v6_network": "",
+      "v6_main_ip": "",
+      "v6_network_size": 0,
+      "label": "bd-w2b-jump",
+      "internal_ip": "10.1.96.4",
+      "vpcs": [
+        {
+          "id": "ab6a9e85-029b-4798-8a08-6c365d424508",
+          "version": 1,
+          "subnet": "10.1.96.4"
+        }
+      ],
+      "kvm": "<redacted>",
+      "hostname": "bd-w2b-jump",
+      "tag": "body-double",
+      "tags": [
+        "body-double"
+      ],
+      "os_id": 2284,
+      "app_id": 0,
+      "is_os_eol": false,
+      "is_app_eol": false,
+      "image_id": "",
+      "script_id": "",
+      "snapshot_id": "",
+      "firewall_group_id": "",
+      "vpc_only": false,
+      "enable_memorybacking": "shared",
+      "features": [],
+      "user_scheme": "root",
+      "boot_method": "local",
+      "vke_cluster_id": "",
+      "vke_cluster_label": "",
+      "preemptible": false,
+      "preempted": false,
+      "preemptible_sec_terminate": null,
+      "preemptible_date_terminate": null,
+      "max_extra_ipv4": 2,
+      "pending_charges": 0.01,
+      "default_password": "<redacted>"
+    }
+  }
+}

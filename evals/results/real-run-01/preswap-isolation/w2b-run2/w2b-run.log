@@ -1,0 +1,9 @@
+17:00:12 N0: POST /v2/nat-gateways -> 404: {"error": "Not found.", "status": 404}
+17:00:12 N1: POST /v2/nat-gateways -> 404: {"error": "Not found.", "status": 404}
+17:00:15 N2: POST /v2/vpcs/ab6a9e85-029b-4798-8a08-6c365d424508/nat-gateway -> 201: {"nat_gateway": {"id": "f004be28-0695-4a44-8989-c79ff4eb3362", "vpc_id": "ab6a9e85-029b-4798-8a08-6c365d424508", "date_created": "2026-11-17 17:00:14", "status": "pending", "label": "bd-natgw", "tag":
+17:03:20 NAT gateway f004be28-0695-4a44-8989-c79ff4eb3362 status='active' after 185s
+17:03:34 B2: VPC-only instance ACTIVE with NATGW; fields={"main_ip": "10.1.96.3", "vpc_ids": null, "internal_ip": "10.1.96.3", "region": "ewr", "plan": "vc2-1c-1gb"}
+17:05:08 B2: jump 140.82.60.129 up; VPC-only instance at VPC 10.1.96.3; probing egress WITH NATGW
+17:05:14 B2: egress WITH natgw rc=0: 'https443 http=200 rc=0\n45.63.22.247\ndns53 rc=0\nrtt min/avg/max/mdev = 1.407/1.407/1.407/0.000 ms'
+17:05:15 CLEANUP FAILED nat-gateways f004be28-0695-4a44-8989-c79ff4eb3362: Vultr DELETE /v2/vpcs/ab6a9e85-029b-4798-8a08-6c365d424508/nat-gateway/f004be28-0695-4a44-8989-c79ff4eb3362 -> 422: {'is_external_error': False, 'error': 'Unable to remove NAT Gateway: please remove all VPC-only instances from this network first', 'status': 422} -- run scripts/vultr_sweep.py
+17:05:16 W2b probes cleaned up

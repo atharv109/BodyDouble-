@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-17T08:09:46Z",
+  "method": "POST",
+  "path": "/v2/vpcs/ab6a9e85-029b-4798-8a08-6c365d424508/nat-gateway",
+  "request": {
+    "region": "ewr",
+    "label": "bd-natgw"
+  },
+  "status": 422,
+  "response": {
+    "is_external_error": false,
+    "error": "NAT Gateway already exists for this VPC network",
+    "status": 422
+  }
+}

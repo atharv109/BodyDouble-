@@ -27,11 +27,29 @@ def _json(raw: str) -> dict:
     return value if isinstance(value, dict) else {}
 
 
+def encode_path(path: str) -> str:
+    """A disk-controlled path as a JSON string with <, > and & also escaped: it can
+    never open or close an <evidence> wrapper, start a new line, or pose as text
+    outside its quotes - and json.loads still recovers it exactly."""
+    return (json.dumps(path, ensure_ascii=True)
+            .replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026"))
+
+
 def _context(evidence: list[Evidence]) -> str:
     return "\n".join(
-        f"id={ev.id} path={ev.path}\n{ev.excerpt}"
+        f"id={ev.id} path={encode_path(ev.path)}\n{ev.excerpt}"
         for ev in evidence
     )
+
+
+def _scope_refs(refs, known: set[str], case_id: str) -> list[str] | None:
+    """Evidence ids are case-scoped ("<case>-ev-001"). A model that drops the prefix
+    still cites this case's evidence only, never another case's. None when any ref
+    is not this case's evidence (the whole item is then dropped, as before)."""
+    if not isinstance(refs, list) or not refs or not all(isinstance(r, str) for r in refs):
+        return None
+    scoped = [ref if ref in known else f"{case_id}-{ref}" for ref in refs]
+    return scoped if all(ref in known for ref in scoped) else None
 
 
 async def analyze(model: Model, case_id: str, evidence: list[Evidence]) -> tuple[list[Finding], list[TimelineEntry]]:
@@ -51,8 +69,8 @@ async def analyze(model: Model, case_id: str, evidence: list[Evidence]) -> tuple
     for item in raw.get("findings", []):
         if not isinstance(item, dict):
             continue
-        refs = item.get("evidence_ids")
-        if not isinstance(refs, list) or not refs or any(ref not in known for ref in refs):
+        refs = _scope_refs(item.get("evidence_ids"), known, case_id)
+        if not refs:
             continue
         try:
             severity = Severity(item.get("severity", "info"))
@@ -63,7 +81,7 @@ async def analyze(model: Model, case_id: str, evidence: list[Evidence]) -> tuple
             ):
                 severity = Severity.critical
             findings.append(Finding(
-                id=f"finding-{len(findings) + 1:03d}", case_id=case_id,
+                id=f"{case_id}-finding-{len(findings) + 1:03d}", case_id=case_id,
                 title=str(item.get("title", "Forensic finding"))[:200],
                 severity=severity, mitre_id=item.get("mitre_id"),
                 summary=str(item.get("summary", "")), evidence_ids=refs,
@@ -75,8 +93,9 @@ async def analyze(model: Model, case_id: str, evidence: list[Evidence]) -> tuple
     for item in raw.get("timeline", []):
         if not isinstance(item, dict):
             continue
-        refs = item.get("evidence_ids", [])
-        if not isinstance(refs, list) or any(ref not in known for ref in refs):
+        raw_refs = item.get("evidence_ids", [])
+        refs = _scope_refs(raw_refs, known, case_id) if raw_refs else []
+        if refs is None:
             continue
         timeline.append(TimelineEntry(
             ts=str(item.get("ts", "unknown")), what=str(item.get("what", "")),

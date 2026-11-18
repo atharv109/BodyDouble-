@@ -23,12 +23,12 @@ Commit after each item with the item ID in the message.
 
 ## Checklist
 
-- [ ] B0: Port the `RealVultr.request()` allowlist hardening (method+host pin,
+- [x] B0: Port the `RealVultr.request()` allowlist hardening (method+host pin,
       no redirects) from `C:\Users\athar\OneDrive\Desktop\vultr\contracts\vultr.py`
       into this repo's VultrClient so every real call is allowlisted. Done when:
       a unit test proves a disallowed host/method/redirect is refused.
       Test file: `backend/tests/test_vultr_client_allowlist.py`
-- [ ] B1: `BD_REAL_MODE` env switch: unset = existing fake behavior untouched;
+- [x] B1: `BD_REAL_MODE` env switch: unset = existing fake behavior untouched;
       set = all instances/snapshots/VPC/ISO calls go to the real Vultr API.
       Done when: existing fake-mode tests still pass and real-mode client
       construction is covered by tests (no live calls in tests).
@@ -55,9 +55,10 @@ Commit after each item with the item ID in the message.
       possibly with outbound public IPv4, and that the 5/5 egress-blocked
       measurement applies to the sealed ISO boot only. Also revise the
       `iso/rootfs/etc/bd/egress.nft` header text. Quote W1's verdict.
-- [ ] B2: `/api/healthz` reports `"vultr":"real"` while a real-mode run is live
+- [x] B2: `/api/healthz` reports `"vultr":"real"` while a real-mode run is live
       (and `"vultr":"fake"` otherwise). Done when: endpoint test + the real
       run logs show it. Test file: `backend/tests/test_healthz.py`
+      (endpoint test done; real-run-logs half lands with B3's evidence)
 - [ ] B3 (the gate): run ONE full real case end-to-end with the real API,
       driven through the control plane (BD_REAL_MODE=1), reusing the run-13
       flow. Done when `evals/results/real-run-01/` contains: the case bundle

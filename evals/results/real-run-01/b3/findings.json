@@ -1,0 +1,92 @@
+{
+  "snapshot_source": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
+  "planner": "glm-5.3-flash",
+  "solver": "glm-5.3",
+  "reserved_ip": {
+    "id": "b062913e-dfe9-4c6e-bca3-017c458bd9be",
+    "ip": "207.246.91.37"
+  },
+  "bd_cp": {
+    "id": "13511b22-792b-423b-be43-a2d811f7cfda",
+    "main_ip": "207.246.91.37",
+    "is_reserved_ip": true,
+    "vpc_ip": "10.1.96.3"
+  },
+  "shop_prod": {
+    "id": "a568b207-3a6d-4181-8dc9-1b0b54fc1905",
+    "main_ip": "149.28.233.237"
+  },
+  "twin_id": "a65420d5-7fe1-447f-a328-9cbcc42d018f",
+  "esp_swap_out_of_band": true,
+  "post_cases": {
+    "status": 201,
+    "error": null,
+    "seconds": 1153,
+    "polled_state": "reported"
+  },
+  "case": {
+    "id": "case-0001",
+    "state": "closed",
+    "snapshot_id": "7b0888f2-8ae9-47e4-beaf-5c0afc695f67",
+    "seal": {
+      "disk_read_only": true,
+      "egress_blocked": true,
+      "detail": {
+        "disk_read_only": "/dev/vda2 on /mnt/disk: ro,nosuid,nodev,noexec,relatime",
+        "egress_blocked": "tcp 1.1.1.1:53 failed: TimeoutError: timed out; tcp 8.8.8.8:53 failed: TimeoutError: timed out; tcp 1.1.1.1:443 failed: TimeoutError: timed out; tcp 9.9.9.9:80 failed: TimeoutError: timed out; tcp 208.67.222.222:443 failed: TimeoutError: timed out"
+      }
+    },
+    "steps": [
+      {
+        "tool": "os_facts",
+        "exit_code": 0
+      },
+      {
+        "tool": "auth_scan",
+        "exit_code": 0
+      },
+      {
+        "tool": "persistence_scan",
+        "exit_code": 0
+      },
+      {
+        "tool": "extract",
+        "exit_code": 0
+      },
+      {
+        "tool": "custom_script",
+        "exit_code": 1
+      },
+      {
+        "tool": "recent_files",
+        "exit_code": 0
+      },
+      {
+        "tool": "extract",
+        "exit_code": 0
+      },
+      {
+        "tool": "detonate",
+        "exit_code": 2
+      },
+      {
+        "tool": "binary_integrity",
+        "exit_code": 0
+      }
+    ]
+  },
+  "bundle": {
+    "status": 200,
+    "files": [
+      "snapshot_id.txt",
+      "file_hashes.json",
+      "case_log.json",
+      "report.json"
+    ],
+    "log_entries": 38,
+    "chain_first_bad_seq": null,
+    "verifies": true
+  },
+  "twin_get_after_close": 404,
+  "case_snapshot_deleted": "7b0888f2-8ae9-47e4-beaf-5c0afc695f67"
+}

@@ -1,0 +1,17 @@
+{
+  "status": 201,
+  "body": {
+    "id": "case-0001",
+    "instance_id": "6e54b55e-f7fb-4052-8005-b2f4365a5a5c",
+    "instance_label": "bd-shop-prod",
+    "reason": "Gate 2 B3: real case end-to-end",
+    "state": "failed",
+    "snapshot_id": "379714b3-1191-4480-8195-ae7348d0c90f",
+    "twin_instance_id": "c515827e-74b6-4bfd-9412-5e556033e035",
+    "vpc_id": "ab6a9e85-029b-4798-8a08-6c365d424508",
+    "firewall_group_id": "43c7b3da-19bc-4ebd-94b8-ea609ab89082",
+    "alert_id": null,
+    "created_at": "2026-11-18T04:31:55.329791",
+    "closed_at": null
+  }
+}

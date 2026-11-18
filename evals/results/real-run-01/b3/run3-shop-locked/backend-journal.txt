@@ -1,0 +1,22 @@
+2026-11-18T03:49:13+00:00 bd-cp systemd[1]: Started bd-backend.service - /usr/local/bin/uv run --no-dev uvicorn backend.app:app --host 0.0.0.0 --port 8000.
+2026-11-18T03:49:19+00:00 bd-cp uv[2004]: INFO:     Started server process [2004]
+2026-11-18T03:49:19+00:00 bd-cp uv[2004]: INFO:     Waiting for application startup.
+2026-11-18T03:49:19+00:00 bd-cp uv[2004]: INFO:     Application startup complete.
+2026-11-18T03:49:19+00:00 bd-cp uv[2004]: INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-11-18T03:49:20+00:00 bd-cp uv[2004]: INFO:     127.0.0.1:38790 - "GET /healthz HTTP/1.1" 200 OK
+2026-11-18T03:49:25+00:00 bd-cp uv[2004]: INFO:     127.0.0.1:38806 - "GET /healthz HTTP/1.1" 200 OK
+2026-11-18T03:49:25+00:00 bd-cp uv[2004]: INFO:     127.0.0.1:40770 - "POST /auth/session HTTP/1.1" 200 OK
+2026-11-18T03:49:26+00:00 bd-cp uv[2004]: vultr error in case case-0001
+2026-11-18T03:49:26+00:00 bd-cp uv[2004]: Traceback (most recent call last):
+2026-11-18T03:49:26+00:00 bd-cp uv[2004]:   File "/srv/bd/backend/backend/service.py", line 278, in run_case
+2026-11-18T03:49:26+00:00 bd-cp uv[2004]:     await self._snapshot_phase(row)
+2026-11-18T03:49:26+00:00 bd-cp uv[2004]:   File "/srv/bd/backend/backend/service.py", line 426, in _snapshot_phase
+2026-11-18T03:49:26+00:00 bd-cp uv[2004]:     snap = await self.vultr.create_snapshot(
+2026-11-18T03:49:26+00:00 bd-cp uv[2004]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-18T03:49:26+00:00 bd-cp uv[2004]:   File "/srv/bd/contracts/vultr.py", line 294, in create_snapshot
+2026-11-18T03:49:26+00:00 bd-cp uv[2004]:     data = await self._call("POST", "/v2/snapshots", {"instance_id": instance_id, "description": description})
+2026-11-18T03:49:26+00:00 bd-cp uv[2004]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-18T03:49:26+00:00 bd-cp uv[2004]:   File "/srv/bd/contracts/vultr.py", line 278, in _call
+2026-11-18T03:49:26+00:00 bd-cp uv[2004]:     raise VultrError(r.status_code, r.text)
+2026-11-18T03:49:26+00:00 bd-cp uv[2004]: contracts.vultr.VultrError: Vultr API 400: {"error":"Cannot take snapshot while server is locked","status":400}
+2026-11-18T03:49:26+00:00 bd-cp uv[2004]: INFO:     127.0.0.1:40770 - "POST /cases HTTP/1.1" 201 Created

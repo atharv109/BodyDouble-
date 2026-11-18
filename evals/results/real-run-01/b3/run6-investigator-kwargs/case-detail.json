@@ -1,0 +1,43 @@
+{
+  "case": {
+    "id": "case-0001",
+    "instance_id": "50b099ab-fa1e-4865-a538-791b8bf88764",
+    "instance_label": "bd-shop-prod",
+    "reason": "Gate 2 B3: real case end-to-end",
+    "state": "failed",
+    "snapshot_id": "c83b945f-5768-4a56-a69a-2e0a2b977648",
+    "twin_instance_id": "46e6d883-1e2c-4860-b4de-52518ca0ff37",
+    "vpc_id": "ab6a9e85-029b-4798-8a08-6c365d424508",
+    "firewall_group_id": "c5227a57-ab86-4afd-8192-4cd54c59bacc",
+    "alert_id": null,
+    "created_at": "2026-11-18T05:17:31.156239",
+    "closed_at": null
+  },
+  "steps": [],
+  "evidence": [
+    {
+      "id": "case-0001-ev-001",
+      "case_id": "case-0001",
+      "step_id": null,
+      "path": "snapshot:c83b945f-5768-4a56-a69a-2e0a2b977648",
+      "sha256": "452e3036c93fbf9a82b67ec52990797a29661e256d167efa79ac42c8feb8af67",
+      "excerpt": "Vultr snapshot c83b945f-5768-4a56-a69a-2e0a2b977648 of 50b099ab-fa1e-4865-a538-791b8bf88764 at 2026-11-18T05:26:05.515037Z",
+      "injection_flag": false
+    }
+  ],
+  "findings": [],
+  "actions": [],
+  "seal": {
+    "disk_read_only": true,
+    "egress_blocked": true,
+    "detail": {
+      "disk_read_only": "/dev/vda2 on /mnt/disk: ro,nosuid,nodev,noexec,relatime",
+      "egress_blocked": "tcp 1.1.1.1:53 failed: TimeoutError: timed out; tcp 8.8.8.8:53 failed: TimeoutError: timed out; tcp 1.1.1.1:443 failed: TimeoutError: timed out; tcp 9.9.9.9:80 failed: TimeoutError: timed out; tcp 208.67.222.222:443 failed: TimeoutError: timed out"
+    }
+  },
+  "blast_radius": {
+    "prod_writes_before_approval": 0,
+    "packets_out": 0,
+    "containers_left": 0
+  }
+}

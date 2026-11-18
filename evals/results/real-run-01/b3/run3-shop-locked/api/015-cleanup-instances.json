@@ -1,0 +1,11 @@
+{
+  "at": "2026-11-18T03:51:44Z",
+  "method": "DELETE",
+  "path": "/v2/instances/c4e804fe-8bc9-4a71-aac0-110751ee2993",
+  "request": null,
+  "status": 409,
+  "response": {
+    "error": "Server is currently locked",
+    "status": 409
+  }
+}

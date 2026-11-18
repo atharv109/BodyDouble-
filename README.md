@@ -46,7 +46,7 @@ Guardrails enforce step and detonation budgets, time and resource limits, eviden
 
 ## Security model
 
-- The attacker's operating system never boots: the preferred create call supplies both snapshot and ISO; the fallback creates ISO-first and restores the snapshot while the ISO remains attached.
+- The attacker's operating system does run, briefly. On real Vultr the restored clone boots its own OS once before the forensics ISO: about 39 s in Gate 1 run 13, about 61 s in Gate 2 W1, with its public IPv4 and open outbound internet. Gate 2 W1 measured HTTPS, HTTP, DNS and ICMP egress from the clone's public IP at 23-39 s uptime, before the ESP swap (`evals/results/real-run-01/preswap-egress/probe.txt`). No Vultr API option removes that window (`evals/results/real-run-01/preswap-isolation/findings.md`). The 5/5 egress-blocked measurement applies to the sealed ISO boot only.
 - The copied disk is mounted read-only and untrusted execution is isolated in no-network gVisor containers.
 - The twin has default-drop internet egress and communicates over its case VPC only.
 - Registration uses a one-time token delivered through instance metadata. Twin endpoints require a short-lived session and a source address inside the case VPC.

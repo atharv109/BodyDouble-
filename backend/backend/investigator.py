@@ -49,7 +49,9 @@ class ScriptedInvestigator:
                 job_id=f"{case.id}-job-{seq:03d}", case_id=case.id,
                 tool=tool, args=args,
             ))
-            step.stdout, step.stderr = stdout, result.stderr
+            # the twin's real output, not the recorded fixture text: the bundle
+            # must reproduce what actually ran (Gate 2 B3)
+            step.stdout, step.stderr = result.stdout, result.stderr
             step.exit_code, step.duration_ms = result.exit_code, 800 + 137 * seq
             await recorder.step_finished(step)
 

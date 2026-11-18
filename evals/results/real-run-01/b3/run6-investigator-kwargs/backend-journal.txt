@@ -1,0 +1,27 @@
+2026-11-18T05:14:00+00:00 bd-cp systemd[1]: Started bd-backend.service - /usr/local/bin/uv run --no-dev uvicorn backend.app:app --host 0.0.0.0 --port 8000.
+2026-11-18T05:14:06+00:00 bd-cp uv[2011]: INFO:     Started server process [2011]
+2026-11-18T05:14:06+00:00 bd-cp uv[2011]: INFO:     Waiting for application startup.
+2026-11-18T05:14:06+00:00 bd-cp uv[2011]: INFO:     Application startup complete.
+2026-11-18T05:14:06+00:00 bd-cp uv[2011]: INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+2026-11-18T05:14:07+00:00 bd-cp uv[2011]: INFO:     127.0.0.1:59752 - "GET /healthz HTTP/1.1" 200 OK
+2026-11-18T05:14:12+00:00 bd-cp uv[2011]: INFO:     127.0.0.1:59760 - "GET /healthz HTTP/1.1" 200 OK
+2026-11-18T05:17:30+00:00 bd-cp uv[2011]: INFO:     127.0.0.1:49634 - "POST /auth/session HTTP/1.1" 200 OK
+2026-11-18T05:26:07+00:00 bd-cp uv[2011]: twin 46e6d883-1e2c-4860-b4de-52518ca0ff37 not ready for snapshot restore; polling
+2026-11-18T05:30:46+00:00 bd-cp uv[2011]: INFO:     127.0.0.1:57990 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:31:17+00:00 bd-cp uv[2011]: INFO:     127.0.0.1:60180 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:31:47+00:00 bd-cp uv[2011]: INFO:     127.0.0.1:36968 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:31:53+00:00 bd-cp uv[2011]: unexpected error in case case-0001
+2026-11-18T05:31:53+00:00 bd-cp uv[2011]: Traceback (most recent call last):
+2026-11-18T05:31:53+00:00 bd-cp uv[2011]:   File "/srv/bd/backend/backend/service.py", line 289, in run_case
+2026-11-18T05:31:53+00:00 bd-cp uv[2011]:     await self._investigation_phase(self.row(case_id), propose_actions,
+2026-11-18T05:31:53+00:00 bd-cp uv[2011]:   File "/srv/bd/backend/backend/service.py", line 478, in _investigation_phase
+2026-11-18T05:31:53+00:00 bd-cp uv[2011]:     investigator = (build_real_investigator(self.settings)
+2026-11-18T05:31:53+00:00 bd-cp uv[2011]:                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-18T05:31:53+00:00 bd-cp uv[2011]:   File "/srv/bd/backend/backend/service.py", line 96, in build_real_investigator
+2026-11-18T05:31:53+00:00 bd-cp uv[2011]:     return InvestigatorImpl(planner=planner, solver=solver)
+2026-11-18T05:31:53+00:00 bd-cp uv[2011]:            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2026-11-18T05:31:53+00:00 bd-cp uv[2011]: TypeError: InvestigatorImpl.__init__() got an unexpected keyword argument 'planner'
+2026-11-18T05:31:53+00:00 bd-cp uv[2011]: INFO:     10.1.96.4:52996 - "POST /twin/register HTTP/1.1" 200 OK
+2026-11-18T05:31:55+00:00 bd-cp uv[2011]: INFO:     127.0.0.1:49634 - "POST /cases HTTP/1.1" 201 Created
+2026-11-18T05:32:17+00:00 bd-cp uv[2011]: INFO:     127.0.0.1:47918 - "GET /cases/case-0001 HTTP/1.1" 200 OK
+2026-11-18T05:32:17+00:00 bd-cp uv[2011]: INFO:     127.0.0.1:47934 - "GET /cases/case-0001 HTTP/1.1" 200 OK

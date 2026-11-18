@@ -1,0 +1,10 @@
+Traceback (most recent call last):
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_b3.py", line 354, in <module>
+    sys.exit(main())
+             ~~~~^^
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_b3.py", line 238, in main
+    wait_allowlist(cp_ip, rip, key)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_b3.py", line 97, in wait_allowlist
+    raise RuntimeError("bd-cp's reserved IP never became allowlisted (30 min)")
+RuntimeError: bd-cp's reserved IP never became allowlisted (30 min)

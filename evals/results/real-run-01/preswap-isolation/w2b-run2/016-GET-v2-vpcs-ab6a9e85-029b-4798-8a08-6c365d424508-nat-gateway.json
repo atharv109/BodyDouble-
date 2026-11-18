@@ -1,0 +1,39 @@
+{
+  "at": "2026-11-17T22:03:05Z",
+  "method": "GET",
+  "path": "/v2/vpcs/ab6a9e85-029b-4798-8a08-6c365d424508/nat-gateway",
+  "request": null,
+  "status": 200,
+  "response": {
+    "meta": {
+      "total": 1,
+      "links": {
+        "next": "",
+        "prev": ""
+      }
+    },
+    "nat_gateways": [
+      {
+        "id": "f004be28-0695-4a44-8989-c79ff4eb3362",
+        "vpc_id": "ab6a9e85-029b-4798-8a08-6c365d424508",
+        "date_created": "2026-11-17 17:00:14",
+        "status": "pending",
+        "label": "bd-natgw",
+        "tag": "",
+        "public_ips": [
+          "45.63.22.247"
+        ],
+        "public_ips_v6": [
+          "2001:19f0:4000:4dfa:5400:07ff:fe0f:9f5d"
+        ],
+        "private_ips": [
+          "10.1.96.1"
+        ],
+        "billing": {
+          "charges": 0,
+          "monthly": 20
+        }
+      }
+    ]
+  }
+}

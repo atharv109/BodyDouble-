@@ -1,0 +1,88 @@
+$ wait for clone sshd: rc=0 after 2s
+Linux vultr 6.8.0-147-generic #147-Ubuntu SMP PREEMPT_DYNAMIC Thu Sep 24 11:33:16 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+ 04:10:08 up 1 min,  1 user,  load average: 0.75, 0.30, 0.10
+
+one-shot EFI: bd-oneshot-x64.efi sha256 df1d450828e4cbccdd832afd9fe679417d9f5373efb55be1d0f6536ce9d82daf
+
+$ lsblk -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINT; ls -d /sys/firmware/efi
+rc=0
+NAME    SIZE TYPE FSTYPE  MOUNTPOINT
+sr0     376M rom  iso9660 
+vda      55G disk         
+├─vda1  512M part vfat    /boot/efi
+└─vda2 54.5G part ext4    /
+/sys/firmware/efi
+
+$ for i in $(seq 36); do sudo blkid /dev/sr0 | grep -q 'LABEL="BDFORENSICS"' && break; sleep 5; done; lsblk -o NAME,SIZE /dev/sr0; sudo blkid /dev/sr0 | grep BDFORENSICS
+rc=0
+NAME  SIZE
+sr0   376M
+/dev/sr0: BLOCK_SIZE="2048" UUID="2026-11-16-23-57-07-00" LABEL="BDFORENSICS" TYPE="iso9660" PTUUID="48e2b7b3" PTTYPE="dos"
+
+$ sudo efibootmgr -v 2>&1 || true; sudo find /boot/efi -type f -iname '*.efi' -ls
+rc=0
+BootCurrent: 0002
+Timeout: 0 seconds
+BootOrder: 0009,0001,0002,0003,0004,0005,0006,0007,0000,0008
+Boot0000* UiApp	FvVol(7cb8bdc9-f8eb-4f34-aaea-3ee4af6516a1)/FvFile(462caa21-7614-4503-836e-8ab6f4662331)
+      dp: 04 07 14 00 c9 bd b8 7c eb f8 34 4f aa ea 3e e4 af 65 16 a1 / 04 06 14 00 21 aa 2c 46 14 76 03 45 83 6e 8a b6 f4 66 23 31 / 7f ff 04 00
+Boot0001* UEFI QEMU DVD-ROM QM00005 	PciRoot(0x0)/Pci(0x1f,0x2)/Sata(2,65535,0){auto_created_boot_option}
+      dp: 02 01 0c 00 d0 41 03 0a 00 00 00 00 / 01 01 06 00 02 1f / 03 12 0a 00 02 00 ff ff 00 00 / 7f ff 04 00
+    data: 4e ac 08 81 11 9f 59 4d 85 0e e2 1a 52 2c 59 b2
+Boot0002* UEFI Misc Device	PciRoot(0x0)/Pci(0x2,0x3)/Pci(0x0,0x0){auto_created_boot_option}
+      dp: 02 01 0c 00 d0 41 03 0a 00 00 00 00 / 01 01 06 00 03 02 / 01 01 06 00 00 00 / 7f ff 04 00
+    data: 4e ac 08 81 11 9f 59 4d 85 0e e2 1a 52 2c 59 b2
+Boot0003* UEFI PXEv4 (MAC:5600070FD6F8)	PciRoot(0x0)/Pci(0x2,0x0)/Pci(0x0,0x0)/MAC(5600070fd6f8,1){auto_created_boot_option}
+      dp: 02 01 0c 00 d0 41 03 0a 00 00 00 00 / 01 01 06 00 00 02 / 01 01 06 00 00 00 / 03 0b 25 00 56 00 07 0f d6 f8 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 / 7f ff 04 00
+    data: 4e ac 08 81 11 9f 59 4d 85 0e e2 1a 52 2c 59 b2
+Boot0004* UEFI PXEv4 (MAC:5600070FD6F8) 2	PciRoot(0x0)/Pci(0x2,0x0)/Pci(0x0,0x0)/MAC(5600070fd6f8,1)/IPv4(0.0.0.00.0.0.0,0,0){auto_created_boot_option}
+      dp: 02 01 0c 00 d0 41 03 0a 00 00 00 00 / 01 01 06 00 00 02 / 01 01 06 00 00 00 / 03 0b 25 00 56 00 07 0f d6 f8 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 / 03 0c 1b 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 / 7f ff 04 00
+    data: 4e ac 08 81 11 9f 59 4d 85 0e e2 1a 52 2c 59 b2
+Boot0005* UEFI PXEv6 (MAC:5600070FD6F8)	PciRoot(0x0)/Pci(0x2,0x0)/Pci(0x0,0x0)/MAC(5600070fd6f8,1)/IPv6([::]:<->[::]:,0,0){auto_created_boot_option}
+      dp: 02 01 0c 00 d0 41 03 0a 00 00 00 00 / 01 01 06 00 00 02 / 01 01 06 00 00 00 / 03 0b 25 00 56 00 07 0f d6 f8 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 / 03 0d 3c 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 40 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 / 7f ff 04 00
+    data: 4e ac 08 81 11 9f 59 4d 85 0e e2 1a 52 2c 59 b2
+Boot0006* UEFI HTTPv4 (MAC:5600070FD6F8)	PciRoot(0x0)/Pci(0x2,0x0)/Pci(0x0,0x0)/MAC(5600070fd6f8,1)/IPv4(0.0.0.00.0.0.0,0,0)/Uri(){auto_created_boot_option}
+      dp: 02 01 0c 00 d0 41 03 0a 00 00 00 00 / 01 01 06 00 00 02 / 01 01 06 00 00 00 / 03 0b 25 00 56 00 07 0f d6 f8 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 / 03 0c 1b 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 / 03 18 04 00 / 7f ff 04 00
+    data: 4e ac 08 81 11 9f 59 4d 85 0e e2 1a 52 2c 59 b2
+Boot0007* UEFI HTTPv6 (MAC:5600070FD6F8)	PciRoot(0x0)/Pci(0x2,0x0)/Pci(0x0,0x0)/MAC(5600070fd6f8,1)/IPv6([::]:<->[::]:,0,0)/Uri(){auto_created_boot_option}
+      dp: 02 01 0c 00 d0 41 03 0a 00 00 00 00 / 01 01 06 00 00 02 / 01 01 06 00 00 00 / 03 0b 25 00 56 00 07 0f d6 f8 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 01 / 03 0d 3c 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 40 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 / 03 18 04 00 / 7f ff 04 00
+    data: 4e ac 08 81 11 9f 59 4d 85 0e e2 1a 52 2c 59 b2
+Boot0008* EFI Internal Shell	FvVol(7cb8bdc9-f8eb-4f34-aaea-3ee4af6516a1)/FvFile(7c04a583-9e3e-4f1c-ad65-e05268d0b4d1)
+      dp: 04 07 14 00 c9 bd b8 7c eb f8 34 4f aa ea 3e e4 af 65 16 a1 / 04 06 14 00 83 a5 04 7c 3e 9e 1c 4f ad 65 e0 52 68 d0 b4 d1 / 7f ff 04 00
+Boot0009* Ubuntu	HD(1,GPT,e9cb6b76-0216-4cb3-ae30-d388768683ad,0x800,0x100000)/File(\EFI\ubuntu\shimx64.efi)
+      dp: 04 01 2a 00 01 00 00 00 00 08 00 00 00 00 00 00 00 00 10 00 00 00 00 00 76 6b cb e9 16 02 b3 4c ae 30 d3 88 76 86 83 ad 02 02 / 04 04 34 00 5c 00 45 00 46 00 49 00 5c 00 75 00 62 00 75 00 6e 00 74 00 75 00 5c 00 73 00 68 00 69 00 6d 00 78 00 36 00 34 00 2e 00 65 00 66 00 69 00 00 00 / 7f ff 04 00
+       13   2600 -rwxr-xr-x   1 root     root      2660232 Nov  3 07:59 /boot/efi/EFI/ubuntu/grubx64.efi
+       14    948 -rwxr-xr-x   1 root     root       966664 Nov  3 07:59 /boot/efi/EFI/ubuntu/shimx64.efi
+       15    840 -rwxr-xr-x   1 root     root       856280 Nov  3 07:59 /boot/efi/EFI/ubuntu/mmx64.efi
+       20    948 -rwxr-xr-x   1 root     root       966664 Nov  3 07:59 /boot/efi/EFI/BOOT/BOOTX64.EFI
+       21     88 -rwxr-xr-x   1 root     root        88344 Nov  3 07:59 /boot/efi/EFI/BOOT/fbx64.efi
+       22    840 -rwxr-xr-x   1 root     root       856280 Nov  3 07:59 /boot/efi/EFI/BOOT/mmx64.efi
+
+$ cat > /tmp/bd.efi && sha256sum /tmp/bd.efi
+rc=0
+df1d450828e4cbccdd832afd9fe679417d9f5373efb55be1d0f6536ce9d82daf  /tmp/bd.efi
+
+$ sudo mkdir -p /boot/efi/bd && sudo tee /boot/efi/bd/vmlinuz-lts >/dev/null && sudo sha256sum /boot/efi/bd/vmlinuz-lts
+rc=0
+ba69e102b48124440a73ed4097fe187536609a53fc0d5165d1683cc5b194b4e0  /boot/efi/bd/vmlinuz-lts
+
+$ sudo mkdir -p /boot/efi/bd && sudo tee /boot/efi/bd/initramfs-bd >/dev/null && sudo sha256sum /boot/efi/bd/initramfs-bd
+rc=0
+cfd2b9b3047f325f28f0bf890abedf747be5280e8d79112d24719c43c8d90ab5  /boot/efi/bd/initramfs-bd
+
+$ sudo mkdir -p /boot/efi/EFI/BOOT; [ -f /boot/efi/EFI/BOOT/BOOTX64.EFI ] || sudo cp /tmp/bd.efi /boot/efi/EFI/BOOT/BOOTX64.EFI; if [ -f /boot/efi/EFI/BOOT/BOOTX64.EFI ]; then sudo cp -n /boot/efi/EFI/B
+rc=0
+8f57751703470403ff7377c26a90a810eba9f6db36f262ac6ad94d132ddc5a60  /boot/efi/EFI/BOOT/fbx64.efi
+d2fa8e52fddc99dad94a0009fee23cb2478c28373b777d50b2f784eb4e96f88e  /boot/efi/EFI/BOOT/mmx64.efi
+df1d450828e4cbccdd832afd9fe679417d9f5373efb55be1d0f6536ce9d82daf  /boot/efi/EFI/ubuntu/grubx64.efi
+d2fa8e52fddc99dad94a0009fee23cb2478c28373b777d50b2f784eb4e96f88e  /boot/efi/EFI/ubuntu/mmx64.efi
+df1d450828e4cbccdd832afd9fe679417d9f5373efb55be1d0f6536ce9d82daf  /boot/efi/EFI/ubuntu/shimx64.efi
+cp: warning: behavior of -n is non-portable and may change in future; use --update=none instead
+cp: warning: behavior of -n is non-portable and may change in future; use --update=none instead
+cp: warning: behavior of -n is non-portable and may change in future; use --update=none instead
+
+$ reboot in 2 s
+rc=0
+Running timer as unit: run-r26ba2675c5334f98bb4ba1e04b2220f9.timer
+Will run service as unit: run-r26ba2675c5334f98bb4ba1e04b2220f9.service
+

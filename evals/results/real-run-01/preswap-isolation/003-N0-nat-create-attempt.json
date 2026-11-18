@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-17T08:09:46Z",
+  "method": "POST",
+  "path": "/v2/nat-gateways",
+  "request": {
+    "region": "ewr",
+    "vpc_id": "ab6a9e85-029b-4798-8a08-6c365d424508",
+    "label": "bd-natgw"
+  },
+  "status": 404,
+  "response": {
+    "error": "Not found.",
+    "status": 404
+  }
+}

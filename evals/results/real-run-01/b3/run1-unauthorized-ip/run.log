@@ -1,0 +1,9 @@
+21:17:37 reserved IP b062913e-dfe9-4c6e-bca3-017c458bd9be = 207.246.91.37
+21:19:13 bd-cp 4c594b5c-100b-4885-9344-4f65a8e53af2 public 207.246.91.37 (reserved: True), VPC 10.1.96.3
+21:19:16 allowlist check from bd-cp 207.246.91.37: HTTP 200
+21:19:17 backend code uploaded: git archive 211856e3267346c538a0a2c76a5c59f750d4e808
+21:19:24 uv sync on bd-cp: synced
+21:19:33 backend up on bd-cp :8000
+21:19:38 healthz via tunnel: {'ok': True, 'vultr': 'real'}
+21:19:39 POST /cases for shop-prod 83f82c53-591e-4e7d-a06f-4d5700d257e7 (runs the whole pipeline)
+21:49:58 cleanup done; findings.json + sweep-dry-run.txt written

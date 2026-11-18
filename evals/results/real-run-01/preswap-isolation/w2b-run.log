@@ -1,0 +1,8 @@
+03:06:45 N0: POST /v2/nat-gateways -> 404: {"error": "Not found.", "status": 404}
+03:06:45 N1: POST /v2/nat-gateways -> 404: {"error": "Not found.", "status": 404}
+03:06:46 N2: POST /v2/vpcs/ab6a9e85-029b-4798-8a08-6c365d424508/nat-gateway -> 201: {"nat_gateway": {"id": "62f6fe13-3bf8-4a4c-b54e-61e9aeee038a", "vpc_id": "ab6a9e85-029b-4798-8a08-6c365d424508", "date_created": "2026-11-17 03:06:46", "status": "pending", "label": "bd-natgw", "tag":
+03:07:02 W2b probes cleaned up
+03:09:46 N0: POST /v2/nat-gateways -> 404: {"error": "Not found.", "status": 404}
+03:09:46 N1: POST /v2/nat-gateways -> 404: {"error": "Not found.", "status": 404}
+03:09:46 N2: POST /v2/vpcs/ab6a9e85-029b-4798-8a08-6c365d424508/nat-gateway -> 422: {"is_external_error": false, "error": "NAT Gateway already exists for this VPC network", "status": 422}
+03:09:46 W2b probes cleaned up

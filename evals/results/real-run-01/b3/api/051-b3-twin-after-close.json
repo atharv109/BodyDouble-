@@ -1,0 +1,11 @@
+{
+  "at": "2026-11-18T05:59:17Z",
+  "method": "GET",
+  "path": "/v2/instances/a65420d5-7fe1-447f-a328-9cbcc42d018f",
+  "request": null,
+  "status": 404,
+  "response": {
+    "error": "instance not found",
+    "status": 404
+  }
+}

@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_b3.py", line 348, in <module>
+    capture_output=True, text=True, timeout=600)
+    
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_b3.py", line 266, in main
+    t_case = time.monotonic()
+           ^^^^^^^^^^^^^^^^^^
+  File "C:\Users\athar\OneDrive\Desktop\wt-backend\scripts\real_run_01_b3.py", line 151, in find_twin
+    for i in api.list_all("/v2/instances", "instances"):
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: no bd-twin-* instance appeared

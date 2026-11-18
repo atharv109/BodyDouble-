@@ -47,7 +47,13 @@ class AppState:
 
 
 def make_vultr_client(settings: Settings) -> VultrClient:
-    if settings.vultr_api_key:
+    """B1: RealVultr only behind the explicit switch — BD_REAL_MODE=1 AND
+    VULTR_API_KEY. BD_REAL_MODE without a key is refused (no half-configured
+    real mode); without BD_REAL_MODE, FakeVultr keeps the previous behavior
+    even if a key happens to be exported."""
+    if settings.bd_real_mode and not settings.vultr_api_key:
+        raise RuntimeError("BD_REAL_MODE=1 requires VULTR_API_KEY (no half-configured real mode)")
+    if settings.real_mode:
         return RealVultr(api_key=settings.vultr_api_key)
     return FakeVultr()
 

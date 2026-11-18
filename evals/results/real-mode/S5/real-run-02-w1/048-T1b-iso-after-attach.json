@@ -1,0 +1,14 @@
+{
+  "at": "2026-11-17T22:14:15Z",
+  "method": "GET",
+  "path": "/v2/instances/4320eb6e-f960-4ed3-a6ee-b122b581b3e2/iso",
+  "request": null,
+  "status": 200,
+  "response": {
+    "iso_status": {
+      "state": "isomounting",
+      "iso_id": "",
+      "iso_name": ""
+    }
+  }
+}

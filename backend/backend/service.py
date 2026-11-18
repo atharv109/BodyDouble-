@@ -75,6 +75,14 @@ log = logging.getLogger("backend")
 _INSTANCE_ID = re.compile(r"^[A-Za-z0-9-]{1,64}$")
 
 
+def new_reg_token() -> str:
+    """One-time twin registration token. It travels in user_data to the forensics
+    ISO, whose validator accepts only [A-Za-z0-9-] (bd_forensics.metadata.SAFE_ID):
+    hex, never token_urlsafe, whose '_' made ~40% of sealed boots reject the whole
+    envelope and never register (Gate 2 B3, real run 5)."""
+    return "twreg-" + secrets.token_hex(24)
+
+
 def build_real_investigator(settings):
     """Construct the production two-model investigator without exposing its key."""
     from bd_forensics.investigator import InvestigatorImpl
@@ -84,8 +92,8 @@ def build_real_investigator(settings):
                           model=settings.model_planner)
     solver = OpenAIModel(api_key=settings.inference_key,
                          model=settings.model_solver)
-    # forensics is landing this parallel-model interface separately.
-    return InvestigatorImpl(planner=planner, solver=solver)
+    # forensics' landed signature (1099e70): InvestigatorImpl(planner_model, solver_model)
+    return InvestigatorImpl(planner_model=planner, solver_model=solver)
 
 
 class CaseNotFound(LookupError):
@@ -336,7 +344,7 @@ class CaseService:
             "warm": True,
         })
         self._move(row, CaseState.restoring, "adopting pre-restored warm twin")
-        token = "twreg-" + secrets.token_urlsafe(24)
+        token = new_reg_token()
         row.reg_token = token
         self._touch(row)
         self.channel.prepare_registration(row.id, token)
@@ -538,7 +546,7 @@ class CaseService:
         fw = await self.vultr.create_firewall_group(f"bd twin {row.id} inbound deny")
         row.firewall_group_id = fw.id
         self._touch(row)
-        token = "twreg-" + secrets.token_urlsafe(24)
+        token = new_reg_token()
         user_data = base64.b64encode(json.dumps({
             "case_id": row.id, "token": token,
             "control_plane": self.settings.control_url,
@@ -571,6 +579,7 @@ class CaseService:
             # Vultr the instance may already be booting in this window — see
             # the day-one T1 decision (halt/attach/boot needs a contracts call).
             await self._restore_snapshot_when_ready(twin.id, row.snapshot_id)
+            token = await self._after_restore_reinsert(row, twin, vpc_subnet, token, user_data)
         self.log.append(row.id, "twin_created", {
             "twin_instance_id": twin.id, "vpc_id": vpc_id, "firewall_group_id": fw.id,
             "iso_id": self.settings.iso_id, "iso_attached_in_create": True,
@@ -583,7 +592,7 @@ class CaseService:
         self.channel.prepare_registration(row.id, token)
         if self.state.is_fake and self.settings.spawn_fake_twin:
             self.state.fake_twin_tasks[row.id] = asyncio.create_task(
-                fake_twin_loop(self.state, row.id, token, vpc_ip))
+                fake_twin_loop(self.state, row.id, token, row.twin_internal_ip))
         deadline = utcnow() + timedelta(seconds=self.settings.boot_timeout_s)
         while True:
             twin = await self.vultr.get_instance(twin.id)
@@ -640,6 +649,74 @@ class CaseService:
                         f"twin {twin_id} never became ready for snapshot restore"
                     )
                 await asyncio.sleep(self.settings.poll_interval_s)
+            await asyncio.sleep(self.settings.poll_interval_s)
+
+    async def _retry_transient(self, what: str, call, attempts: int = 6,
+                               delay_s: float = 20.0):
+        """Retry a Vultr call past its transient 4xx/5xx (subscription state,
+        ISO attach racing the physical detach). Raises CaseFailure at the end."""
+        last: Exception | None = None
+        for attempt in range(attempts):
+            try:
+                return await call()
+            except VultrError as error:
+                last = error
+                log.warning("%s attempt %s failed (%s %s); retrying in %ss",
+                            what, attempt, error.status_code,
+                            str(error.body)[:120], delay_s)
+                await asyncio.sleep(delay_s)
+        raise CaseFailure(f"{what} failed after {attempts} attempts: {last}")
+
+    async def _after_restore_reinsert(self, row, twin, vpc_subnet: str,
+                                      token: str, user_data: str) -> str:
+        """Run-13 T1b's post-restore steps (docs/real-mode-findings.md). The
+        restore call returns before the copy finishes, so first wait until the
+        instance is really active again. Then re-patch user_data — the restore
+        reverts it to the snapshot's cloud-init, which would leave the next ISO
+        boot with a stale registration token — and re-insert the ISO: the
+        restore empties the CD drive while the API still reports isomounted, so
+        the ISO boot finds no media (runs 8-12 failed without detach + attach).
+
+        Real mode re-seals the envelope: a FRESH one-time token (the blank-disk
+        boot of the restore window must not be able to consume ours — on real
+        Vultr it cannot register at all, since the twin's VPC IP is assigned by
+        Vultr and the envelope's chosen claim differs from the source, but a
+        coincidental match would consume) and the API-assigned VPC IP
+        (create-time internal_ip == GET /v2/instances/{id}/vpcs; W2-A evidence).
+        Returns the token the sealed boot will use."""
+        await self._wait_restore_settled(twin.id)
+        if self.settings.real_mode:
+            token = new_reg_token()
+            vpc_ip = twin.internal_ip
+            payload = json.dumps({"case_id": row.id, "token": token,
+                                  "control_plane": self.settings.control_url,
+                                  "vpc_subnet": vpc_subnet, "vpc_ip": vpc_ip},
+                                 separators=(",", ":"))
+            user_data = base64.b64encode(payload.encode()).decode()
+            # on `row` itself: the caller's later _touch(row) merges the whole
+            # row and would overwrite a separate-session write
+            row.reg_token = token
+            row.twin_internal_ip = vpc_ip
+            self._touch(row)
+        await self.vultr.update_user_data(twin.id, user_data)
+        await self._retry_transient("iso detach", lambda: self.vultr.detach_iso(twin.id))
+        await self._retry_transient("iso re-attach",
+                                    lambda: self.vultr.attach_iso(twin.id, self.settings.iso_id))
+        return token
+
+    async def _wait_restore_settled(self, twin_id: str) -> None:
+        """The restore API returns before the copy finishes: active +
+        server_status ok, settled (the run-13 driver used a >60 s window)."""
+        t_restored = utcnow()
+        deadline = t_restored + timedelta(seconds=self.settings.boot_timeout_s)
+        while True:
+            twin = await self.vultr.get_instance(twin_id)
+            settled = (not self.settings.real_mode
+                       or (utcnow() - t_restored) > timedelta(seconds=75))
+            if twin.status == "active" and twin.server_status == "ok" and settled:
+                break
+            if utcnow() > deadline:
+                raise CaseFailure(f"twin {twin_id} restore never completed")
             await asyncio.sleep(self.settings.poll_interval_s)
 
     # ------------------------------------------------------------- F9: actions

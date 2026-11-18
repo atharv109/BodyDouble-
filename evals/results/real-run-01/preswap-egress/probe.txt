@@ -1,0 +1,72 @@
+W1 pre-swap egress probes - from the restored clone (the clone's own OS, unsealed, public interface) BEFORE the ESP swap.
+clone sshd rc=0; probe ssh rc=0; window +43s
+
+$ clone uname / boot time (uptime -s) / /proc/uptime / ifaces
+Linux vultr 6.8.0-147-generic #147-Ubuntu SMP PREEMPT_DYNAMIC Thu Sep 24 11:33:16 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux
+2026-11-17 22:14:29
+21.69 4.15
+lo               UNKNOWN        127.0.0.1/8 
+enp1s0           UP             66.135.8.66/23 metric 100 
+enp8s0           UP             10.1.96.4/20 
+
+$ probes
+== preswap egress probes: start 2026-11-17T22:14:52.809673939Z ==
+iface:
+lo               UNKNOWN        127.0.0.1/8 
+enp1s0           UP             66.135.8.66/23 metric 100 
+enp8s0           UP             10.1.96.4/20 
+2026-11-17T22:14:52.827291660Z START listener fg1 up=23.19
+ http=000
+2026-11-17T22:14:57.937734258Z END listener fg1 rc=0
+2026-11-17T22:14:57.939310686Z START listener fg2 up=28.30
+ http=000
+2026-11-17T22:15:02.955843958Z END listener fg2 rc=0
+2026-11-17T22:15:02.957823983Z START listener fg3 up=33.32
+ http=000
+2026-11-17T22:15:07.974343396Z END listener fg3 rc=0
+2026-11-17T22:15:07.976007923Z START https443
+66.135.8.66
+RC https443 http=200 t=0.091504s
+2026-11-17T22:15:08.081773147Z END https443 rc=0
+2026-11-17T22:15:08.083247479Z START http80
+66.135.8.66
+
+RC http80 http=200 t=0.040991s
+2026-11-17T22:15:08.136787107Z END http80 rc=0
+2026-11-17T22:15:08.138346259Z START dns53
+2606:4700:10::ac42:93f3 example.com
+2606:4700:10::6814:179a example.com
+2026-11-17T22:15:08.142120163Z END dns53 rc=0
+2026-11-17T22:15:08.143721997Z START icmp
+1 packets transmitted, 1 received, 0% packet loss, time 0ms
+rtt min/avg/max/mdev = 0.745/0.745/0.745/0.000 ms
+2026-11-17T22:15:08.150299739Z END icmp rc=0
+== preswap egress probes: end 2026-11-17T22:15:08.151797940Z ==
+curl: (28) Connection timed out after 5002 milliseconds
+curl: (28) Connection timed out after 5002 milliseconds
+curl: (28) Connection timed out after 5001 milliseconds
+
+$ background listener loop (until the swap reboot): rc=0
+Running as unit: bd-w1-loop.service; invocation ID: 6083d432391545a68e7b2b8a71dfb174
+
+
+$ listener-side capture (listener.jsonl, operator machine, outside Vultr): 1 probes
+driver: swap reboot command sent at 2026-11-17T22:15:28Z (UTC)
+2026-11-17T22:01:07.082616+00:00  from 127.0.0.1:60000  /w1/45e2d3f52845e236/local-selftest
+
+VERDICT (W1, live, real-run-02-w1, twin 4320eb6e). The pre-swap window is NOT
+egress-isolated. The restored clone's own Ubuntu booted at 22:14:29 UTC (uptime -s
+above). At uptime 23-39 s (22:14:52-22:15:08 UTC), before the ESP swap, it had full
+outbound internet from its public IPv4 66.135.8.66: HTTPS 443 to api.ipify.org
+answered 200 and echoed 66.135.8.66, HTTP 80 to ip-api.com answered 200 and echoed
+the same address, DNS resolved example.com, and ICMP to 8.8.8.8 got 1/1 replies. The
+driver sent the swap's reboot at 22:15:28 UTC, so the clone ran unsealed with open
+egress for about 61 s (about 20 s of that was these probes; run 13 without probes was
+about 39 s). Only after that reboot does the sealed ISO boot run, where Gate 1
+measured 5/5 egress blocked (this run: registered sealed, 3/3 jobs,
+real-mode/S5/real-run-02-w1/findings.json). The operator-machine listener received
+nothing: it was not reachable from inside Vultr at all (bd-cp self-test curl rc=28,
+findings.json w1_listener_reachable_from_vultr=false), so the fg1-3 timeouts reflect
+the operator side's inbound path, not a block on the clone. (Their printed rc=0 is
+a reporting bug, since fixed: $(date) reset $? before echo; curl's own stderr shows
+exit 28.) W2 (preswap-isolation/findings.md) found no API way to remove this window.

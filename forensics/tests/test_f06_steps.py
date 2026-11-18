@@ -15,7 +15,7 @@ from contracts.models import StepKind, ToolCall, ToolName
 
 from bd_forensics.indicators import INDICATORS, C2_DOMAIN
 from bd_forensics.injection import wrap_excerpt
-from bd_forensics.investigator import InvestigatorImpl
+from bd_forensics.investigator import REQUIRED_TRIAGE, InvestigatorImpl
 from bd_forensics.tools import build_code, execute, valid_args
 
 from conftest import (
@@ -121,16 +121,22 @@ async def test_invalid_and_unsafe_proposals_never_run(case, recorder) -> None:
     )
     counting = CountingRunner()
     await InvestigatorImpl(model).investigate(case, counting, recorder)
-    assert len(counting.calls) == 1
-    assert counting.calls[0].tool is ToolName.extract
-    assert counting.calls[0].args["path"] == "/etc/passwd"
+    # only the one safe planner proposal ran; the rest is code-chosen required triage
+    # (security review: a planner 'done' is honoured only after it)
+    planned = [c for c in counting.calls if c.tool not in REQUIRED_TRIAGE]
+    assert len(planned) == 1
+    assert planned[0].tool is ToolName.extract
+    assert planned[0].args["path"] == "/etc/passwd"
+    assert [c.tool for c in counting.calls[1:]] == list(REQUIRED_TRIAGE)
 
 
 async def test_run_aborts_after_consecutive_bad_proposals(case, recorder) -> None:
     model = StubModel(["not json at all"] * 10)
     counting = CountingRunner()
     await InvestigatorImpl(model).investigate(case, counting, recorder)
-    assert counting.calls == []
+    # no planner proposal ever ran; garbage replies still cannot end the case with no
+    # evidence: code runs the deterministic triage (security review)
+    assert [c.tool for c in counting.calls] == list(REQUIRED_TRIAGE)
     assert len(model.calls) == 5
 
 

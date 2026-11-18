@@ -1,0 +1,13 @@
+17:11:13 +0s power=stopped server_status=ok status=active
+17:11:28 +16s power=stopped server_status=locked status=active
+17:11:43 +31s power=stopped server_status=locked status=active
+17:11:58 +46s power=stopped server_status=locked status=active
+17:12:14 +61s power=stopped server_status=locked status=active
+17:12:29 +76s power=stopped server_status=locked status=active
+17:12:44 +92s power=stopped server_status=locked status=active
+17:12:59 +107s power=stopped server_status=locked status=active
+17:13:14 +122s power=stopped server_status=locked status=active
+17:13:30 +137s power=stopped server_status=locked status=active
+17:13:45 +152s power=stopped server_status=locked status=active
+17:14:00 +168s power=stopped server_status=locked status=active
+17:14:16 +183s power=running server_status=ok status=active

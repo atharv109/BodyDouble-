@@ -1,0 +1,31 @@
+{
+  "at": "2026-11-17T22:09:58Z",
+  "method": "POST",
+  "path": "/v2/firewalls/9aadb31d-e1fe-47d4-abe9-10b1616ca6fa/rules",
+  "request": {
+    "action": "accept",
+    "direction": "in",
+    "ip_type": "v4",
+    "protocol": "tcp",
+    "subnet": "0.0.0.0/0",
+    "subnet_size": 0,
+    "port": "22"
+  },
+  "status": 201,
+  "response": {
+    "firewall_rule": {
+      "id": 1,
+      "type": "v4",
+      "ip_type": "v4",
+      "action": "accept",
+      "protocol": "tcp",
+      "port": "22",
+      "subnet": "0.0.0.0",
+      "subnet_size": 0,
+      "source": "",
+      "notes": "",
+      "direction": "in",
+      "loadbalancer_id": ""
+    }
+  }
+}

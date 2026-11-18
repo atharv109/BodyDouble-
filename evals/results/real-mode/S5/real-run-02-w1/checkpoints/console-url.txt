@@ -1,0 +1,5 @@
+checkpoint 2
+console: https://my.vultr.com/subs/vps/novnc/?id=4320eb6e-f960-4ed3-a6ee-b122b581b3e2
+instance page: https://my.vultr.com/subs/?id=4320eb6e-f960-4ed3-a6ee-b122b581b3e2
+expected on screen: Alpine ISO console on tty0 (not Ubuntu login) with boot.sh lines: 'bd: no serial console; boot messages on tty0', 'bd-vpc-up: <vpc_ip>/20 on eth1', 'bd: cloned disk /dev/vda1 mounted inert and read-only at /mnt/disk', 'bd: sandbox image loaded; runtimes: ...runsc...'
+save the PNG in C:\Users\athar\OneDrive\Desktop\wt-backend\evals\results\real-mode\S5\real-run-02-w1\checkpoints and then create go-2 there to continue

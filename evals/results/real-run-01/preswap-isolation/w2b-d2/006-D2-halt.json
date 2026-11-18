@@ -1,0 +1,11 @@
+{
+  "at": "2026-11-17T22:10:41Z",
+  "method": "POST",
+  "path": "/v2/instances/f74a50f6-2e80-4436-add2-f2c0a1f1724a/halt",
+  "request": null,
+  "status": 409,
+  "response": {
+    "error": "Unable to stop server: Cannot stop server while server is locked",
+    "status": 409
+  }
+}

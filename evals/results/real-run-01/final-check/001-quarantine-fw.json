@@ -1,0 +1,15 @@
+{
+  "at": "2026-11-18T06:11:04Z",
+  "method": "GET",
+  "path": "/v2/firewalls/b4d15ab5-4dc1-480d-a721-ff14f2624e2a",
+  "request": null,
+  "status": 200,
+  "response": {
+    "firewall_group": {
+      "id": "b4d15ab5-4dc1-480d-a721-ff14f2624e2a",
+      "description": "bd quarantine case-0001",
+      "date_created": "2026-11-18 00:56:49",
+      "date_modified": "2026-11-18 00:56:49"
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "at": "2026-11-17T08:05:00Z",
+  "method": "POST",
+  "path": "/v2/instances/fb0dd8a4-1a6e-400a-8bfc-79340197ffd6/halt",
+  "request": null,
+  "status": 204,
+  "response": null
+}

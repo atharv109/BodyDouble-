@@ -1,0 +1,26 @@
+{
+  "at": "2026-11-17T08:05:17Z",
+  "method": "POST",
+  "path": "/v2/instances",
+  "request": {
+    "region": "ewr",
+    "plan": "vc2-1c-1gb",
+    "os_id": 2284,
+    "label": "bd-w2-nopub",
+    "hostname": "bd-w2-nopub",
+    "tags": [
+      "body-double"
+    ],
+    "backups": "disabled",
+    "attach_vpc": [
+      "ab6a9e85-029b-4798-8a08-6c365d424508"
+    ],
+    "user_data": "<redacted>",
+    "disable_public_ipv4": true
+  },
+  "status": 400,
+  "response": {
+    "error": "Server add failed: The selected VPC does not have a NAT gateway. Deploy a NAT gateway on this VPC before creating a VPC-only instance.",
+    "status": 400
+  }
+}

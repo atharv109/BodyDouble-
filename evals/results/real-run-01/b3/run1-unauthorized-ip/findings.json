@@ -1,0 +1,19 @@
+{
+  "snapshot_source": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
+  "planner": "glm-5.3-flash",
+  "solver": "glm-5.3",
+  "reserved_ip": {
+    "id": "b062913e-dfe9-4c6e-bca3-017c458bd9be",
+    "ip": "207.246.91.37"
+  },
+  "bd_cp": {
+    "id": "4c594b5c-100b-4885-9344-4f65a8e53af2",
+    "main_ip": "207.246.91.37",
+    "is_reserved_ip": true,
+    "vpc_ip": "10.1.96.3"
+  },
+  "shop_prod": {
+    "id": "83f82c53-591e-4e7d-a06f-4d5700d257e7",
+    "main_ip": "45.77.153.62"
+  }
+}

@@ -1,0 +1,10 @@
+03:03:31 A: created VPC-only; fields={"main_ip": "45.77.219.163", "vpc_ids": null, "internal_ip": "10.1.96.3", "region": "ewr", "plan": "vc2-1c-1gb"}; waiting sshd
+03:04:36 A: baseline egress from the VPC-only instance: 'http=200 egress_ip=45.77.219.163'
+03:04:48 E: in-VM egress after out-rules: 'http=200 rc=0\nrtt min/avg/max/mdev = 1.198/1.198/1.198/0.000 ms\ndone 2026-11-17T08:04:47.420192657Z'
+03:04:59 E: egress after deleting the drop rule: 'http=200 rc=0'
+03:05:00 D: after halt, power_status='stopped'
+03:05:01 D: restore on the halted instance -> 202: {"status": {"restore_type": "snapshot", "restore_id": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70", "status": "inprogress"}}
+03:05:16 D: power_status after restore = 'stopped'
+03:05:17 B: create with disable_public_ipv4 -> 400
+03:05:18 C: create with power_on=False -> 202
+03:05:19 W2 probes cleaned up

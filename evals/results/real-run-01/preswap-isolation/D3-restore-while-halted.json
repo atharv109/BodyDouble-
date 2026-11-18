@@ -1,0 +1,10 @@
+{
+  "status": 202,
+  "response": {
+    "status": {
+      "restore_type": "snapshot",
+      "restore_id": "ef199a06-6054-4cd4-bd42-70ae3c3a8b70",
+      "status": "inprogress"
+    }
+  }
+}

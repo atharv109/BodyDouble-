@@ -1,0 +1,7 @@
+before any out-rule:
+$ ip -4 -brief addr
+lo               UNKNOWN        127.0.0.1/8 
+enp1s0           UP             45.77.219.163/23 metric 100 
+enp8s0           UP             10.1.96.3/20
+$ curl https://api.ipify.org
+http=200 egress_ip=45.77.219.163
