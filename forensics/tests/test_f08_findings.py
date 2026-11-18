@@ -51,7 +51,7 @@ async def test_victim_run_yields_five_evidence_linked_findings_and_timeline() ->
         make_case(), LocalRunner(VICTIM), recorder
     )
 
-    analyst_findings = [f for f in recorder.findings if f.id.startswith("finding-")]
+    analyst_findings = [f for f in recorder.findings if f.id.startswith("case-1-finding-")]
     assert len(analyst_findings) == 5
     known = {ev.id for ev in recorder.evidence}
     assert all(f.evidence_ids and set(f.evidence_ids) <= known for f in recorder.findings)

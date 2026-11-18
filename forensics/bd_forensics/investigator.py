@@ -95,10 +95,10 @@ class InvestigatorImpl:
             nonlocal steps
             seq = steps + 1
             job = ToolCall(
-                job_id=f"job-{seq:02d}", case_id=case.id, tool=tool, args=args
+                job_id=f"{case.id}-job-{seq:02d}", case_id=case.id, tool=tool, args=args
             )
             step = Step(
-                id=f"step-{seq:02d}",
+                id=f"{case.id}-step-{seq:02d}",
                 case_id=case.id,
                 seq=seq,
                 kind=StepKind.detonate if tool == ToolName.detonate else StepKind.triage,
@@ -126,7 +126,7 @@ class InvestigatorImpl:
                 excerpt, injection_flag = prepare_excerpt(encode_path(artifact.path)[1:-1],
                                                           artifact.excerpt)
                 ev = Evidence(
-                    id=f"ev-{len(evidence) + 1:03d}",
+                    id=f"{case.id}-ev-{len(evidence) + 1:03d}",
                     case_id=case.id,
                     step_id=step.id,
                     path=artifact.path,
@@ -155,7 +155,7 @@ class InvestigatorImpl:
                 )
                 excerpt, injection_flag = prepare_excerpt(f"dns:{query}", dns_text)
                 ev = Evidence(
-                    id=f"ev-{len(evidence) + 1:03d}",
+                    id=f"{case.id}-ev-{len(evidence) + 1:03d}",
                     case_id=case.id,
                     step_id=step.id,
                     path=f"dns:{query}",

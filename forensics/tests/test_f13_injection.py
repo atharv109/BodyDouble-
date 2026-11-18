@@ -31,7 +31,7 @@ async def test_ai_note_becomes_flagged_finding_without_changing_analyst_findings
     assert len(injections) == 1
     assert injections[0].evidence_ids == [note.id]
     assert "not followed" in injections[0].summary
-    assert len([f for f in recorder.findings if f.id.startswith("finding-")]) == 5
+    assert len([f for f in recorder.findings if f.id.startswith("case-1-finding-")]) == 5
 
 
 @pytest.mark.asyncio
