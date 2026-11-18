@@ -34,6 +34,9 @@ STATE = {
     "object_storages": [{"id": "obs-ours", "label": "bd-iso-upload"},
                         {"id": "obs-theirs", "label": "customer-files"}],
     "plans": [{"id": "vc2-1c-1gb", "monthly_cost": 5}],
+    "reserved_ips": [{"id": "rip-ours", "label": "bd-cp-ip", "subnet": "45.0.0.9"},
+                     {"id": "rip-kept", "label": "bd-cp-ip", "subnet": "45.0.0.10"},
+                     {"id": "rip-theirs", "label": "mail-server", "subnet": "45.0.0.11"}],
 }
 # per-VPC NAT gateways (no flat list on Vultr): ours sits on the KEPT VPC, as the
 # W2b leak 62f6fe13 did on ab6a9e85
@@ -48,7 +51,7 @@ def fake():
     deleted: list[str] = []
     key_for = {"instances": "instances", "snapshots": "snapshots", "firewalls": "firewall_groups",
                "vpcs": "vpcs", "iso": "isos", "object-storage": "object_storages",
-               "plans": "plans"}
+               "plans": "plans", "reserved-ips": "reserved_ips"}
 
     def handler(req: httpx.Request) -> httpx.Response:
         parts = req.url.path.strip("/").split("/")  # ["v2", kind, id?]
@@ -79,9 +82,18 @@ def fake():
 
 def test_sweep_deletes_only_ours(fake):
     api, deleted = fake
-    vs.sweep(api, dry_run=False, keep={"v-env"}, out=lambda *_: None)
+    vs.sweep(api, dry_run=False, keep={"v-env", "rip-kept"}, out=lambda *_: None)
     assert sorted(deleted) == ["f-ours", "i-bd", "i-ours", "iso-ours", "iso-ours2",
-                               "nat-ours", "obs-ours", "s-ours", "v-ours"]
+                               "nat-ours", "obs-ours", "rip-ours", "s-ours", "v-ours"]
+
+
+def test_reserved_ip_kept_while_gate_active_and_after_instances(fake):
+    """bd-cp's allowlisted reserved IP (BD_CP_RESERVED_IP_ID) survives a normal
+    sweep; an unkept one of ours is released only after instances are gone."""
+    api, deleted = fake
+    vs.sweep(api, dry_run=False, keep={"v-env", "rip-kept"}, out=lambda *_: None)
+    assert "rip-kept" not in deleted and "rip-theirs" not in deleted
+    assert deleted.index("rip-ours") > max(deleted.index("i-ours"), deleted.index("i-bd"))
 
 
 def test_nat_gateway_on_kept_vpc_is_deleted_before_vpcs(fake):
@@ -112,6 +124,7 @@ def test_case_snapshots_and_env_refs_survive(fake):
     ("iso", STATE["isos"][2]),
     ("object_storage", STATE["object_storages"][1]),
     ("nat_gateway", {**NATS["v-theirs"][0], "vpc_id": "v-theirs"}),
+    ("reserved_ip", STATE["reserved_ips"][2]),
 ])
 def test_delete_guard_refuses_foreign(fake, kind, item):
     api, deleted = fake

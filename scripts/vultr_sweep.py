@@ -10,6 +10,9 @@ Deletes ONLY resources marked as ours:
   VPCs, firewalls  description contains "body-double" or starts "bd-"
   object storage   label starts "bd-" (the short-lived bd-iso-upload ISO publisher)
   ISOs             filename contains "body-double" or starts "bd-"
+  reserved IPs     label contains "body-double"/"bodydouble" or starts "bd-" (bd-cp's
+                   allowlisted IP, Gate 2 B3); the one in BD_CP_RESERVED_IP_ID is kept
+                   unless --release-reserved-ip (the gate's FINAL sweep)
   NAT gateways     label contains "body-double" or starts "bd-", on ANY VPC (kept
                    VPCs included: a NAT gateway bills hourly). No flat list exists
                    (POST/GET /v2/nat-gateways -> 404, W2b evidence); they live under
@@ -44,8 +47,10 @@ KINDS = {
     "vpc": ("/v2/vpcs", "vpcs", "/v2/vpcs"),
     "object_storage": ("/v2/object-storage", "object_storages", "/v2/object-storage"),
     "iso": ("/v2/iso", "isos", "/v2/iso"),
+    "reserved_ip": ("/v2/reserved-ips", "reserved_ips", "/v2/reserved-ips"),
 }
-ORDER = ["instance", "snapshot", "firewall", "nat_gateway", "vpc", "object_storage", "iso"]
+ORDER = ["instance", "snapshot", "firewall", "nat_gateway", "vpc", "object_storage", "iso",
+         "reserved_ip"]
 # instances first; NAT gateways before their VPC
 
 
@@ -95,7 +100,7 @@ def owned(kind: str, item: dict) -> bool:
         return _marked(desc) and not PROTECTED_SNAPSHOT.search(desc)
     if kind in ("firewall", "vpc"):
         return _marked(item.get("description"))
-    if kind in ("object_storage", "nat_gateway"):
+    if kind in ("object_storage", "nat_gateway", "reserved_ip"):
         return _marked(item.get("label"))
     if kind == "iso":
         return _marked(item.get("filename"))
@@ -154,12 +159,16 @@ def main() -> int:
     ap.add_argument("--dry-run", action="store_true")
     ap.add_argument("--include-env-refs", action="store_true",
                     help="also delete the ISO/VPC named by VULTR_ISO_ID/BD_VPC_ID")
+    ap.add_argument("--release-reserved-ip", action="store_true",
+                    help="also delete the reserved IP in BD_CP_RESERVED_IP_ID (gate FINAL)")
     ap.add_argument("--keep", action="append", default=[], metavar="ID",
                     help="never delete this resource id (repeatable)")
     args = ap.parse_args()
     env = load_secrets()
     keep = set() if args.include_env_refs else {v for k, v in env.items()
                                                if k in ("VULTR_ISO_ID", "BD_VPC_ID") and v}
+    if not args.release_reserved_ip and env.get("BD_CP_RESERVED_IP_ID"):
+        keep.add(env["BD_CP_RESERVED_IP_ID"])
     shop = REPO / "evals/results/real-mode/S4/result.json"
     if not args.include_env_refs and shop.is_file():  # Gate 1/2: snapshot ef199a06
         keep.add(__import__("json").loads(shop.read_text())["snapshot_id"])
