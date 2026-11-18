@@ -92,8 +92,8 @@ def build_real_investigator(settings):
                           model=settings.model_planner)
     solver = OpenAIModel(api_key=settings.inference_key,
                          model=settings.model_solver)
-    # forensics is landing this parallel-model interface separately.
-    return InvestigatorImpl(planner=planner, solver=solver)
+    # forensics' landed signature (1099e70): InvestigatorImpl(planner_model, solver_model)
+    return InvestigatorImpl(planner_model=planner, solver_model=solver)
 
 
 class CaseNotFound(LookupError):
