@@ -27,9 +27,17 @@ def _json(raw: str) -> dict:
     return value if isinstance(value, dict) else {}
 
 
+def encode_path(path: str) -> str:
+    """A disk-controlled path as a JSON string with <, > and & also escaped: it can
+    never open or close an <evidence> wrapper, start a new line, or pose as text
+    outside its quotes - and json.loads still recovers it exactly."""
+    return (json.dumps(path, ensure_ascii=True)
+            .replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026"))
+
+
 def _context(evidence: list[Evidence]) -> str:
     return "\n".join(
-        f"id={ev.id} path={ev.path}\n{ev.excerpt}"
+        f"id={ev.id} path={encode_path(ev.path)}\n{ev.excerpt}"
         for ev in evidence
     )
 
