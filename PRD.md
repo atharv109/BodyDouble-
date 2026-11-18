@@ -11,11 +11,14 @@ The problem. A small team that suspects a breach has two bad options. Poke aroun
 live server and risk tipping off the attacker, destroying evidence, or running their malware.
 Or shut it down and take the business offline. Incident-response firms solve this by
 imaging the disk and working on the copy, but small teams have no IR staff.
-Why a copy, and why the copy never boots. Investigating a clone keeps production and
+Why a copy, and why the copy is sealed. Investigating a clone keeps production and
 evidence intact. But Vultr Firewall only filters incoming traffic, not outgoing, so a booted
 clone of a hacked server could still call the attacker or write to the real production
 database. Body Double therefore boots the clone from its own forensics ISO, mounts the
 cloned disk read-only, and runs anything suspicious only inside no-network containers.
+Measured caveat: the clone's own OS runs once, about 39-61 s between the snapshot
+restore and the sealed ISO boot; egress is blocked only in the sealed boot
+(docs/real-mode-findings.md, evals/results/real-run-01/preswap-egress/probe.txt).
 Why now. A July 2026 benchmark (SecRespond) found that current agents surface the
 problems alerts expose but struggle to investigate the disk proactively and finish
 remediation. No Agent Rush repo found on GitHub (38 reviewed) does incident response.
@@ -131,8 +134,10 @@ server. It snapshots it and builds an
 exact twin in a sealed room."
 0:25 Seal checks turn green: disk read-only,
 egress blocked
-"The twin's own OS never runs, so
-nothing on it can call home."
+"The twin boots the sealed forensics ISO.
+Only the sealed boot can't call home: the
+clone's own OS ran briefly first, and that
+window's egress is measured, not hidden."
 0:35 Live step feed: cron backdoor, rogue SSH
 key, modified binary
 "The agent writes and runs its own
@@ -252,9 +257,11 @@ Page 7 of 17
 
 Containment and security model
 The threat model assumes the attacker controls everything on the cloned disk, including
-text written to trick the agent. Three walls keep that contained: the twin's OS never boots,
-untrusted code runs only in no-network gVisor containers, and every model output is data
-until code or a human acts on it.
+text written to trick the agent. Three walls keep that contained: after the sealed ISO
+boot the clone's disk is read-only, untrusted code runs only in no-network gVisor
+containers, and every model output is data
+until code or a human acts on it. (During the ~39-61 s pre-swap window the clone's
+own OS runs with public egress; measured in docs/real-mode-findings.md.)
 Vultr service Role in Body Double
 Firewall groups Inbound-deny on the twin; the quarantine group
 applied to production on approval
@@ -298,7 +305,9 @@ Page 8 of 17
 Network walls
 Vultr Firewall filters only inbound traffic, so outbound blocking is done by the
 forensics ISO itself: default DROP, allow only the case VPC subnet. This is trustworthy
-because the attacker's OS never runs.
+only in the sealed ISO boot: the clone's own OS runs first, for a measured ~39-61 s
+window with public egress, before the ESP swap seals the twin
+(docs/real-mode-findings.md T1 caveat).
 Containers get --network none . A fake DNS resolver inside the container
 namespace answers every lookup with a sinkhole address and logs the name. That log
 is how the beacon is caught.

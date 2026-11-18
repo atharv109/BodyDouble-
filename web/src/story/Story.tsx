@@ -69,7 +69,7 @@ export function Story() {
               <p className="coda" data-reveal>{problem.coda}</p>
             </section>
 
-            {/* beat 3: why a copy, and why it never boots */}
+            {/* beat 3: why a copy, and why it is sealed */}
             <section data-testid="beat-3" aria-labelledby="b3" className="beat">
               <h2 id="b3" className="display-2" data-words><Words text={whyCopy.h2} /></h2>
               <p className="lede" data-reveal>{whyCopy.lede}</p>

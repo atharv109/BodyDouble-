@@ -38,8 +38,9 @@
           investigates an exact copy in a sealed room, and proposes containment for the real server that a human approves.</p>
         <p>A small team that suspects a breach has two bad options: poke the live server and risk tipping off the attacker,
           or shut it down and take the business offline. Body Double works on the copy instead.</p>
-        <p>The copy never boots its own OS: the twin starts from a forensics ISO, mounts the cloned disk read-only, and runs
-          anything suspicious only in no-network gVisor containers with a fake DNS resolver that catches the beacon.</p>
+        <p>The copy is sealed where it counts: the twin swaps the clone's loaders so the sealed forensics ISO boot takes over,
+          mounts the cloned disk read-only, and runs anything suspicious only in no-network gVisor containers with a fake DNS
+          resolver that catches the beacon. The clone's own OS runs once, ~39-61 s, before the swap — measured, not hidden.</p>
         <ul>
           <li>Writes to production before approval: 0. Packets out of the investigation: 0. Containers left running: 0.</li>
           <li>Built on Vultr Cloud Compute, Snapshots, custom ISO, VPC, firewall groups, the Vultr API and Serverless Inference.</li>

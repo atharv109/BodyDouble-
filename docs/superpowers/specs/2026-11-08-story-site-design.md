@@ -31,16 +31,18 @@ invented numbers, customers or quotes.
 2. **The problem:** the 2 a.m. alert at a small team with no IR staff. Two bad options: poke
    the live server (tip off the attacker, destroy evidence, run their malware) or shut it
    down (the business goes offline).
-3. **Why a copy, and why the copy never boots:** a booted clone could still call the attacker
+3. **Why a copy, and why the copy is sealed:** a booted clone could still call the attacker
    or write to the production database, because Vultr Firewall filters only inbound traffic.
    So the twin boots a forensics ISO, mounts the cloned disk read-only, and runs anything
-   suspicious only in no-network containers.
+   suspicious only in no-network containers. The clone's own OS runs once, ~39-61 s,
+   before the sealed boot (measured; docs/real-mode-findings.md).
 4. **How it works:** the real case flow: open case, snapshot, build the twin on a private VPC
    behind an inbound-deny firewall, seal checks (disk read-only, egress blocked), the agent
    writes and runs triage steps, suspicious files detonate in gVisor with a fake DNS that
    catches the beacon, report with evidence-linked findings, human approves containment,
    twin destroyed and evidence sealed.
-5. **Three walls:** the twin's OS never runs; untrusted code runs only in no-network gVisor
+5. **Three walls (in the sealed boot):** the cloned disk is read-only and egress is dropped;
+   untrusted code runs only in no-network gVisor
    containers; every model output is data until code or a human acts on it.
 6. **The attacker's note to the AI:** text on the disk telling an "AI analyst" to close the
    ticket is reported as a finding, never followed.
@@ -63,7 +65,7 @@ Use in beats 2-3, each with a visible link to its source. Quote only what the so
 | | Maersk / NotPetya, 2017: 4,000 servers, 45,000 PCs and 2,500 applications reinstalled in ten days; $250-300M cost | https://www.theregister.com/2018/01/25/after_notpetya_maersk_replaced_everything |
 | Attackers watch the responders | Lapsus$ (DEV-0537), 2022: joined victims' ongoing crisis-communication calls (Microsoft) | https://www.microsoft.com/security/blog/dev-0537 |
 | | Scattered Spider: searched victims' Slack and Teams for intrusion and incident-response discussions (MITRE ATT&CK) | https://attack.mitre.org/techniques/T1213/005/ |
-| Malware reacts to being investigated (why the twin's OS never runs) | SolarWinds SUNBURST, 2020: checked for forensic and security tools and went quiet, exited, or disabled them; evaded investigators for about seven months | https://cloud.google.com/blog/topics/threat-intelligence/sunburst-additional-technical-details/ |
+| Malware reacts to being investigated (why the copy is sealed) | SolarWinds SUNBURST, 2020: checked for forensic and security tools and went quiet, exited, or disabled them; evaded investigators for about seven months | https://cloud.google.com/blog/topics/threat-intelligence/sunburst-additional-technical-details/ |
 
 **Demo case theming (orchestrator's call, within scope):** the live demo stays the fictional
 `shop-prod`. Its planted indicators and recorded data do not change. The story frames it as the

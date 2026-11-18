@@ -1,7 +1,9 @@
 """F5 seal checks: the twin verifies its own isolation before investigating.
 
 Both checks run on the twin itself (the forensics ISO booted instead of the
-cloned OS, so the results are trustworthy - the attacker's code never runs):
+cloned OS's boot path; the sealed boot's results are what we publish - the
+clone's own OS does run briefly, ~39-61 s, before the swap, and its egress is
+measured, not assumed: docs/real-mode-findings.md T1 caveat):
 - disk_read_only: the cloned disk must be mounted with the `ro` option.
 - egress_blocked: an outbound connection to the public internet must fail
   (the ISO egress firewall allows only the case control-plane IP and port).

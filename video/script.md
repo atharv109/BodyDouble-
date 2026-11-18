@@ -41,7 +41,8 @@ scene's in-point so entrances never fight footage.
   grammar: production server (left, stays lit, "serving traffic") → Vultr API
   snapshot card ("evidence #1", hash chip) → twin card on a private VPC lane,
   gold seal line closing around it. Labels mono; the ISO boot is called out:
-  "boots the forensics ISO — the cloned OS never runs."
+  "the sealed ISO boot takes over (~39-61 s after the clone's own OS ran once,
+  measured — see the findings doc)."
 - **4 Seal.** Footage of the case screen's own seal checks and the app's own
   gold `.seal-frame` perimeter. This is the film's containment motif stated
   by the product itself.

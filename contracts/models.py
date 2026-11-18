@@ -226,8 +226,9 @@ class FirewallRule(BaseModel):
 class CreateTwinRequest(BaseModel):
     """Body for POST /v2/instances. Preferred: snapshot_id + iso_id in one call (T1).
     If Vultr rejects that, the T1 fallback (PRD) is: create with iso_id only, then
-    VultrClient.restore_snapshot() onto it with the ISO still attached, so the cloned
-    OS never boots. Attaching the ISO after a snapshot-only create is the last resort."""
+    restore_snapshot() onto it with the ISO re-inserted (detach + attach) and the
+    clone's loaders swapped so the sealed ISO boot takes over; the cloned OS still
+    runs once (~39-61 s) before the swap - see docs/real-mode-findings.md T1."""
 
     region: str
     plan: str
