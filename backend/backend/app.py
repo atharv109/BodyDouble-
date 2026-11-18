@@ -68,7 +68,7 @@ from .db import StepRow
 from .sessions import mint, verify
 from .db import AlertRow, CaseRow, SensorNonceRow, SensorRow, utcnow
 from .state import AppState, build_state
-from .service import ActionConflict, AlertRateLimit, TransitionError
+from .service import ActionConflict, AlertRateLimit, TransitionError, new_reg_token
 from .twin import TwinChannelError, in_subnet
 
 COOKIE_NAME = "bd_session"
@@ -174,7 +174,7 @@ def create_app(state: AppState | None = None) -> FastAPI:
                 )).scalars().all()
                 recoverable = [(row.id, row.twin_internal_ip) for row in live]
                 for row in live:
-                    row.reg_token = "twreg-" + secrets.token_urlsafe(24)
+                    row.reg_token = new_reg_token()
                 session.commit()
             for case_id, vpc_ip in recoverable:
                 token = state.service.row(case_id).reg_token

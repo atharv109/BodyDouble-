@@ -75,6 +75,14 @@ log = logging.getLogger("backend")
 _INSTANCE_ID = re.compile(r"^[A-Za-z0-9-]{1,64}$")
 
 
+def new_reg_token() -> str:
+    """One-time twin registration token. It travels in user_data to the forensics
+    ISO, whose validator accepts only [A-Za-z0-9-] (bd_forensics.metadata.SAFE_ID):
+    hex, never token_urlsafe, whose '_' made ~40% of sealed boots reject the whole
+    envelope and never register (Gate 2 B3, real run 5)."""
+    return "twreg-" + secrets.token_hex(24)
+
+
 def build_real_investigator(settings):
     """Construct the production two-model investigator without exposing its key."""
     from bd_forensics.investigator import InvestigatorImpl
@@ -336,7 +344,7 @@ class CaseService:
             "warm": True,
         })
         self._move(row, CaseState.restoring, "adopting pre-restored warm twin")
-        token = "twreg-" + secrets.token_urlsafe(24)
+        token = new_reg_token()
         row.reg_token = token
         self._touch(row)
         self.channel.prepare_registration(row.id, token)
@@ -538,7 +546,7 @@ class CaseService:
         fw = await self.vultr.create_firewall_group(f"bd twin {row.id} inbound deny")
         row.firewall_group_id = fw.id
         self._touch(row)
-        token = "twreg-" + secrets.token_urlsafe(24)
+        token = new_reg_token()
         user_data = base64.b64encode(json.dumps({
             "case_id": row.id, "token": token,
             "control_plane": self.settings.control_url,
@@ -678,7 +686,7 @@ class CaseService:
         Returns the token the sealed boot will use."""
         await self._wait_restore_settled(twin.id)
         if self.settings.real_mode:
-            token = secrets.token_urlsafe(24)
+            token = new_reg_token()
             vpc_ip = twin.internal_ip
             payload = json.dumps({"case_id": row.id, "token": token,
                                   "control_plane": self.settings.control_url,
