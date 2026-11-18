@@ -118,7 +118,9 @@ def deploy_backend(cp_ip: str, cp_vpc_ip: str, subnet: str, env: dict) -> None:
         "BD_OPERATOR_PASSWORD": env["BD_OPERATOR_PASSWORD"], "APP_SECRET": secrets.token_urlsafe(36),
         "VULTR_INFERENCE_KEY": env["VULTR_INFERENCE_KEY"],
         "BD_MODEL_PLANNER": PLANNER, "BD_MODEL_SOLVER": SOLVER,
-        "BOOT_TIMEOUT_S": "1800",  # the out-of-band ESP swap happens inside this wait
+        # the out-of-band ESP swap + sealed boot happen inside the registration wait;
+        # REGISTER_TIMEOUT_S is the one that gates it (run 4 failed at the 300 s default)
+        "BOOT_TIMEOUT_S": "1800", "REGISTER_TIMEOUT_S": "1800",
         "DATABASE_URL": "sqlite:////srv/bd/b3.db",
     }
     body = "".join(f"{k}={v}\n" for k, v in lines.items()).encode()
@@ -237,8 +239,10 @@ def main() -> int:
 
         wait_allowlist(cp_ip, rip, key)
         deploy_backend(cp_ip, cp_vpc_ip, subnet, env)
-        tunnel = subprocess.Popen(["ssh", *ssh_opts(), "-N", "-L",
-                                   f"{TUNNEL_PORT}:127.0.0.1:8000", f"ubuntu@{cp_ip}"])
+        tunnel_cmd = ["ssh", *ssh_opts(), "-o", "ServerAliveInterval=30", "-o",
+                      "ServerAliveCountMax=4", "-o", "ExitOnForwardFailure=yes", "-N", "-L",
+                      f"{TUNNEL_PORT}:127.0.0.1:8000", f"ubuntu@{cp_ip}"]
+        tunnel = subprocess.Popen(tunnel_cmd)
         time.sleep(5)
         base = f"http://127.0.0.1:{TUNNEL_PORT}"
         hz = httpx.get(f"{base}/healthz", timeout=30)
@@ -277,16 +281,42 @@ def main() -> int:
         created.append(("instances", twin["id"]))  # teardown should delete it; finally double-checks
         findings["esp_swap_out_of_band"] = swap_when_post_attach_boot(api, cp_ip, twin["id"])
         note(f"ESP swap (driver, out-of-band): {findings['esp_swap_out_of_band']}")
-        th.join(timeout=5400)
+        # Poll on short connections instead of trusting the hour-long POST: in run 4 the
+        # server sent its 201 but the response never crossed the SSH tunnel.
+        case_id = "case-0001"  # fresh DB on a fresh bd-cp
+        state, reported_since, t_wait = None, None, time.monotonic()
+        while time.monotonic() - t_wait < 5400:
+            if tunnel.poll() is not None:  # the ssh -L process died: reopen it
+                note("tunnel died; reopening")
+                tunnel = subprocess.Popen(tunnel_cmd)
+                time.sleep(5)
+            try:
+                state = httpx.get(f"{base}/cases/{case_id}", headers=client.headers,
+                                  timeout=30).json()["case"]["state"]
+            except Exception:  # noqa: BLE001
+                state = None
+            if state in ("closed", "failed"):
+                break
+            if state in ("reported", "contained"):  # full pipeline stopped short of close
+                reported_since = reported_since or time.monotonic()
+                if time.monotonic() - reported_since > 120:
+                    break
+            else:
+                reported_since = None
+            time.sleep(30)
         findings["post_cases"] = {"status": result.get("status"), "error": result.get("error"),
-                                  "seconds": round(time.monotonic() - t_case)}
+                                  "seconds": round(time.monotonic() - t_case),
+                                  "polled_state": state}
         save("post-cases-response.json", result)
-        case = (result.get("body") or {})
-        case_id = case.get("id")
-        note(f"POST /cases -> {result.get('status')} state={case.get('state')} "
-             f"after {findings['post_cases']['seconds']}s")
-        if not case_id:
-            raise RuntimeError(f"no case from POST /cases: {json.dumps(result)[:300]}")
+        note(f"case {case_id} state={state} after {findings['post_cases']['seconds']}s "
+             f"(POST response seen by driver: {result.get('status')})")
+        if state == "failed":
+            failed = client.get(f"/cases/{case_id}").json()
+            save("case-detail.json", failed)
+            case_snapshot = failed["case"].get("snapshot_id")  # finally deletes it
+            raise RuntimeError(f"case {case_id} failed; see backend-journal.txt, case-detail.json")
+        if state is None:
+            raise RuntimeError(f"case {case_id} unreadable through the tunnel")
         detail = client.get(f"/cases/{case_id}").json()
         if detail["case"]["state"] != "closed":
             cr = client.post(f"/cases/{case_id}/close")
