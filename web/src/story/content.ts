@@ -60,16 +60,16 @@ export const problem = {
 }
 
 export const whyCopy = {
-  h2: 'Why a copy. And why the copy never boots.',
+  h2: 'Why a copy. And why the copy is sealed.',
   lede: 'A clone keeps production and its evidence intact. But Vultr Firewall filters only inbound, so a booted clone of a hacked server can still call the attacker.',
   incident: {
     name: 'SolarWinds SUNBURST', when: '2020',
     text: 'Went quiet when it saw forensic tools. Evaded investigators for about seven months.',
     sources: [{ label: 'Google Threat Intelligence', href: 'https://cloud.google.com/blog/topics/threat-intelligence/sunburst-additional-technical-details/' }],
   } as Incident,
-  incidentPoint: 'Malware reacts to being watched. So the attacker’s OS never runs.',
+  incidentPoint: 'Malware reacts to being watched. So the copy is sealed where it counts.',
   moves: [
-    { title: 'Boot our ISO', text: 'The twin starts from Body Double’s image, never the cloned OS.' },
+    { title: 'Our ISO swaps the loaders', text: 'The sealed forensics boot takes over from the clone’s own OS (~39-61 s, measured).' },
     { title: 'Mount the disk read-only', text: 'The cloned disk is evidence.', code: '/dev/vdb1 on /mnt/evidence type ext4 (ro,noexec,nosuid,nodev)' },
     { title: 'Detonate offline', text: 'Suspicious code runs in gVisor, no network, fake DNS.' },
   ],
@@ -104,7 +104,7 @@ export const walls = {
   h2: 'Three walls between the attacker and the agent.',
   lede: 'Assume the attacker wrote everything on the disk.',
   items: [
-    { title: 'The twin’s OS never runs.', text: 'Our ISO drops all outbound traffic by default.' },
+    { title: 'The sealed boot drops all outbound traffic.', text: 'The clone’s own OS ran once before the swap (measured 39-61 s, see the findings doc).' },
     { title: 'Untrusted code runs in gVisor.', text: 'No network. 1 vCPU, 512 MB, 60 s. Removed after every run.' },
     { title: 'Model output is data.', text: 'A fixed tool list, a fixed action menu. No shell, no Vultr API.' },
   ],
@@ -156,7 +156,7 @@ export const attacks: { value: Attack; name: string; path: string }[] = [
 /**
  * Incident presets for "Infect a server". Each plants the subset of our five attacks that matches a technique
  * its source reports. "happened" says only what that source says; "helped" says only what is true of this product
- * (PRD.md): a sealed copy instead of a shutdown, an OS that never boots, findings to a human. Never prevention.
+ * (PRD.md): a sealed copy instead of a shutdown, a sealed boot that blocks egress, findings to a human. Never prevention.
  */
 export type Scenario = {
   id: string; company: string; title: string; year: string; attacks: Attack[]
@@ -174,7 +174,7 @@ export const scenarios: Scenario[] = [
     id: 'sunburst', company: 'SolarWinds', title: 'SolarWinds SUNBURST', year: '2020', attacks: ['replaced_top', 'c2_beacon'],
     happened: 'A trojanized, digitally signed Orion plugin carried a backdoor that talked to outside servers. When it found forensic tools running, it paused and tried again later.',
     planted: 'A replaced system binary stands in for the trojanized plugin; a beacon to a C2 domain stands in for the backdoor’s calls out.',
-    helped: 'The copy’s OS never boots, so malware that hides from forensic tools never runs. Suspect files run only in a no-network container whose fake DNS logs every name they ask for.',
+    helped: 'The copy is sealed after a measured ~39-61 s pre-swap window; in the sealed boot the disk is read-only and egress drops, so suspect files run only in a no-network container whose fake DNS logs every name they ask for.',
     source: { label: 'Mandiant, SUNBURST technical details', href: 'https://cloud.google.com/blog/topics/threat-intelligence/sunburst-additional-technical-details/' },
   },
   {
